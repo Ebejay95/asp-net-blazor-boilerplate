@@ -18,5 +18,9 @@ public class AppDbContext: DbContext {
       entity.Property(u => u.LastName).IsRequired().HasMaxLength(100);
       entity.Property(u => u.CreatedAt).IsRequired();
     });
-  }
+
+    // modelBuilder.Entity<Assessment>(entity => {
+    //   entity.HasKey(u => u.Id);
+    // });
+
 }

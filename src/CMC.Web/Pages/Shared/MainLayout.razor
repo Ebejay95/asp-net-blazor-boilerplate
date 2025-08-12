@@ -1,7 +1,67 @@
 @inherits LayoutComponentBase
 
-<div style="padding: 20px;">
-    <h2>Simple Layout</h2>
+<!--
+SCHRITT-FÜR-SCHRITT TESTING:
+1. Erst nur @Body (aktuell aktiv)
+2. Dann + einfaches HTML
+3. Dann + Navigation
+4. Dann + Authentication
+-->
+
+<!-- SCHRITT 1: Nur Body (Minimal) -->
+<div style="padding: 20px; border: 2px solid green;">
+    <h2 style="color: green;">✅ MainLayout Step 1: Basic Body</h2>
+    <p>Zeit: @DateTime.Now.ToString("HH:mm:ss")</p>
     <hr />
     @Body
 </div>
+
+<!-- SCHRITT 2: + Static Navigation
+-->
+<div class="d-flex">
+    <nav style="width: 200px; background: #f8f9fa; padding: 20px;">
+        <h3>Navigation</h3>
+        <a href="/" class="d-block">Home</a>
+        <a href="/debug" class="d-block">Debug</a>
+    </nav>
+    <main style="flex: 1; padding: 20px;">
+        <h2 style="color: blue;">✅ MainLayout Step 2: + Navigation</h2>
+        @Body
+    </main>
+</div>
+
+<!-- SCHRITT 3: + Dynamic NavMenu Component (auskommentiert)
+-->
+<div class="d-flex">
+    <div style="width: 200px;">
+        <NavMenu />
+    </div>
+    <main style="flex: 1; padding: 20px;">
+        <h2 style="color: purple;">✅ MainLayout Step 3: + NavMenu</h2>
+        @Body
+    </main>
+</div>
+
+<!-- SCHRITT 4: + Authentication (auskommentiert)
+<div class="d-flex">
+    <div style="width: 200px;">
+        <NavMenu />
+    </div>
+    <main style="flex: 1;">
+        <header style="padding: 10px; background: #e9ecef;">
+            <LoginDisplay />
+        </header>
+        <article style="padding: 20px;">
+            <h2 style="color: red;">✅ MainLayout Step 4: + Authentication</h2>
+            @Body
+        </article>
+    </main>
+</div>
+-->
+
+@code {
+    protected override void OnInitialized()
+    {
+        Console.WriteLine("🎯 MainLayout initialized!");
+    }
+}
