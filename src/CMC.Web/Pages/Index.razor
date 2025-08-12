@@ -1,0 +1,26 @@
+@page "/"
+@attribute [AllowAnonymous]
+
+<PageTitle>Home</PageTitle>
+
+<h1>Welcome to CMC!</h1>
+
+<p>This is a simple test page.</p>
+
+<p>If you see this, Blazor is working!</p>
+
+<button class="btn btn-primary" @onclick="TestClick">Test Button</button>
+
+@if (clicked)
+{
+    <p style="color: green;">Button clicked successfully! ✅</p>
+}
+
+@code {
+    private bool clicked = false;
+
+    private void TestClick()
+    {
+        clicked = true;
+    }
+}
