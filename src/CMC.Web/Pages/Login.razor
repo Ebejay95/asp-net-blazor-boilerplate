@@ -1,0 +1,108 @@
+@page "/login"
+@using CMC.Application.Services
+@using CMC.Contracts.Users
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Authentication.Cookies
+@using System.Security.Claims
+@inject UserService UserService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Login</PageTitle>
+
+<div class="row justify-content-center">
+    <div class="col-md-4">
+        <h2>Login</h2>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger">@errorMessage</div>
+        }
+
+        <EditForm Model="@loginRequest" OnValidSubmit="@HandleLogin">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="form-group mb-3">
+                <label for="email">Email:</label>
+                <InputText id="email" class="form-control" @bind-Value="loginRequest.Email" />
+                <ValidationMessage For="@(() => loginRequest.Email)" />
+            </div>
+
+            <div class="form-group mb-3">
+                <label for="password">Password:</label>
+                <InputText id="password" type="password" class="form-control" @bind-Value="loginRequest.Password" />
+                <ValidationMessage For="@(() => loginRequest.Password)" />
+            </div>
+
+            <button type="submit" class="btn btn-primary" disabled="@isLoading">
+                @if (isLoading)
+                {
+                    <span class="spinner-border spinner-border-sm" role="status"></span>
+                    <span> Logging in...</span>
+                }
+                else
+                {
+                    <span>Login</span>
+                }
+            </button>
+        </EditForm>
+
+        <hr />
+        <p>
+            Don't have an account? <a href="/register">Register here</a><br />
+            <a href="/forgot-password">Forgot your password?</a>
+        </p>
+    </div>
+</div>
+
+@code {
+    private LoginRequest loginRequest = new()
+    {
+        Email = string.Empty,
+        Password = string.Empty
+    };
+    private string errorMessage = string.Empty;
+    private bool isLoading = false;
+
+    private async Task HandleLogin()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = string.Empty;
+
+            var user = await UserService.LoginAsync(loginRequest);
+            if (user == null)
+            {
+                errorMessage = "Invalid email or password.";
+                return;
+            }
+
+            var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim(ClaimTypes.Name, user.Email),
+                new Claim(ClaimTypes.GivenName, user.FirstName),
+                new Claim(ClaimTypes.Surname, user.LastName)
+            };
+
+            var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            var principal = new ClaimsPrincipal(identity);
+
+            await JSRuntime.InvokeVoidAsync("blazorCulture.setAuthCookie",
+                Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(
+                    System.Text.Json.JsonSerializer.Serialize(claims.ToDictionary(c => c.Type, c => c.Value)))));
+
+            Navigation.NavigateTo("/", true);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "An error occurred during login. Please try again.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

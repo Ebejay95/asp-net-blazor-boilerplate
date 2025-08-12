@@ -1,0 +1,43 @@
+## Visual Studio artifacts
+.vs/
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.docstates
+
+## .NET Core
+*.log
+*.pid
+*.seed
+*.pid.lock
+
+## Database
+*.db
+*.db-shm
+*.db-wal
+
+## Environment files
+.env
+.env.local
+.env.*.local
+
+## Docker
+Dockerfile.prod
+
+## Test Coverage
+coverage/
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+
+## IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+## Secrets
+appsettings.Production.json
