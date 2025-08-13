@@ -1,12 +1,12 @@
 @page "/login"
-@using CMC.Application.Services
 @using CMC.Contracts.Users
-@using Microsoft.AspNetCore.Authentication
-@using Microsoft.AspNetCore.Authentication.Cookies
-@using System.Security.Claims
+@using CMC.Application.Services
+@using CMC.Web.Services
 @inject UserService UserService
+@inject InMemoryAuthenticationStateProvider AuthProvider
 @inject NavigationManager Navigation
-@inject IJSRuntime JSRuntime
+@inject ILogger<Login> Logger
+@inject IHttpContextAccessor HttpContextAccessor
 
 <PageTitle>Login</PageTitle>
 
@@ -17,6 +17,11 @@
         @if (!string.IsNullOrEmpty(errorMessage))
         {
             <div class="alert alert-danger">@errorMessage</div>
+        }
+
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <div class="alert alert-success">@successMessage</div>
         }
 
         <EditForm Model="@loginRequest" OnValidSubmit="@HandleLogin">
@@ -50,9 +55,19 @@
 
         <hr />
         <p>
-            Don't have an account? <a href="/register">Register here</a><br />
-            <a href="/forgot-password">Forgot your password?</a>
+            Don't have an account? <a href="/register">Register here</a>
         </p>
+        <p>
+            <a href="/forgot-password">Forgot Password?</a>
+        </p>
+
+        @if (!string.IsNullOrEmpty(debugInfo))
+        {
+            <div class="alert alert-info">
+                <h6>Debug Info:</h6>
+                <pre>@debugInfo</pre>
+            </div>
+        }
     </div>
 </div>
 
@@ -63,6 +78,8 @@
         Password = string.Empty
     };
     private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+    private string debugInfo = string.Empty;
     private bool isLoading = false;
 
     private async Task HandleLogin()
@@ -71,34 +88,76 @@
         {
             isLoading = true;
             errorMessage = string.Empty;
+            successMessage = string.Empty;
 
+            Logger.LogInformation("🔐 Login attempt for: {Email}", loginRequest.Email);
+
+            // SCHRITT 1: UserService Login
             var user = await UserService.LoginAsync(loginRequest);
-            if (user == null)
+            Logger.LogInformation("🔍 UserService.LoginAsync result: {User}", user != null ? $"User found: {user.Email}" : "null");
+
+            if (user != null)
             {
-                errorMessage = "Invalid email or password.";
-                return;
+                Logger.LogInformation("✅ Login successful for: {Email}", loginRequest.Email);
+
+                // SCHRITT 2: HttpContext prüfen
+                var httpContext = HttpContextAccessor.HttpContext;
+                Logger.LogInformation("🌐 HttpContext available: {Available}", httpContext != null);
+
+                if (httpContext?.Session != null)
+                {
+                    // SCHRITT 3: Session laden
+                    try
+                    {
+                        await httpContext.Session.LoadAsync();
+                        var sessionId = httpContext.Session.Id;
+                        Logger.LogInformation("📋 Session loaded successfully. ID: {SessionId}", sessionId);
+
+                        // SCHRITT 4: AuthProvider prüfen
+                        Logger.LogInformation("🔍 AuthProvider type: {Type}", AuthProvider.GetType().Name);
+
+                        // SCHRITT 5: Session setzen - OHNE Cookie!
+                        Logger.LogInformation("🎯 Setting user session...");
+                        AuthProvider.SetUserSession(sessionId, user.Id.ToString(), user.Email,
+                            user.FirstName, user.LastName);
+                        Logger.LogInformation("✅ SetUserSession completed");
+
+                        // KEIN Cookie setzen - das verursacht den Fehler!
+                        // httpContext.Response.Cookies.Append(...)
+
+                        // SCHRITT 6: Authentifizierung testen
+                        await Task.Delay(100); // Kurz warten für State Update
+                        var authState = await AuthProvider.GetAuthenticationStateAsync();
+                        Logger.LogInformation("🔐 Auth check after login - IsAuthenticated: {IsAuth}, Name: {Name}",
+                            authState.User.Identity?.IsAuthenticated, authState.User.Identity?.Name);
+
+                        successMessage = "Login successful! Redirecting...";
+                        StateHasChanged();
+
+                        Navigation.NavigateTo("/dashboard");
+                    }
+                    catch (Exception sessionEx)
+                    {
+                        Logger.LogError(sessionEx, "❌ Session operation failed");
+                        errorMessage = $"Session error: {sessionEx.Message}";
+                    }
+                }
+                else
+                {
+                    errorMessage = "Session not available. Please try again.";
+                    Logger.LogError("❌ HttpContext.Session is null");
+                }
             }
-
-            var claims = new List<Claim>
+            else
             {
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(ClaimTypes.Name, user.Email),
-                new Claim(ClaimTypes.GivenName, user.FirstName),
-                new Claim(ClaimTypes.Surname, user.LastName)
-            };
-
-            var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-            var principal = new ClaimsPrincipal(identity);
-
-            await JSRuntime.InvokeVoidAsync("blazorCulture.setAuthCookie",
-                Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(
-                    System.Text.Json.JsonSerializer.Serialize(claims.ToDictionary(c => c.Type, c => c.Value)))));
-
-            Navigation.NavigateTo("/", true);
+                Logger.LogWarning("❌ Login failed for: {Email}", loginRequest.Email);
+                errorMessage = "Invalid email or password.";
+            }
         }
         catch (Exception ex)
         {
-            errorMessage = "An error occurred during login. Please try again.";
+            Logger.LogError(ex, "Login error for: {Email}", loginRequest.Email);
+            errorMessage = $"An error occurred during login: {ex.Message}";
         }
         finally
         {

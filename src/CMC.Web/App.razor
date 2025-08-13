@@ -1,9 +1,18 @@
-<Router AppAssembly="@typeof(App).Assembly">
-    <Found Context="routeData">
-        <RouteView RouteData="@routeData" DefaultLayout="@typeof(Pages.Shared.MainLayout)" />
-    </Found>
-    <NotFound>
-        <h1>Page Not Found</h1>
-        <p>Sorry, there's nothing at this address.</p>
-    </NotFound>
-</Router>
+<CascadingAuthenticationState>
+    <Router AppAssembly="@typeof(App).Assembly">
+        <Found Context="routeData">
+            <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(Pages.Shared.MainLayout)">
+                <NotAuthorized>
+                    <CMC.Web.Pages.Shared.RedirectToLogin />
+                </NotAuthorized>
+            </AuthorizeRouteView>
+        </Found>
+        <NotFound>
+            <PageTitle>Not found</PageTitle>
+            <LayoutView Layout="@typeof(Pages.Shared.MainLayout)">
+                <h1>Page Not Found</h1>
+                <p>Sorry, there's nothing at this address.</p>
+            </LayoutView>
+        </NotFound>
+    </Router>
+</CascadingAuthenticationState>

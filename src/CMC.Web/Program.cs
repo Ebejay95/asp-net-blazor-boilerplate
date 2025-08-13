@@ -1,7 +1,12 @@
 using CMC.Infrastructure;
 using CMC.Infrastructure.Persistence;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Components.Authorization;
+using System.Security.Claims;
+using CMC.Contracts.Users;
+using CMC.Application.Services;
+using CMC.Web.Services;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,37 +14,25 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor(options => {
   options.DetailedErrors = true;
-  options.DisconnectedCircuitMaxRetained = 100;
-  options.DisconnectedCircuitRetentionPeriod = TimeSpan.FromMinutes(3);
-  options.JSInteropDefaultCallTimeout = TimeSpan.FromMinutes(1);
-  options.MaxBufferedUnacknowledgedRenderBatches = 10;
 });
 
-// Configure SignalR for Docker
-builder.Services.AddSignalR(options => {
-  options.ClientTimeoutInterval = TimeSpan.FromSeconds(60);
-  options.HandshakeTimeout = TimeSpan.FromSeconds(30);
-  options.KeepAliveInterval = TimeSpan.FromSeconds(15);
-  options.MaximumReceiveMessageSize = 32 * 1024; // 32KB
-});
+// HttpClient für Blazor Server - OHNE BaseAddress für interne Calls
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<HttpClient>();
 
-// Add authentication
-builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(options => {
-  options.LoginPath = "/login";
-  options.LogoutPath = "/logout";
-  options.ExpireTimeSpan = TimeSpan.FromDays(30);
-  options.SlidingExpiration = true;
-  options.Cookie.Name = "AuthCookie";
+// Session für SessionId
+builder.Services.AddSession(options => {
+  options.IdleTimeout = TimeSpan.FromMinutes(30);
   options.Cookie.HttpOnly = true;
-  options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest; // Allow HTTP in development
+  options.Cookie.IsEssential = true;
+  options.Cookie.Name = "CMC_Session";
 });
 
-builder.Services.AddAuthorization();
+// InMemory Authentication
+builder.Services.AddScoped<InMemoryAuthenticationStateProvider>();
+builder.Services.AddScoped<AuthenticationStateProvider>(provider => provider.GetRequiredService<InMemoryAuthenticationStateProvider>());
 
-// Add HttpContextAccessor
 builder.Services.AddHttpContextAccessor();
-
-// Add infrastructure
 builder.Services.AddInfrastructure(builder.Configuration);
 
 var app = builder.Build();
@@ -50,80 +43,143 @@ if (!app.Environment.IsDevelopment()) {
   app.UseHsts();
 }
 
-// Remove HTTPS redirection for Docker container
-// app.UseHttpsRedirection();
-
 app.UseStaticFiles();
-
 app.UseRouting();
-
-app.UseAuthentication();
-app.UseAuthorization();
+app.UseSession();
 
 app.MapRazorPages();
-app.MapBlazorHub(options => {
-  options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets | Microsoft.AspNetCore.Http.Connections.HttpTransportType.LongPolling;
+app.MapBlazorHub();
+
+// Logging Middleware
+app.Use(async (context, next) => {
+  var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+  logger.LogInformation("🌐 Incoming Request: {Method} {Path} from {UserAgent}", context.Request.Method, context.Request.Path, context.Request.Headers.UserAgent.ToString());
+
+  await next();
+
+  logger.LogInformation("📡 Response: {StatusCode} for {Method} {Path}", context.Response.StatusCode, context.Request.Method, context.Request.Path);
 });
+
+// KORRIGIERTER Login endpoint
+app.MapPost("/api/auth/login", async (HttpContext httpContext, ILogger<Program> logger, UserService userService, InMemoryAuthenticationStateProvider authProvider) => {
+
+  logger.LogInformation("🎉 LOGIN ENDPOINT REACHED!");
+
+  try {
+    // Request Body lesen
+    using var reader = new StreamReader(httpContext.Request.Body);
+    var body = await reader.ReadToEndAsync();
+    logger.LogInformation("📝 Request Body: {Body}", body);
+
+    if (string.IsNullOrEmpty(body)) {
+      return Results.BadRequest("Empty request body");
+    }
+
+    // JSON parsen
+    var loginRequest = JsonSerializer.Deserialize<LoginRequest>(body, new JsonSerializerOptions {
+      PropertyNameCaseInsensitive = true
+    });
+
+    if (loginRequest == null) {
+      return Results.BadRequest("Invalid request format");
+    }
+
+    logger.LogInformation("🔐 Login attempt for: {Email}", loginRequest.Email);
+
+    // UserService für Login verwenden
+    var user = await userService.LoginAsync(loginRequest);
+
+    if (user != null) {
+      // Session ID generieren oder verwenden
+      var sessionId = httpContext.Session.Id;
+
+      // In Memory Auth Provider aktualisieren
+      authProvider.SetUserSession(sessionId, user.Id.ToString(), user.Email, user.FirstName, user.LastName);
+
+      // Optional: Cookie setzen für Session Tracking
+      httpContext.Response.Cookies.Append("CMC_SessionId", sessionId, new CookieOptions {
+        HttpOnly = true,
+        Secure = false, // true in Production
+        SameSite = SameSiteMode.Strict,
+        MaxAge = TimeSpan.FromMinutes(30)
+      });
+
+      logger.LogInformation("✅ Login successful for: {Email}", loginRequest.Email);
+
+      return Results.Ok(new {
+        success = true,
+        message = "Login successful",
+        user = new {
+          id = user.Id,
+          email = user.Email,
+          firstName = user.FirstName,
+          lastName = user.LastName
+        }
+      });
+    } else {
+      logger.LogWarning("❌ Login failed for: {Email}", loginRequest.Email);
+      return Results.Unauthorized();
+    }
+
+  } catch (JsonException ex) {
+    logger.LogError(ex, "JSON parsing error");
+    return Results.BadRequest("Invalid JSON format");
+  } catch (Exception ex) {
+    logger.LogError(ex, "Login error");
+    return Results.Problem("Internal server error");
+  }
+});
+
+app.MapPost("/api/auth/logout", async (HttpContext httpContext, ILogger<Program> logger, InMemoryAuthenticationStateProvider authProvider) => {
+  try {
+    var sessionId = httpContext.Session
+      ?.Id ?? httpContext.Request.Cookies["CMC_SessionId"];
+
+    if (!string.IsNullOrEmpty(sessionId)) {
+      authProvider.ClearUserSession(sessionId);
+    }
+
+    // Cookie löschen
+    httpContext.Response.Cookies.Delete("CMC_SessionId");
+
+    logger.LogInformation("✅ User logged out - SessionId: {SessionId}", sessionId);
+    return Results.Ok(new {
+      message = "Logout successful"
+    });
+  } catch (Exception ex) {
+    logger.LogError(ex, "Logout error");
+    return Results.Problem("Logout failed");
+  }
+});
+
+// Test endpoints
+app.MapGet("/api/test", () => {
+  return Results.Ok(new {
+    message = "GET endpoint works",
+    time = DateTime.Now
+  });
+});
+
+app.MapPost("/api/test", () => {
+  return Results.Ok(new {
+    message = "POST endpoint works",
+    time = DateTime.Now
+  });
+});
+
 app.MapFallbackToPage("/_Host");
 
-// Run migrations automatically - AKTIVIERT für Docker
+// Database setup
 using(var scope = app.Services.CreateScope()) {
   try {
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-
-    logger.LogInformation("=== Starting database migration ===");
-
-    // Retry logic for database connection
-    var retryCount = 0;
-    var maxRetries = 10;
-
-    while (retryCount < maxRetries) {
-      try {
-        var canConnect = await context.Database.CanConnectAsync();
-        logger.LogInformation("Can connect to database: {CanConnect}", canConnect);
-
-        if (canConnect) {
-          // Get pending migrations
-          var pendingMigrations = await context.Database.GetPendingMigrationsAsync();
-          logger.LogInformation("Pending migrations: {PendingMigrations}", string.Join(", ", pendingMigrations));
-
-          // Apply migrations
-          await context.Database.MigrateAsync();
-
-          // Verify migrations applied
-          var appliedMigrations = await context.Database.GetAppliedMigrationsAsync();
-          logger.LogInformation("Applied migrations: {AppliedMigrations}", string.Join(", ", appliedMigrations));
-
-          logger.LogInformation("=== Database migration completed successfully ===");
-          break;
-        }
-      } catch (Exception dbEx) {
-        retryCount++;
-        logger.LogWarning("Database connection attempt {Attempt}/{MaxAttempts} failed: {Error}", retryCount, maxRetries, dbEx.Message);
-
-        if (retryCount >= maxRetries) {
-          throw;
-        }
-
-        await Task.Delay(2000); // Wait 2 seconds before retry
-      }
-    }
+    await context.Database.MigrateAsync();
   } catch (Exception ex) {
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    logger.LogError(ex, "=== ERROR: Database migration failed ===");
-    logger.LogError("Exception Type: {ExceptionType}", ex.GetType().Name);
-    logger.LogError("Exception Message: {Message}", ex.Message);
-    if (ex.InnerException != null) {
-      logger.LogError("Inner Exception: {InnerException}", ex.InnerException.Message);
-    }
-
-    // DON'T throw - let the app start anyway for debugging
-    logger.LogWarning("=== Continuing without database - app will have limited functionality ===");
+    logger.LogError(ex, "Database setup failed");
   }
 }
 
 app.Run();
 
-// Diese Zeile muss ganz am Ende stehen:
 public partial class Program {}
