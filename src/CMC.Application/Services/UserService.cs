@@ -47,7 +47,7 @@ public class UserService {
   public async Task RequestPasswordResetAsync(string email, CancellationToken cancellationToken = default) {
     var user = await _userRepository.GetByEmailAsync(email, cancellationToken);
     if (user == null)
-      return; // Don't reveal if email exists
+      return;
 
     var token = GenerateSecureToken();
     var expiry = DateTime.UtcNow.AddHours(1);
