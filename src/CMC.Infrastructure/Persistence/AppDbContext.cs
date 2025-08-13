@@ -19,8 +19,9 @@ public class AppDbContext: DbContext {
       entity.Property(u => u.CreatedAt).IsRequired();
     });
 
+    // Zukünftige Entities hier hinzufügen:
     // modelBuilder.Entity<Assessment>(entity => {
-    //   entity.HasKey(u => u.Id);
+    //     entity.HasKey(u => u.Id);
     // });
-
+  }
 }
