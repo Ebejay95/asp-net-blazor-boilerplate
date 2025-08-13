@@ -3,7 +3,7 @@
 @using CMC.Application.Services
 @using CMC.Web.Services
 @inject UserService UserService
-@inject InMemoryAuthenticationStateProvider AuthProvider
+@inject PersistentInMemoryAuthenticationStateProvider AuthProvider
 @inject NavigationManager Navigation
 @inject ILogger<Login> Logger
 @inject IHttpContextAccessor HttpContextAccessor
@@ -61,6 +61,19 @@
             <a href="/forgot-password">Forgot Password?</a>
         </p>
 
+        <!-- Debug Buttons (entfernen in Production) -->
+        <hr />
+        <div class="mb-3">
+            <button class="btn btn-success" @onclick="QuickTestLogin">
+                🧪 Quick Test Login
+            </button>
+        </div>
+        <div class="mb-3">
+            <button class="btn btn-info" @onclick="DebugCurrentState">
+                🔍 Debug Current State
+            </button>
+        </div>
+
         @if (!string.IsNullOrEmpty(debugInfo))
         {
             <div class="alert alert-info">
@@ -68,6 +81,8 @@
                 <pre>@debugInfo</pre>
             </div>
         }
+
+        <p><a href="/auth-debug">Go to Auth Debug</a></p>
     </div>
 </div>
 
@@ -100,45 +115,46 @@
             {
                 Logger.LogInformation("✅ Login successful for: {Email}", loginRequest.Email);
 
-                // SCHRITT 2: HttpContext prüfen
+                // SCHRITT 2: Session ID für InMemory-Key verwenden
                 var httpContext = HttpContextAccessor.HttpContext;
-                Logger.LogInformation("🌐 HttpContext available: {Available}", httpContext != null);
-
                 if (httpContext?.Session != null)
                 {
-                    // SCHRITT 3: Session laden
                     try
                     {
                         await httpContext.Session.LoadAsync();
                         var sessionId = httpContext.Session.Id;
-                        Logger.LogInformation("📋 Session loaded successfully. ID: {SessionId}", sessionId);
+                        Logger.LogInformation("📋 Using Session ID: {SessionId}", sessionId);
 
-                        // SCHRITT 4: AuthProvider prüfen
-                        Logger.LogInformation("🔍 AuthProvider type: {Type}", AuthProvider.GetType().Name);
-
-                        // SCHRITT 5: Session setzen - OHNE Cookie!
-                        Logger.LogInformation("🎯 Setting user session...");
+                        // SCHRITT 3: Persistent InMemory Authentication setzen
                         AuthProvider.SetUserSession(sessionId, user.Id.ToString(), user.Email,
                             user.FirstName, user.LastName);
-                        Logger.LogInformation("✅ SetUserSession completed");
 
-                        // KEIN Cookie setzen - das verursacht den Fehler!
-                        // httpContext.Response.Cookies.Append(...)
+                        Logger.LogInformation("✅ PersistentInMemory session set for: {Email}", user.Email);
 
-                        // SCHRITT 6: Authentifizierung testen
-                        await Task.Delay(100); // Kurz warten für State Update
+                        // SCHRITT 4: Authentifizierung testen
+                        await Task.Delay(100);
                         var authState = await AuthProvider.GetAuthenticationStateAsync();
                         Logger.LogInformation("🔐 Auth check after login - IsAuthenticated: {IsAuth}, Name: {Name}",
                             authState.User.Identity?.IsAuthenticated, authState.User.Identity?.Name);
 
-                        successMessage = "Login successful! Redirecting...";
-                        StateHasChanged();
+                        if (authState.User.Identity?.IsAuthenticated == true)
+                        {
+                            successMessage = "Login successful! Redirecting...";
+                            StateHasChanged();
 
-                        Navigation.NavigateTo("/dashboard");
+                            // Zur Home-Seite weiterleiten
+                            await Task.Delay(1000);
+                            Navigation.NavigateTo("/dashboard");
+                        }
+                        else
+                        {
+                            errorMessage = "Authentication setup failed. Please try again.";
+                            Logger.LogError("❌ Authentication not working after session set");
+                        }
                     }
                     catch (Exception sessionEx)
                     {
-                        Logger.LogError(sessionEx, "❌ Session operation failed");
+                        Logger.LogError(sessionEx, "❌ Session setup failed");
                         errorMessage = $"Session error: {sessionEx.Message}";
                     }
                 }
@@ -162,6 +178,62 @@
         finally
         {
             isLoading = false;
+        }
+    }
+
+    private async Task QuickTestLogin()
+    {
+        loginRequest.Email = "test@example.com";
+        loginRequest.Password = "password123";
+        await HandleLogin();
+    }
+
+    private async Task DebugCurrentState()
+    {
+        try
+        {
+            var info = new System.Text.StringBuilder();
+
+            // HttpContext prüfen
+            var httpContext = HttpContextAccessor.HttpContext;
+            info.AppendLine($"HttpContext available: {httpContext != null}");
+
+            if (httpContext != null)
+            {
+                info.AppendLine($"Session available: {httpContext.Session != null}");
+                if (httpContext.Session != null)
+                {
+                    await httpContext.Session.LoadAsync();
+                    info.AppendLine($"Session ID: {httpContext.Session.Id}");
+                    info.AppendLine($"Session IsAvailable: {httpContext.Session.IsAvailable}");
+                }
+            }
+
+            // AuthProvider prüfen
+            info.AppendLine($"AuthProvider type: {AuthProvider.GetType().Name}");
+
+            if (AuthProvider is PersistentInMemoryAuthenticationStateProvider inMemoryProvider)
+            {
+                var sessionDebugInfo = inMemoryProvider.GetAllSessions();
+                info.AppendLine($"Active sessions: {inMemoryProvider.GetActiveSessionsCount()}");
+                foreach (var kvp in sessionDebugInfo.Take(3))
+                {
+                    info.AppendLine($"  {kvp.Key}: {kvp.Value.Email}");
+                }
+            }
+
+            // Current auth state
+            var authState = await AuthProvider.GetAuthenticationStateAsync();
+            info.AppendLine($"Currently authenticated: {authState.User.Identity?.IsAuthenticated}");
+            info.AppendLine($"User name: {authState.User.Identity?.Name ?? "null"}");
+
+            debugInfo = info.ToString();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            debugInfo = $"Debug error: {ex.Message}";
+            Logger.LogError(ex, "Debug error");
         }
     }
 }

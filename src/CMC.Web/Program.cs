@@ -20,17 +20,18 @@ builder.Services.AddServerSideBlazor(options => {
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<HttpClient>();
 
-// Session für SessionId
+// Session für Session-ID (aber Authentication über InMemory)
 builder.Services.AddSession(options => {
   options.IdleTimeout = TimeSpan.FromMinutes(30);
   options.Cookie.HttpOnly = true;
   options.Cookie.IsEssential = true;
   options.Cookie.Name = "CMC_Session";
+  options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
 });
 
-// InMemory Authentication
-builder.Services.AddScoped<InMemoryAuthenticationStateProvider>();
-builder.Services.AddScoped<AuthenticationStateProvider>(provider => provider.GetRequiredService<InMemoryAuthenticationStateProvider>());
+// PERSISTENT InMemory Authentication - mit statischem Dictionary
+builder.Services.AddScoped<PersistentInMemoryAuthenticationStateProvider>();
+builder.Services.AddScoped<AuthenticationStateProvider>(provider => provider.GetRequiredService<PersistentInMemoryAuthenticationStateProvider>());
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -61,7 +62,7 @@ app.Use(async (context, next) => {
 });
 
 // KORRIGIERTER Login endpoint
-app.MapPost("/api/auth/login", async (HttpContext httpContext, ILogger<Program> logger, UserService userService, InMemoryAuthenticationStateProvider authProvider) => {
+app.MapPost("/api/auth/login", async (HttpContext httpContext, ILogger<Program> logger, UserService userService, PersistentInMemoryAuthenticationStateProvider authProvider) => {
 
   logger.LogInformation("🎉 LOGIN ENDPOINT REACHED!");
 
@@ -130,19 +131,15 @@ app.MapPost("/api/auth/login", async (HttpContext httpContext, ILogger<Program> 
   }
 });
 
-app.MapPost("/api/auth/logout", async (HttpContext httpContext, ILogger<Program> logger, InMemoryAuthenticationStateProvider authProvider) => {
+app.MapPost("/api/auth/logout", async (HttpContext httpContext, ILogger<Program> logger) => {
   try {
-    var sessionId = httpContext.Session
-      ?.Id ?? httpContext.Request.Cookies["CMC_SessionId"];
-
-    if (!string.IsNullOrEmpty(sessionId)) {
-      authProvider.ClearUserSession(sessionId);
+    // Session-Daten löschen
+    if (httpContext.Session != null) {
+      httpContext.Session.Clear();
+      await httpContext.Session.CommitAsync();
     }
 
-    // Cookie löschen
-    httpContext.Response.Cookies.Delete("CMC_SessionId");
-
-    logger.LogInformation("✅ User logged out - SessionId: {SessionId}", sessionId);
+    logger.LogInformation("✅ User logged out - Session cleared");
     return Results.Ok(new {
       message = "Logout successful"
     });
@@ -174,6 +171,18 @@ using(var scope = app.Services.CreateScope()) {
   try {
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await context.Database.MigrateAsync();
+
+    try {
+      var userService = scope.ServiceProvider.GetRequiredService<UserService>();
+      await userService.RegisterAsync(new RegisterUserRequest {
+        Email = "test@example.com",
+        Password = "password123",
+        FirstName = "Test",
+        LastName = "User"
+      });
+    } catch (CMC.Domain.Common.DomainException) {
+      // User already exists
+    }
   } catch (Exception ex) {
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     logger.LogError(ex, "Database setup failed");
