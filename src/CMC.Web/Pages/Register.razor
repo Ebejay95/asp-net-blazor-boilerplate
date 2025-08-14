@@ -118,11 +118,11 @@
             };
             confirmPassword = string.Empty;
         }
-        catch (DomainException ex)
+        catch (DomainException domainEx)
         {
-            errorMessage = ex.Message;
+            errorMessage = domainEx.Message;
         }
-        catch (Exception ex)
+        catch
         {
             errorMessage = "An error occurred during registration. Please try again.";
         }

@@ -1,11 +1,7 @@
 @page "/login"
-@using CMC.Application.Services
 @using CMC.Contracts.Users
-@using Microsoft.AspNetCore.Authentication
-@using Microsoft.AspNetCore.Authentication.Cookies
-@using System.Security.Claims
-@inject UserService UserService
 @inject NavigationManager Navigation
+@inject ILogger<Login> Logger
 @inject IJSRuntime JSRuntime
 
 <PageTitle>Login</PageTitle>
@@ -17,6 +13,11 @@
         @if (!string.IsNullOrEmpty(errorMessage))
         {
             <div class="alert alert-danger">@errorMessage</div>
+        }
+
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <div class="alert alert-success">@successMessage</div>
         }
 
         <EditForm Model="@loginRequest" OnValidSubmit="@HandleLogin">
@@ -50,9 +51,18 @@
 
         <hr />
         <p>
-            Don't have an account? <a href="/register">Register here</a><br />
-            <a href="/forgot-password">Forgot your password?</a>
+            Don't have an account? <a href="/register">Register here</a>
         </p>
+        <p>
+            <a href="/forgot-password">Forgot Password?</a>
+        </p>
+
+        <!-- Debug Button -->
+        <div class="mb-3">
+            <button class="btn btn-success" @onclick="QuickTestLogin">
+                🧪 Quick Test Login (test@example.com)
+            </button>
+        </div>
     </div>
 </div>
 
@@ -63,6 +73,7 @@
         Password = string.Empty
     };
     private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
     private bool isLoading = false;
 
     private async Task HandleLogin()
@@ -71,38 +82,44 @@
         {
             isLoading = true;
             errorMessage = string.Empty;
+            successMessage = string.Empty;
 
-            var user = await UserService.LoginAsync(loginRequest);
-            if (user == null)
+            Logger.LogInformation("🔐 Login attempt for: {Email}", loginRequest.Email);
+
+            // Sende Login-Request an API Controller
+            var response = await JSRuntime.InvokeAsync<bool>("submitLoginForm", loginRequest);
+
+            if (response)
             {
-                errorMessage = "Invalid email or password.";
-                return;
+                Logger.LogInformation("✅ Login successful for: {Email}", loginRequest.Email);
+                successMessage = "Login successful! Redirecting...";
+                StateHasChanged();
+
+                // Warte kurz und lade die Seite neu für Auth-State Update
+                await Task.Delay(1000);
+                Navigation.NavigateTo("/", forceLoad: true);
             }
-
-            var claims = new List<Claim>
+            else
             {
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(ClaimTypes.Name, user.Email),
-                new Claim(ClaimTypes.GivenName, user.FirstName),
-                new Claim(ClaimTypes.Surname, user.LastName)
-            };
-
-            var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-            var principal = new ClaimsPrincipal(identity);
-
-            await JSRuntime.InvokeVoidAsync("blazorCulture.setAuthCookie",
-                Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(
-                    System.Text.Json.JsonSerializer.Serialize(claims.ToDictionary(c => c.Type, c => c.Value)))));
-
-            Navigation.NavigateTo("/", true);
+                Logger.LogWarning("❌ Login failed for: {Email}", loginRequest.Email);
+                errorMessage = "Invalid email or password";
+            }
         }
         catch (Exception ex)
         {
-            errorMessage = "An error occurred during login. Please try again.";
+            Logger.LogError(ex, "Login error for: {Email}", loginRequest.Email);
+            errorMessage = "An unexpected error occurred.";
         }
         finally
         {
             isLoading = false;
         }
+    }
+
+    private async Task QuickTestLogin()
+    {
+        loginRequest.Email = "test@example.com";
+        loginRequest.Password = "password123";
+        await HandleLogin();
     }
 }

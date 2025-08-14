@@ -1,45 +1,117 @@
 using CMC.Infrastructure;
 using CMC.Infrastructure.Persistence;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
+using CMC.Contracts.Users;
+using CMC.Application.Services;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Components.Authorization;
+using CMC.Application.Ports;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// 🔧 SSL Development Fix - Nur für Development
+if (builder.Environment.IsDevelopment()) {
+  builder.WebHost.ConfigureKestrel(options => {
+    options.ConfigureHttpsDefaults(httpsOptions => {
+      httpsOptions.ServerCertificate = null; // Verwendet Development-Zertifikat
+    });
+  });
+}
+
+// Kestrel URLs explizit setzen
+builder.WebHost.UseUrls("http://localhost:5000", "https://localhost:5001");
 
 // Add services
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor(options => {
   options.DetailedErrors = true;
-  options.DisconnectedCircuitMaxRetained = 100;
-  options.DisconnectedCircuitRetentionPeriod = TimeSpan.FromMinutes(3);
-  options.JSInteropDefaultCallTimeout = TimeSpan.FromMinutes(1);
-  options.MaxBufferedUnacknowledgedRenderBatches = 10;
 });
 
-// Configure SignalR for Docker
+// 🔧 API Controllers hinzufügen
+builder.Services.AddControllers();
+
+// 🔧 SignalR für Blazor konfigurieren
 builder.Services.AddSignalR(options => {
+  options.EnableDetailedErrors = true;
   options.ClientTimeoutInterval = TimeSpan.FromSeconds(60);
   options.HandshakeTimeout = TimeSpan.FromSeconds(30);
-  options.KeepAliveInterval = TimeSpan.FromSeconds(15);
-  options.MaximumReceiveMessageSize = 32 * 1024; // 32KB
 });
 
-// Add authentication
+// HttpClient mit SSL-Bypass für Development
+builder.Services.AddHttpClient("default", client => {
+  client.Timeout = TimeSpan.FromSeconds(30);
+}).ConfigurePrimaryHttpMessageHandler(() => {
+  var handler = new HttpClientHandler();
+  if (builder.Environment.IsDevelopment()) {
+    // SSL-Zertifikat-Validierung für Development ausschalten
+    handler.ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true;
+  }
+  return handler;
+});
+
+// 🔧 Authentication Fix - KORREKTE Cookie-Konfiguration für echte Persistenz
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(options => {
-  options.LoginPath = "/login";
-  options.LogoutPath = "/logout";
+  options.Cookie.Name = "CMC_Auth";
+  options.Cookie.HttpOnly = true;
+  options.Cookie.SameSite = SameSiteMode.Lax;
+  options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+    ? CookieSecurePolicy.SameAsRequest
+    : CookieSecurePolicy.Always;
+
+  // 🔧 KRITISCH für echte Persistenz - das ist der Schlüssel!
   options.ExpireTimeSpan = TimeSpan.FromDays(30);
   options.SlidingExpiration = true;
-  options.Cookie.Name = "AuthCookie";
-  options.Cookie.HttpOnly = true;
-  options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest; // Allow HTTP in development
+  options.Cookie.MaxAge = TimeSpan.FromDays(30);
+  options.Cookie.Path = "/";
+  options.Cookie.IsEssential = true;
+
+  // 🔧 WICHTIG: Diese Einstellung macht Cookies persistent über Browser-Restarts
+  options.Events.OnSigningIn = context => {
+    context.Properties.IsPersistent = true;
+    context.Properties.ExpiresUtc = DateTimeOffset.UtcNow.AddDays(30);
+    Console.WriteLine(
+      "🔐 User signing in: " + context.Principal
+      ?.Identity
+        ?.Name);
+    return Task.CompletedTask;
+  };
+
+  options.LoginPath = "/login";
+  options.LogoutPath = "/api/auth/logout"; // 🔧 API Route verwenden
+  options.AccessDeniedPath = "/login";
+
+  options.Events.OnSignedIn = context => {
+    Console.WriteLine(
+      "✅ User signed in: " + context.Principal
+      ?.Identity
+        ?.Name);
+    return Task.CompletedTask;
+  };
+
+  options.Events.OnValidatePrincipal = context => {
+    Console.WriteLine(
+      "🔍 Validating principal: " + context.Principal
+      ?.Identity
+        ?.Name);
+    if (
+      context.Principal
+      ?.Identity
+        ?.IsAuthenticated == true) {
+      Console.WriteLine("✅ Principal is valid and authenticated");
+    } else {
+      Console.WriteLine("❌ Principal validation failed");
+      context.RejectPrincipal();
+    }
+    return Task.CompletedTask;
+  };
 });
 
 builder.Services.AddAuthorization();
-
-// Add HttpContextAccessor
+builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddHttpContextAccessor();
 
-// Add infrastructure
+// Infrastructure
 builder.Services.AddInfrastructure(builder.Configuration);
 
 var app = builder.Build();
@@ -48,82 +120,73 @@ var app = builder.Build();
 if (!app.Environment.IsDevelopment()) {
   app.UseExceptionHandler("/Error");
   app.UseHsts();
+} else {
+  app.UseDeveloperExceptionPage();
+
+  // 🔧 Development SSL Trust Helper
+  Console.WriteLine("🔧 Development SSL Info:");
+  Console.WriteLine("   Falls SSL-Fehler auftreten, führe aus:");
+  Console.WriteLine("   dotnet dev-certs https --trust");
+  Console.WriteLine("   Oder nutze HTTP: http://localhost:5000");
 }
 
-// Remove HTTPS redirection for Docker container
-// app.UseHttpsRedirection();
-
 app.UseStaticFiles();
-
 app.UseRouting();
 
+// 🔧 KRITISCH: Authentication MUSS vor Authorization stehen
 app.UseAuthentication();
 app.UseAuthorization();
 
+// 🔧 API Controllers VOR Blazor
+app.MapControllers();
+
+// 🔧 Blazor Hub
+app.MapBlazorHub();
+
+// 🔧 WICHTIG: Reihenfolge der Mappings
 app.MapRazorPages();
-app.MapBlazorHub(options => {
-  options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets | Microsoft.AspNetCore.Http.Connections.HttpTransportType.LongPolling;
-});
 app.MapFallbackToPage("/_Host");
 
-// Run migrations automatically - AKTIVIERT für Docker
+// Database setup
 using(var scope = app.Services.CreateScope()) {
   try {
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    await context.Database.MigrateAsync();
+    Console.WriteLine("✅ Database migrations completed");
 
-    logger.LogInformation("=== Starting database migration ===");
+    // Test user nur erstellen wenn noch nicht vorhanden
+    try {
+      var userService = scope.ServiceProvider.GetRequiredService<UserService>();
+      var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
 
-    // Retry logic for database connection
-    var retryCount = 0;
-    var maxRetries = 10;
-
-    while (retryCount < maxRetries) {
-      try {
-        var canConnect = await context.Database.CanConnectAsync();
-        logger.LogInformation("Can connect to database: {CanConnect}", canConnect);
-
-        if (canConnect) {
-          // Get pending migrations
-          var pendingMigrations = await context.Database.GetPendingMigrationsAsync();
-          logger.LogInformation("Pending migrations: {PendingMigrations}", string.Join(", ", pendingMigrations));
-
-          // Apply migrations
-          await context.Database.MigrateAsync();
-
-          // Verify migrations applied
-          var appliedMigrations = await context.Database.GetAppliedMigrationsAsync();
-          logger.LogInformation("Applied migrations: {AppliedMigrations}", string.Join(", ", appliedMigrations));
-
-          logger.LogInformation("=== Database migration completed successfully ===");
-          break;
-        }
-      } catch (Exception dbEx) {
-        retryCount++;
-        logger.LogWarning("Database connection attempt {Attempt}/{MaxAttempts} failed: {Error}", retryCount, maxRetries, dbEx.Message);
-
-        if (retryCount >= maxRetries) {
-          throw;
-        }
-
-        await Task.Delay(2000); // Wait 2 seconds before retry
+      var existingUser = await userRepo.GetByEmailAsync("test@example.com");
+      if (existingUser == null) {
+        await userService.RegisterAsync(new RegisterUserRequest {
+          Email = "test@example.com",
+          Password = "password123",
+          FirstName = "Test",
+          LastName = "User"
+        });
+        Console.WriteLine("✅ Test user created: test@example.com / password123");
+      } else {
+        Console.WriteLine("ℹ️ Test user already exists: test@example.com / password123");
       }
+    } catch (Exception ex) {
+      Console.WriteLine("⚠️ Test user setup: " + ex.Message);
     }
   } catch (Exception ex) {
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    logger.LogError(ex, "=== ERROR: Database migration failed ===");
-    logger.LogError("Exception Type: {ExceptionType}", ex.GetType().Name);
-    logger.LogError("Exception Message: {Message}", ex.Message);
-    if (ex.InnerException != null) {
-      logger.LogError("Inner Exception: {InnerException}", ex.InnerException.Message);
-    }
-
-    // DON'T throw - let the app start anyway for debugging
-    logger.LogWarning("=== Continuing without database - app will have limited functionality ===");
+    logger.LogError(ex, "❌ Database setup failed");
   }
 }
 
+Console.WriteLine("🚀 Starting CMC application...");
+Console.WriteLine("   📡 Available at:");
+Console.WriteLine("      http://localhost:5000 (empfohlen für Development)");
+Console.WriteLine("      https://localhost:5001 (requires trusted certificate)");
+Console.WriteLine("   🧪 Test Login: test@example.com / password123");
+Console.WriteLine("   🔧 Bei SSL-Problemen: dotnet dev-certs https --trust");
+
 app.Run();
 
-// Diese Zeile muss ganz am Ende stehen:
 public partial class Program {}
