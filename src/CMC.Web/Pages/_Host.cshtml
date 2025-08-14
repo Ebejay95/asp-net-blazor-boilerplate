@@ -1,6 +1,9 @@
 @page "/"
 @namespace CMC.Web.Pages
 @addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@{
+    Layout = null;
+}
 
 <!DOCTYPE html>
 <html lang="en">
@@ -9,7 +12,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CMC</title>
     <base href="~/" />
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="./style.css" rel="stylesheet">
 </head>
 <body>
     <component type="typeof(App)" render-mode="Server" />
@@ -25,25 +28,36 @@
         <a class="dismiss">🗙</a>
     </div>
 
-    <script src="_framework/blazor.server.js" autostart="false"></script>
+    <script src="_framework/blazor.server.js"></script>
     <script>
-        window.addEventListener('error', function(e) {
-            console.error('🔥 Global Error:', e.error);
-        });
+        // 🔧 Login Form Submit Helper
+        window.submitLoginForm = async function(loginRequest) {
+            try {
+                console.log('🔐 Submitting login form...', loginRequest);
 
-        window.addEventListener('unhandledrejection', function(e) {
-            console.error('🔥 Unhandled Promise Rejection:', e.reason);
-        });
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(loginRequest),
+                    credentials: 'include' // Wichtig für Cookies
+                });
 
-        Blazor.start({
-            configureSignalR: function (builder) {
-                builder.withUrl("/_blazor");
+                const result = await response.json();
+
+                if (response.ok) {
+                    console.log('✅ Login successful');
+                    return true;
+                } else {
+                    console.log('❌ Login failed:', result.message);
+                    return false;
+                }
+            } catch (error) {
+                console.error('❌ Login error:', error);
+                return false;
             }
-        }).then(() => {
-        }).catch(error => {
-            console.error("❌ Blazor start failed:", error);
-            console.error("❌ Error details:", error.stack);
-        });
+        };
     </script>
 </body>
 </html>

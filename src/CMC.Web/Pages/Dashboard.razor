@@ -1,5 +1,8 @@
 @page "/dashboard"
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager Navigation
 @attribute [Authorize]
 
 <PageTitle>CMC - Dashboard</PageTitle>
@@ -8,6 +11,95 @@
     <div class="row">
         <div class="col-12">
             <h1 class="mb-4">Dashboard</h1>
+
+            @if (isLoading)
+            {
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            }
+            else if (isAuthenticated)
+            {
+                <div class="alert alert-success">
+                    <h4>Welcome back, @userEmail!</h4>
+                    <p>You are successfully logged in to your dashboard.</p>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">🔒 Security Assessment</h5>
+                                <p class="card-text">Run comprehensive security audits.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">📊 Compliance</h5>
+                                <p class="card-text">Track regulatory compliance.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">🛡️ Incidents</h5>
+                                <p class="card-text">Manage security incidents.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-warning">
+                    <p>Please log in to access the dashboard.</p>
+                    <a href="/login" class="btn btn-primary">Go to Login</a>
+                </div>
+            }
         </div>
     </div>
 </div>
+
+@code {
+    private bool isLoading = true;
+    private bool isAuthenticated = false;
+    private string userEmail = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CheckAuthenticationState();
+    }
+
+    private async Task CheckAuthenticationState()
+    {
+        try
+        {
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            isAuthenticated = authState.User.Identity?.IsAuthenticated ?? false;
+
+            if (isAuthenticated)
+            {
+                userEmail = authState.User.Identity?.Name ?? "Unknown";
+                Console.WriteLine($"✅ Dashboard: User authenticated - {userEmail}");
+            }
+            else
+            {
+                Console.WriteLine("❌ Dashboard: User not authenticated, redirecting...");
+                Navigation.NavigateTo("/login");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Dashboard auth check error: {ex.Message}");
+            Navigation.NavigateTo("/login");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+}

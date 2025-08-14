@@ -1,12 +1,8 @@
 @page "/login"
 @using CMC.Contracts.Users
-@using CMC.Application.Services
-@using CMC.Web.Services
-@inject UserService UserService
-@inject PersistentInMemoryAuthenticationStateProvider AuthProvider
 @inject NavigationManager Navigation
 @inject ILogger<Login> Logger
-@inject IHttpContextAccessor HttpContextAccessor
+@inject IJSRuntime JSRuntime
 
 <PageTitle>Login</PageTitle>
 
@@ -61,28 +57,12 @@
             <a href="/forgot-password">Forgot Password?</a>
         </p>
 
-        <!-- Debug Buttons (entfernen in Production) -->
-        <hr />
+        <!-- Debug Button -->
         <div class="mb-3">
             <button class="btn btn-success" @onclick="QuickTestLogin">
-                🧪 Quick Test Login
+                🧪 Quick Test Login (test@example.com)
             </button>
         </div>
-        <div class="mb-3">
-            <button class="btn btn-info" @onclick="DebugCurrentState">
-                🔍 Debug Current State
-            </button>
-        </div>
-
-        @if (!string.IsNullOrEmpty(debugInfo))
-        {
-            <div class="alert alert-info">
-                <h6>Debug Info:</h6>
-                <pre>@debugInfo</pre>
-            </div>
-        }
-
-        <p><a href="/auth-debug">Go to Auth Debug</a></p>
     </div>
 </div>
 
@@ -94,7 +74,6 @@
     };
     private string errorMessage = string.Empty;
     private string successMessage = string.Empty;
-    private string debugInfo = string.Empty;
     private bool isLoading = false;
 
     private async Task HandleLogin()
@@ -107,73 +86,29 @@
 
             Logger.LogInformation("🔐 Login attempt for: {Email}", loginRequest.Email);
 
-            // SCHRITT 1: UserService Login
-            var user = await UserService.LoginAsync(loginRequest);
-            Logger.LogInformation("🔍 UserService.LoginAsync result: {User}", user != null ? $"User found: {user.Email}" : "null");
+            // Sende Login-Request an API Controller
+            var response = await JSRuntime.InvokeAsync<bool>("submitLoginForm", loginRequest);
 
-            if (user != null)
+            if (response)
             {
                 Logger.LogInformation("✅ Login successful for: {Email}", loginRequest.Email);
+                successMessage = "Login successful! Redirecting...";
+                StateHasChanged();
 
-                // SCHRITT 2: Session ID für InMemory-Key verwenden
-                var httpContext = HttpContextAccessor.HttpContext;
-                if (httpContext?.Session != null)
-                {
-                    try
-                    {
-                        await httpContext.Session.LoadAsync();
-                        var sessionId = httpContext.Session.Id;
-                        Logger.LogInformation("📋 Using Session ID: {SessionId}", sessionId);
-
-                        // SCHRITT 3: Persistent InMemory Authentication setzen
-                        AuthProvider.SetUserSession(sessionId, user.Id.ToString(), user.Email,
-                            user.FirstName, user.LastName);
-
-                        Logger.LogInformation("✅ PersistentInMemory session set for: {Email}", user.Email);
-
-                        // SCHRITT 4: Authentifizierung testen
-                        await Task.Delay(100);
-                        var authState = await AuthProvider.GetAuthenticationStateAsync();
-                        Logger.LogInformation("🔐 Auth check after login - IsAuthenticated: {IsAuth}, Name: {Name}",
-                            authState.User.Identity?.IsAuthenticated, authState.User.Identity?.Name);
-
-                        if (authState.User.Identity?.IsAuthenticated == true)
-                        {
-                            successMessage = "Login successful! Redirecting...";
-                            StateHasChanged();
-
-                            // Zur Home-Seite weiterleiten
-                            await Task.Delay(1000);
-                            Navigation.NavigateTo("/dashboard");
-                        }
-                        else
-                        {
-                            errorMessage = "Authentication setup failed. Please try again.";
-                            Logger.LogError("❌ Authentication not working after session set");
-                        }
-                    }
-                    catch (Exception sessionEx)
-                    {
-                        Logger.LogError(sessionEx, "❌ Session setup failed");
-                        errorMessage = $"Session error: {sessionEx.Message}";
-                    }
-                }
-                else
-                {
-                    errorMessage = "Session not available. Please try again.";
-                    Logger.LogError("❌ HttpContext.Session is null");
-                }
+                // Warte kurz und lade die Seite neu für Auth-State Update
+                await Task.Delay(1000);
+                Navigation.NavigateTo("/", forceLoad: true);
             }
             else
             {
                 Logger.LogWarning("❌ Login failed for: {Email}", loginRequest.Email);
-                errorMessage = "Invalid email or password.";
+                errorMessage = "Invalid email or password";
             }
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Login error for: {Email}", loginRequest.Email);
-            errorMessage = $"An error occurred during login: {ex.Message}";
+            errorMessage = "An unexpected error occurred.";
         }
         finally
         {
@@ -186,54 +121,5 @@
         loginRequest.Email = "test@example.com";
         loginRequest.Password = "password123";
         await HandleLogin();
-    }
-
-    private async Task DebugCurrentState()
-    {
-        try
-        {
-            var info = new System.Text.StringBuilder();
-
-            // HttpContext prüfen
-            var httpContext = HttpContextAccessor.HttpContext;
-            info.AppendLine($"HttpContext available: {httpContext != null}");
-
-            if (httpContext != null)
-            {
-                info.AppendLine($"Session available: {httpContext.Session != null}");
-                if (httpContext.Session != null)
-                {
-                    await httpContext.Session.LoadAsync();
-                    info.AppendLine($"Session ID: {httpContext.Session.Id}");
-                    info.AppendLine($"Session IsAvailable: {httpContext.Session.IsAvailable}");
-                }
-            }
-
-            // AuthProvider prüfen
-            info.AppendLine($"AuthProvider type: {AuthProvider.GetType().Name}");
-
-            if (AuthProvider is PersistentInMemoryAuthenticationStateProvider inMemoryProvider)
-            {
-                var sessionDebugInfo = inMemoryProvider.GetAllSessions();
-                info.AppendLine($"Active sessions: {inMemoryProvider.GetActiveSessionsCount()}");
-                foreach (var kvp in sessionDebugInfo.Take(3))
-                {
-                    info.AppendLine($"  {kvp.Key}: {kvp.Value.Email}");
-                }
-            }
-
-            // Current auth state
-            var authState = await AuthProvider.GetAuthenticationStateAsync();
-            info.AppendLine($"Currently authenticated: {authState.User.Identity?.IsAuthenticated}");
-            info.AppendLine($"User name: {authState.User.Identity?.Name ?? "null"}");
-
-            debugInfo = info.ToString();
-            StateHasChanged();
-        }
-        catch (Exception ex)
-        {
-            debugInfo = $"Debug error: {ex.Message}";
-            Logger.LogError(ex, "Debug error");
-        }
     }
 }

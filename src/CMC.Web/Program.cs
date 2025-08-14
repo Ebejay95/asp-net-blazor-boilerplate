@@ -1,14 +1,26 @@
 using CMC.Infrastructure;
 using CMC.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Components.Authorization;
-using System.Security.Claims;
 using CMC.Contracts.Users;
 using CMC.Application.Services;
-using CMC.Web.Services;
-using System.Text.Json;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Components.Authorization;
+using CMC.Application.Ports;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// 🔧 SSL Development Fix - Nur für Development
+if (builder.Environment.IsDevelopment()) {
+  builder.WebHost.ConfigureKestrel(options => {
+    options.ConfigureHttpsDefaults(httpsOptions => {
+      httpsOptions.ServerCertificate = null; // Verwendet Development-Zertifikat
+    });
+  });
+}
+
+// Kestrel URLs explizit setzen
+builder.WebHost.UseUrls("http://localhost:5000", "https://localhost:5001");
 
 // Add services
 builder.Services.AddRazorPages();
@@ -16,24 +28,90 @@ builder.Services.AddServerSideBlazor(options => {
   options.DetailedErrors = true;
 });
 
-// HttpClient für Blazor Server - OHNE BaseAddress für interne Calls
-builder.Services.AddHttpClient();
-builder.Services.AddScoped<HttpClient>();
+// 🔧 API Controllers hinzufügen
+builder.Services.AddControllers();
 
-// Session für Session-ID (aber Authentication über InMemory)
-builder.Services.AddSession(options => {
-  options.IdleTimeout = TimeSpan.FromMinutes(30);
-  options.Cookie.HttpOnly = true;
-  options.Cookie.IsEssential = true;
-  options.Cookie.Name = "CMC_Session";
-  options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+// 🔧 SignalR für Blazor konfigurieren
+builder.Services.AddSignalR(options => {
+  options.EnableDetailedErrors = true;
+  options.ClientTimeoutInterval = TimeSpan.FromSeconds(60);
+  options.HandshakeTimeout = TimeSpan.FromSeconds(30);
 });
 
-// PERSISTENT InMemory Authentication - mit statischem Dictionary
-builder.Services.AddScoped<PersistentInMemoryAuthenticationStateProvider>();
-builder.Services.AddScoped<AuthenticationStateProvider>(provider => provider.GetRequiredService<PersistentInMemoryAuthenticationStateProvider>());
+// HttpClient mit SSL-Bypass für Development
+builder.Services.AddHttpClient("default", client => {
+  client.Timeout = TimeSpan.FromSeconds(30);
+}).ConfigurePrimaryHttpMessageHandler(() => {
+  var handler = new HttpClientHandler();
+  if (builder.Environment.IsDevelopment()) {
+    // SSL-Zertifikat-Validierung für Development ausschalten
+    handler.ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true;
+  }
+  return handler;
+});
 
+// 🔧 Authentication Fix - KORREKTE Cookie-Konfiguration für echte Persistenz
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(options => {
+  options.Cookie.Name = "CMC_Auth";
+  options.Cookie.HttpOnly = true;
+  options.Cookie.SameSite = SameSiteMode.Lax;
+  options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+    ? CookieSecurePolicy.SameAsRequest
+    : CookieSecurePolicy.Always;
+
+  // 🔧 KRITISCH für echte Persistenz - das ist der Schlüssel!
+  options.ExpireTimeSpan = TimeSpan.FromDays(30);
+  options.SlidingExpiration = true;
+  options.Cookie.MaxAge = TimeSpan.FromDays(30);
+  options.Cookie.Path = "/";
+  options.Cookie.IsEssential = true;
+
+  // 🔧 WICHTIG: Diese Einstellung macht Cookies persistent über Browser-Restarts
+  options.Events.OnSigningIn = context => {
+    context.Properties.IsPersistent = true;
+    context.Properties.ExpiresUtc = DateTimeOffset.UtcNow.AddDays(30);
+    Console.WriteLine(
+      "🔐 User signing in: " + context.Principal
+      ?.Identity
+        ?.Name);
+    return Task.CompletedTask;
+  };
+
+  options.LoginPath = "/login";
+  options.LogoutPath = "/api/auth/logout"; // 🔧 API Route verwenden
+  options.AccessDeniedPath = "/login";
+
+  options.Events.OnSignedIn = context => {
+    Console.WriteLine(
+      "✅ User signed in: " + context.Principal
+      ?.Identity
+        ?.Name);
+    return Task.CompletedTask;
+  };
+
+  options.Events.OnValidatePrincipal = context => {
+    Console.WriteLine(
+      "🔍 Validating principal: " + context.Principal
+      ?.Identity
+        ?.Name);
+    if (
+      context.Principal
+      ?.Identity
+        ?.IsAuthenticated == true) {
+      Console.WriteLine("✅ Principal is valid and authenticated");
+    } else {
+      Console.WriteLine("❌ Principal validation failed");
+      context.RejectPrincipal();
+    }
+    return Task.CompletedTask;
+  };
+});
+
+builder.Services.AddAuthorization();
+builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddHttpContextAccessor();
+
+// Infrastructure
 builder.Services.AddInfrastructure(builder.Configuration);
 
 var app = builder.Build();
@@ -42,128 +120,31 @@ var app = builder.Build();
 if (!app.Environment.IsDevelopment()) {
   app.UseExceptionHandler("/Error");
   app.UseHsts();
+} else {
+  app.UseDeveloperExceptionPage();
+
+  // 🔧 Development SSL Trust Helper
+  Console.WriteLine("🔧 Development SSL Info:");
+  Console.WriteLine("   Falls SSL-Fehler auftreten, führe aus:");
+  Console.WriteLine("   dotnet dev-certs https --trust");
+  Console.WriteLine("   Oder nutze HTTP: http://localhost:5000");
 }
 
 app.UseStaticFiles();
 app.UseRouting();
-app.UseSession();
 
-app.MapRazorPages();
+// 🔧 KRITISCH: Authentication MUSS vor Authorization stehen
+app.UseAuthentication();
+app.UseAuthorization();
+
+// 🔧 API Controllers VOR Blazor
+app.MapControllers();
+
+// 🔧 Blazor Hub
 app.MapBlazorHub();
 
-// Logging Middleware
-app.Use(async (context, next) => {
-  var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
-  logger.LogInformation("🌐 Incoming Request: {Method} {Path} from {UserAgent}", context.Request.Method, context.Request.Path, context.Request.Headers.UserAgent.ToString());
-
-  await next();
-
-  logger.LogInformation("📡 Response: {StatusCode} for {Method} {Path}", context.Response.StatusCode, context.Request.Method, context.Request.Path);
-});
-
-// KORRIGIERTER Login endpoint
-app.MapPost("/api/auth/login", async (HttpContext httpContext, ILogger<Program> logger, UserService userService, PersistentInMemoryAuthenticationStateProvider authProvider) => {
-
-  logger.LogInformation("🎉 LOGIN ENDPOINT REACHED!");
-
-  try {
-    // Request Body lesen
-    using var reader = new StreamReader(httpContext.Request.Body);
-    var body = await reader.ReadToEndAsync();
-    logger.LogInformation("📝 Request Body: {Body}", body);
-
-    if (string.IsNullOrEmpty(body)) {
-      return Results.BadRequest("Empty request body");
-    }
-
-    // JSON parsen
-    var loginRequest = JsonSerializer.Deserialize<LoginRequest>(body, new JsonSerializerOptions {
-      PropertyNameCaseInsensitive = true
-    });
-
-    if (loginRequest == null) {
-      return Results.BadRequest("Invalid request format");
-    }
-
-    logger.LogInformation("🔐 Login attempt for: {Email}", loginRequest.Email);
-
-    // UserService für Login verwenden
-    var user = await userService.LoginAsync(loginRequest);
-
-    if (user != null) {
-      // Session ID generieren oder verwenden
-      var sessionId = httpContext.Session.Id;
-
-      // In Memory Auth Provider aktualisieren
-      authProvider.SetUserSession(sessionId, user.Id.ToString(), user.Email, user.FirstName, user.LastName);
-
-      // Optional: Cookie setzen für Session Tracking
-      httpContext.Response.Cookies.Append("CMC_SessionId", sessionId, new CookieOptions {
-        HttpOnly = true,
-        Secure = false, // true in Production
-        SameSite = SameSiteMode.Strict,
-        MaxAge = TimeSpan.FromMinutes(30)
-      });
-
-      logger.LogInformation("✅ Login successful for: {Email}", loginRequest.Email);
-
-      return Results.Ok(new {
-        success = true,
-        message = "Login successful",
-        user = new {
-          id = user.Id,
-          email = user.Email,
-          firstName = user.FirstName,
-          lastName = user.LastName
-        }
-      });
-    } else {
-      logger.LogWarning("❌ Login failed for: {Email}", loginRequest.Email);
-      return Results.Unauthorized();
-    }
-
-  } catch (JsonException ex) {
-    logger.LogError(ex, "JSON parsing error");
-    return Results.BadRequest("Invalid JSON format");
-  } catch (Exception ex) {
-    logger.LogError(ex, "Login error");
-    return Results.Problem("Internal server error");
-  }
-});
-
-app.MapPost("/api/auth/logout", async (HttpContext httpContext, ILogger<Program> logger) => {
-  try {
-    // Session-Daten löschen
-    if (httpContext.Session != null) {
-      httpContext.Session.Clear();
-      await httpContext.Session.CommitAsync();
-    }
-
-    logger.LogInformation("✅ User logged out - Session cleared");
-    return Results.Ok(new {
-      message = "Logout successful"
-    });
-  } catch (Exception ex) {
-    logger.LogError(ex, "Logout error");
-    return Results.Problem("Logout failed");
-  }
-});
-
-// Test endpoints
-app.MapGet("/api/test", () => {
-  return Results.Ok(new {
-    message = "GET endpoint works",
-    time = DateTime.Now
-  });
-});
-
-app.MapPost("/api/test", () => {
-  return Results.Ok(new {
-    message = "POST endpoint works",
-    time = DateTime.Now
-  });
-});
-
+// 🔧 WICHTIG: Reihenfolge der Mappings
+app.MapRazorPages();
 app.MapFallbackToPage("/_Host");
 
 // Database setup
@@ -171,23 +152,40 @@ using(var scope = app.Services.CreateScope()) {
   try {
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await context.Database.MigrateAsync();
+    Console.WriteLine("✅ Database migrations completed");
 
+    // Test user nur erstellen wenn noch nicht vorhanden
     try {
       var userService = scope.ServiceProvider.GetRequiredService<UserService>();
-      await userService.RegisterAsync(new RegisterUserRequest {
-        Email = "test@example.com",
-        Password = "password123",
-        FirstName = "Test",
-        LastName = "User"
-      });
-    } catch (CMC.Domain.Common.DomainException) {
-      // User already exists
+      var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+
+      var existingUser = await userRepo.GetByEmailAsync("test@example.com");
+      if (existingUser == null) {
+        await userService.RegisterAsync(new RegisterUserRequest {
+          Email = "test@example.com",
+          Password = "password123",
+          FirstName = "Test",
+          LastName = "User"
+        });
+        Console.WriteLine("✅ Test user created: test@example.com / password123");
+      } else {
+        Console.WriteLine("ℹ️ Test user already exists: test@example.com / password123");
+      }
+    } catch (Exception ex) {
+      Console.WriteLine("⚠️ Test user setup: " + ex.Message);
     }
   } catch (Exception ex) {
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    logger.LogError(ex, "Database setup failed");
+    logger.LogError(ex, "❌ Database setup failed");
   }
 }
+
+Console.WriteLine("🚀 Starting CMC application...");
+Console.WriteLine("   📡 Available at:");
+Console.WriteLine("      http://localhost:5000 (empfohlen für Development)");
+Console.WriteLine("      https://localhost:5001 (requires trusted certificate)");
+Console.WriteLine("   🧪 Test Login: test@example.com / password123");
+Console.WriteLine("   🔧 Bei SSL-Problemen: dotnet dev-certs https --trust");
 
 app.Run();
 

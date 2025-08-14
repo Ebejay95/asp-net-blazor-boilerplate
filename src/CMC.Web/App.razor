@@ -1,11 +1,7 @@
 <CascadingAuthenticationState>
     <Router AppAssembly="@typeof(App).Assembly">
         <Found Context="routeData">
-            <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(Pages.Shared.MainLayout)">
-                <NotAuthorized>
-                    <CMC.Web.Pages.Shared.RedirectToLogin />
-                </NotAuthorized>
-            </AuthorizeRouteView>
+            <RouteView RouteData="@routeData" DefaultLayout="@typeof(Pages.Shared.MainLayout)" />
         </Found>
         <NotFound>
             <PageTitle>Not found</PageTitle>
