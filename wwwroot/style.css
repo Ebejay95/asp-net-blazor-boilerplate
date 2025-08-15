@@ -553,29 +553,3 @@ video {
 [hidden]:where(:not([hidden="until-found"])) {
   display: none;
 }
-
-.mb-4 {
-  margin-bottom: 1rem;
-}
-
-.ms-2 {
-  margin-inline-start: 0.5rem;
-}
-
-.mt-4 {
-  margin-top: 1rem;
-}
-
-.bg-red-500 {
-  --tw-bg-opacity: 1;
-  background-color: rgb(239 68 68 / var(--tw-bg-opacity));
-}
-
-.p-4 {
-  padding: 1rem;
-}
-
-.text-white {
-  --tw-text-opacity: 1;
-  color: rgb(255 255 255 / var(--tw-text-opacity));
-}
