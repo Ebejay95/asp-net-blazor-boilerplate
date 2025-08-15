@@ -7,8 +7,31 @@ on:
     branches: [ main ]
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build --no-restore --configuration Release
+
+    - name: Run tests
+      run: dotnet test --no-build --configuration Release --verbosity normal
+
   deploy:
     runs-on: ubuntu-latest
+    needs: test
+    if: success()
 
     steps:
     - name: Checkout Code
@@ -48,7 +71,7 @@ jobs:
         echo "Archive size:"
         du -h source-code.tar.gz
 
-    - name: Upload and extract source code
+    - name: Prepare deployment directory
       uses: appleboy/ssh-action@v1.0.0
       with:
         host: ${{ secrets.HETZNER_HOST }}
@@ -60,15 +83,16 @@ jobs:
 
           # Create backup if directory exists
           if [ -d "/var/www/cmc-app" ]; then
-            mv /var/www/cmc-app /var/www/cmc-app-backup-$(date +%Y%m%d_%H%M%S)
+            sudo mv /var/www/cmc-app /var/www/cmc-app-backup-$(date +%Y%m%d_%H%M%S)
             echo "Created backup"
           fi
 
-          # Create target directory
-          mkdir -p /var/www/cmc-app
+          # Create target directory with full permissions
+          sudo mkdir -p /var/www/cmc-app
+          sudo chmod 777 /var/www/cmc-app
           cd /var/www/cmc-app
 
-          echo "=== Directory prepared ==="
+          echo "=== Directory prepared with 777 permissions ==="
 
     - name: Upload source code
       uses: appleboy/scp-action@v0.1.7
@@ -91,18 +115,18 @@ jobs:
         script: |
           echo "=== Extracting source code ==="
 
-          # Extract source code to target directory
+          # Extract source code to target directory, stripping clean-source folder
           cd /var/www/cmc-app
-          tar -xzf /tmp/source-code.tar.gz
+          tar -xzf /tmp/source-code.tar.gz --strip-components=1
 
           echo "Source code extracted. Contents:"
           ls -la
 
-          # Set proper permissions
-          chown -R $USER:$USER /var/www/cmc-app
+          # Set 777 permissions recursively for everyone
+          chmod -R 777 /var/www/cmc-app
 
           # Clean up
           rm /tmp/source-code.tar.gz
 
           echo "=== Deployment Complete ==="
-          echo "Repository content is now in /var/www/cmc-app/"
+          echo "Repository content is now in /var/www/cmc-app/ with 777 permissions"
