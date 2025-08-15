@@ -1,198 +1,50 @@
-name: CI/CD Pipeline (Password Auth)
+name: Test Upload Only
 
 on:
   push:
     branches: [ main, test ]
-  pull_request:
-    branches: [ main ]
 
 jobs:
-  build-and-deploy:
+  test-upload:
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_USER: postgres
-          POSTGRES_DB: test_db
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v4
-
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: '8.0.x'
-
-    - name: Restore dependencies
-      run: dotnet restore
-
-    - name: Build
-      run: dotnet build --configuration Release
-
-    - name: Publish Web Application
-      run: dotnet publish src/CMC.Web/CMC.Web.csproj -c Release -o ./publish --no-build
-
-    - name: Create deployment package
+    - name: Create test file
       run: |
-        cd publish
-        tar -czf ../cmc-app.tar.gz *
-        cd ..
-        ls -la cmc-app.tar.gz
+        echo "This is a test file created at $(date)" > test-upload.txt
+        echo "Content:"
+        cat test-upload.txt
+        ls -la test-upload.txt
 
-    - name: Copy deployment package to Hetzner (Password Auth)
+    - name: Test SCP Upload
       uses: appleboy/scp-action@v0.1.7
       with:
         host: ${{ secrets.HETZNER_HOST }}
         username: ${{ secrets.HETZNER_USER }}
         password: ${{ secrets.SSH_PRIVATE_KEY_USER_PW }}
-        source: "cmc-app.tar.gz"
+        source: "test-upload.txt"
         target: "/tmp/"
         timeout: 60s
-        command_timeout: 10m
         debug: true
         overwrite: true
 
-    - name: Verify upload and deploy
+    - name: Verify upload worked
       uses: appleboy/ssh-action@v1.0.0
       with:
         host: ${{ secrets.HETZNER_HOST }}
         username: ${{ secrets.HETZNER_USER }}
         password: ${{ secrets.SSH_PRIVATE_KEY_USER_PW }}
-        timeout: 60s
-        command_timeout: 10m
+        timeout: 30s
         script: |
-          echo "=== Verifying Upload ==="
-
-          # Check if file was uploaded
-          if [ ! -f "/tmp/cmc-app.tar.gz" ]; then
-            echo "ERROR: Upload failed! File not found in /tmp/"
+          echo "=== Checking if upload worked ==="
+          if [ -f "/tmp/test-upload.txt" ]; then
+            echo "SUCCESS: File uploaded!"
+            echo "File info:"
+            ls -la /tmp/test-upload.txt
+            echo "File content:"
+            cat /tmp/test-upload.txt
+          else
+            echo "FAILED: File not found!"
             echo "Contents of /tmp/:"
-            ls -la /tmp/ | grep -E "(cmc|tar\.gz)" || echo "No matching files found"
-            exit 1
+            ls -la /tmp/
           fi
-
-          echo "Upload successful! File found:"
-          ls -la /tmp/cmc-app.tar.gz
-          echo "File size: $(du -h /tmp/cmc-app.tar.gz)"
-
-          # Test if tar file is valid
-          echo "Testing tar file integrity:"
-          tar -tzf /tmp/cmc-app.tar.gz > /dev/null
-          if [ $? -eq 0 ]; then
-            echo "Tar file is valid"
-            echo "Contents preview:"
-            tar -tzf /tmp/cmc-app.tar.gz | head -10
-          else
-            echo "ERROR: Tar file is corrupted!"
-            exit 1
-          fi
-
-    - name: Deploy and restart application
-      uses: appleboy/ssh-action@v1.0.0
-      with:
-        host: ${{ secrets.HETZNER_HOST }}
-        username: ${{ secrets.HETZNER_USER }}
-        password: ${{ secrets.SSH_PRIVATE_KEY_USER_PW }}
-        timeout: 60s
-        command_timeout: 10m
-        script: |
-          echo "=== Starting Deployment ==="
-
-          # Verify file exists (double check)
-          if [ ! -f "/tmp/cmc-app.tar.gz" ]; then
-            echo "ERROR: Deployment file missing!"
-            exit 1
-          fi
-
-          # Stop the application service (if it exists)
-          sudo systemctl stop meineapp.service 2>/dev/null || echo "Service not running"
-
-          # Backup current deployment (optional)
-          if [ -d "/var/www/cmc-app" ]; then
-            sudo mv /var/www/cmc-app /var/www/cmc-app-backup-$(date +%Y%m%d_%H%M%S)
-            echo "Created backup"
-          fi
-
-          # Create application directory
-          sudo mkdir -p /var/www/cmc-app
-          echo "Created directory /var/www/cmc-app"
-
-          # Extract new deployment with verbose output
-          cd /var/www/cmc-app
-          echo "Extracting to: $(pwd)"
-          sudo tar -xzvf /tmp/cmc-app.tar.gz
-          echo "Extraction complete"
-
-          # List contents after extraction
-          echo "Directory contents after extraction:"
-          ls -la
-
-          # Find the main DLL
-          echo "Looking for DLL files:"
-          find . -name "*.dll" -type f
-
-          # Set proper permissions
-          sudo chown -R www-data:www-data /var/www/cmc-app 2>/dev/null || sudo chown -R $USER:$USER /var/www/cmc-app
-
-          # Make the main executable file executable
-          if [ -f "CMC.Web" ]; then
-            sudo chmod +x CMC.Web
-            echo "Made CMC.Web executable"
-          elif [ -f "CMC.Web.dll" ]; then
-            echo "Found CMC.Web.dll"
-          else
-            echo "WARNING: Neither CMC.Web nor CMC.Web.dll found"
-            echo "Available files:"
-            ls -la
-          fi
-
-          echo "Set permissions"
-
-          # Clean up
-          rm /tmp/cmc-app.tar.gz
-          echo "Cleaned up temporary files"
-
-          # Check if systemd service exists, if not create a simple one
-          if [ ! -f "/etc/systemd/system/meineapp.service" ]; then
-            echo "Creating systemd service file..."
-            sudo tee /etc/systemd/system/meineapp.service > /dev/null <<EOF
-          [Unit]
-          Description=CMC Web Application
-          After=network.target
-
-          [Service]
-          Type=notify
-          ExecStart=/usr/bin/dotnet /var/www/cmc-app/CMC.Web.dll
-          Restart=always
-          RestartSec=5
-          User=www-data
-          Environment=ASPNETCORE_ENVIRONMENT=Production
-          Environment=ASPNETCORE_URLS=http://localhost:5000
-          WorkingDirectory=/var/www/cmc-app
-
-          [Install]
-          WantedBy=multi-user.target
-          EOF
-            sudo systemctl daemon-reload
-            sudo systemctl enable meineapp.service
-            echo "Created and enabled systemd service"
-          fi
-
-          # Start the application service
-          sudo systemctl start meineapp.service
-          sleep 3
-          echo "Service status:"
-          sudo systemctl status meineapp.service --no-pager -l
-
-          echo "=== Deployment Complete ==="
