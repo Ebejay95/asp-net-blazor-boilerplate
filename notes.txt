@@ -9,3 +9,6 @@ SSH_PRIVATE_KEY_USER_PW
 SSH_PRIVATE_KEY_PW
 SSH_PRIVATE_KEY
 HETZNER_HOST, HETZNER_USER
+
+    - name: Run Tests (optional)
+      run: dotnet test --configuration Release --no-build --verbosity normal
