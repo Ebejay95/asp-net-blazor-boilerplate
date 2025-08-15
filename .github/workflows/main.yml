@@ -77,6 +77,7 @@ jobs:
         host: ${{ secrets.HETZNER_HOST }}
         username: ${{ secrets.HETZNER_USER }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
+        passphrase: ${{ secrets.SSH_PRIVATE_KEY_PW }}
         timeout: 300s
         script: |
           echo "=== Starting Repository Deployment ==="
@@ -100,6 +101,7 @@ jobs:
         host: ${{ secrets.HETZNER_HOST }}
         username: ${{ secrets.HETZNER_USER }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
+        passphrase: ${{ secrets.SSH_PRIVATE_KEY_PW }}
         source: "source-code.tar.gz"
         target: "/tmp/"
         timeout: 60s
@@ -111,6 +113,7 @@ jobs:
         host: ${{ secrets.HETZNER_HOST }}
         username: ${{ secrets.HETZNER_USER }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
+        passphrase: ${{ secrets.SSH_PRIVATE_KEY_PW }}
         timeout: 900s
         script: |
           echo "=== Starting Production Setup ==="
@@ -134,13 +137,6 @@ jobs:
             sudo usermod -aG docker $USER
             sudo systemctl start docker
             sudo systemctl enable docker
-
-            # Logout and login to apply docker group (simulate with newgrp)
-            echo "🔄 Refreshing user groups for Docker..."
-            newgrp docker << EOFGROUP
-            echo "Docker group applied"
-            EOFGROUP
-
             echo "✅ Docker installed"
           else
             echo "ℹ️  Docker already installed"
@@ -191,10 +187,14 @@ jobs:
           # Create production environment file
           cat > /var/www/cmc-app/.env << EOF
           POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
-          PGADMIN_EMAIL=${{ secrets.PGADMIN_EMAIL }}
-          PGADMIN_PASSWORD=${{ secrets.PGADMIN_PASSWORD }}
+          PGADMIN_EMAIL=${{ secrets.PGLADMIN_EMAIL }}
+          PGADMIN_PASSWORD=${{ secrets.PGLADMIN_PASSWORD }}
           ASPNETCORE_ENVIRONMENT=Production
           EOF
+
+          # Stop and remove existing container if it exists
+          docker stop cmc-postgres-prod 2>/dev/null || true
+          docker rm cmc-postgres-prod 2>/dev/null || true
 
           # Start PostgreSQL with Docker
           echo "🐳 Starting PostgreSQL container..."
@@ -206,7 +206,7 @@ jobs:
             -e POSTGRES_DB=cmc_production \
             -p 127.0.0.1:5432:5432 \
             -v cmc_postgres_data:/var/lib/postgresql/data \
-            postgres:15 || echo "Container may already exist"
+            postgres:15
 
           echo "⏳ Waiting for database to start..."
           sleep 30
@@ -214,8 +214,11 @@ jobs:
           echo ""
           echo "⚙️  Setting up Systemd Service..."
 
+          # Stop existing service
+          sudo systemctl stop cmc-app.service 2>/dev/null || true
+
           # Create systemd service file
-          sudo tee /etc/systemd/system/cmc-app.service > /dev/null << 'EOF'
+          sudo tee /etc/systemd/system/cmc-app.service > /dev/null << EOF
           [Unit]
           Description=CMC Cybersecurity Management Cockpit
           After=network.target
@@ -241,7 +244,7 @@ jobs:
           # Set proper ownership
           sudo chown -R $USER:$USER /var/www/cmc-app
 
-          # Enable and start service
+          # Enable service
           sudo systemctl daemon-reload
           sudo systemctl enable cmc-app.service
 
@@ -249,11 +252,11 @@ jobs:
           echo "🌐 Setting up Nginx for Port 80..."
 
           # Create Nginx configuration
-          sudo tee /etc/nginx/sites-available/cmc-app > /dev/null << EOF
+          sudo tee /etc/nginx/sites-available/cmc-app > /dev/null << 'EOF'
           server {
-              listen 80;
-              listen [::]:80;
-              server_name ${{ secrets.HETZNER_HOST }} localhost _;
+              listen 80 default_server;
+              listen [::]:80 default_server;
+              server_name _;
 
               # Security Headers
               add_header X-Frame-Options "SAMEORIGIN" always;
@@ -270,20 +273,20 @@ jobs:
               location ~* \.(css|js|ico|png|jpg|jpeg|gif|webp|svg|woff|woff2|ttf|eot)$ {
                   expires 1y;
                   add_header Cache-Control "public, immutable";
-                  try_files \\\$uri =404;
+                  try_files $uri =404;
               }
 
               # Blazor SignalR Hub
               location /_blazor {
                   proxy_pass http://localhost:5000;
                   proxy_http_version 1.1;
-                  proxy_set_header Upgrade \\\$http_upgrade;
+                  proxy_set_header Upgrade $http_upgrade;
                   proxy_set_header Connection "upgrade";
-                  proxy_set_header Host \\\$host;
-                  proxy_set_header X-Real-IP \\\$remote_addr;
-                  proxy_set_header X-Forwarded-For \\\$proxy_add_x_forwarded_for;
-                  proxy_set_header X-Forwarded-Proto \\\$scheme;
-                  proxy_cache_bypass \\\$http_upgrade;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+                  proxy_cache_bypass $http_upgrade;
                   proxy_buffering off;
                   proxy_read_timeout 100s;
               }
@@ -292,20 +295,20 @@ jobs:
               location /api/ {
                   proxy_pass http://localhost:5000;
                   proxy_http_version 1.1;
-                  proxy_set_header Host \\\$host;
-                  proxy_set_header X-Real-IP \\\$remote_addr;
-                  proxy_set_header X-Forwarded-For \\\$proxy_add_x_forwarded_for;
-                  proxy_set_header X-Forwarded-Proto \\\$scheme;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
               }
 
               # Main Application
               location / {
                   proxy_pass http://localhost:5000;
                   proxy_http_version 1.1;
-                  proxy_set_header Host \\\$host;
-                  proxy_set_header X-Real-IP \\\$remote_addr;
-                  proxy_set_header X-Forwarded-For \\\$proxy_add_x_forwarded_for;
-                  proxy_set_header X-Forwarded-Proto \\\$scheme;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
                   client_max_body_size 10M;
               }
 
@@ -324,9 +327,6 @@ jobs:
 
           echo ""
           echo "🚀 Starting Application..."
-
-          # Stop any existing service
-          sudo systemctl stop cmc-app.service 2>/dev/null || true
 
           # Start the application
           sudo systemctl start cmc-app.service
