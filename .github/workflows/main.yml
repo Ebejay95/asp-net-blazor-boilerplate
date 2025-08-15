@@ -2,31 +2,31 @@ name: CI Deployment
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   test:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v3
-      with:
-        dotnet-version: '8.0.x'
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: "8.0.x"
 
-    - name: Restore dependencies
-      run: dotnet restore
+      - name: Restore dependencies
+        run: dotnet restore
 
-    - name: Build
-      run: dotnet build --no-restore --configuration Release
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
 
-    - name: Run tests
-      run: dotnet test --no-build --configuration Release --verbosity normal
+      - name: Run tests
+        run: dotnet test --no-build --configuration Release --verbosity normal
 
   deploy:
     runs-on: ubuntu-latest
@@ -34,99 +34,319 @@ jobs:
     if: success()
 
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    - name: Create clean source archive
-      run: |
-        echo "Creating source code archive..."
+      - name: Create clean source archive
+        run: |
+          echo "Creating source code archive..."
 
-        # Create a clean copy in a temporary directory
-        mkdir -p /tmp/clean-source
+          # Create a clean copy in a temporary directory
+          mkdir -p /tmp/clean-source
 
-        # Copy all files except excluded ones
-        rsync -av \
-          --exclude='.git/' \
-          --exclude='.github/' \
-          --exclude='bin/' \
-          --exclude='obj/' \
-          --exclude='*/bin/' \
-          --exclude='*/obj/' \
-          --exclude='*.user' \
-          --exclude='.vs/' \
-          --exclude='.vscode/' \
-          --exclude='node_modules/' \
-          ./ /tmp/clean-source/
+          # Copy all files except excluded ones
+          rsync -av \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='bin/' \
+            --exclude='obj/' \
+            --exclude='*/bin/' \
+            --exclude='*/obj/' \
+            --exclude='*.user' \
+            --exclude='.vs/' \
+            --exclude='.vscode/' \
+            --exclude='node_modules/' \
+            ./ /tmp/clean-source/
 
-        # Create archive from the clean copy
-        cd /tmp
-        tar -czf source-code.tar.gz clean-source/
+          # Create archive from the clean copy
+          cd /tmp
+          tar -czf source-code.tar.gz clean-source/
 
-        # Move archive to workspace
-        mv source-code.tar.gz $GITHUB_WORKSPACE/
-        cd $GITHUB_WORKSPACE
+          # Move archive to workspace
+          mv source-code.tar.gz $GITHUB_WORKSPACE/
+          cd $GITHUB_WORKSPACE
 
-        echo "Archive created:"
-        ls -la source-code.tar.gz
-        echo "Archive size:"
-        du -h source-code.tar.gz
+          echo "Archive created:"
+          ls -la source-code.tar.gz
+          echo "Archive size:"
+          du -h source-code.tar.gz
 
-    - name: Prepare deployment directory
-      uses: appleboy/ssh-action@v1.0.0
-      with:
-        host: ${{ secrets.HETZNER_HOST }}
-        username: ${{ secrets.HETZNER_USER }}
-        password: ${{ secrets.SSH_PRIVATE_KEY_USER_PW }}
-        timeout: 300s
-        script: |
-          echo "=== Starting Repository Deployment ==="
+      - name: Prepare deployment directory
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.HETZNER_HOST }}
+          username: ${{ secrets.HETZNER_USER }}
+          password: ${{ secrets.SSH_PRIVATE_KEY_USER_PW }}
+          timeout: 300s
+          script: |
+            echo "=== Starting Repository Deployment ==="
 
-          # Create backup if directory exists
-          if [ -d "/var/www/cmc-app" ]; then
-            sudo mv /var/www/cmc-app /var/www/cmc-app-backup-$(date +%Y%m%d_%H%M%S)
-            echo "Created backup"
-          fi
+            # Create backup if directory exists
+            if [ -d "/var/www/cmc-app" ]; then
+              sudo mv /var/www/cmc-app /var/www/cmc-app-backup-$(date +%Y%m%d_%H%M%S)
+              echo "Created backup"
+            fi
 
-          # Create target directory with full permissions
-          sudo mkdir -p /var/www/cmc-app
-          sudo chmod 777 /var/www/cmc-app
-          cd /var/www/cmc-app
+            # Create target directory with full permissions
+            sudo mkdir -p /var/www/cmc-app
+            sudo chmod 777 /var/www/cmc-app
+            cd /var/www/cmc-app
 
-          echo "=== Directory prepared with 777 permissions ==="
+            echo "=== Directory prepared with 777 permissions ==="
 
-    - name: Upload source code
-      uses: appleboy/scp-action@v0.1.7
-      with:
-        host: ${{ secrets.HETZNER_HOST }}
-        username: ${{ secrets.HETZNER_USER }}
-        password: ${{ secrets.SSH_PRIVATE_KEY_USER_PW }}
-        source: "source-code.tar.gz"
-        target: "/tmp/"
-        timeout: 60s
-        overwrite: true
+      - name: Upload source code
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.HETZNER_HOST }}
+          username: ${{ secrets.HETZNER_USER }}
+          password: ${{ secrets.SSH_PRIVATE_KEY_USER_PW }}
+          source: "source-code.tar.gz"
+          target: "/tmp/"
+          timeout: 60s
+          overwrite: true
 
-    - name: Extract and finalize
-      uses: appleboy/ssh-action@v1.0.0
-      with:
-        host: ${{ secrets.HETZNER_HOST }}
-        username: ${{ secrets.HETZNER_USER }}
-        password: ${{ secrets.SSH_PRIVATE_KEY_USER_PW }}
-        timeout: 300s
-        script: |
-          echo "=== Extracting source code ==="
+      - name: Extract and Setup Production Environment
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.HETZNER_HOST }}
+          username: ${{ secrets.HETZNER_USER }}
+          password: ${{ secrets.SSH_PRIVATE_KEY_USER_PW }}
+          timeout: 900s
+          script: |
+            echo "=== Starting Production Setup ==="
 
-          # Extract source code to target directory, stripping clean-source folder
-          cd /var/www/cmc-app
-          tar -xzf /tmp/source-code.tar.gz --strip-components=1
+            # Extract source code to target directory
+            cd /var/www/cmc-app
+            tar -xzf /tmp/source-code.tar.gz --strip-components=1
+            echo "✅ Source code extracted"
 
-          echo "Source code extracted. Contents:"
-          ls -la
+            # Set proper permissions
+            sudo chown -R www-data:www-data /var/www/cmc-app
+            sudo chmod +x /var/www/cmc-app/src/CMC.Web/CMC.Web.csproj || true
 
-          # Set 777 permissions recursively for everyone
-          chmod -R 777 /var/www/cmc-app
+            echo ""
+            echo "🔧 Installing Server Dependencies..."
 
-          # Clean up
-          rm /tmp/source-code.tar.gz
+            # Update system
+            sudo apt update
 
-          echo "=== Deployment Complete ==="
-          echo "Repository content is now in /var/www/cmc-app/ with 777 permissions"
+            # Install Docker if not present
+            if ! command -v docker &> /dev/null; then
+              echo "📦 Installing Docker..."
+              curl -fsSL https://get.docker.com -o get-docker.sh
+              sudo sh get-docker.sh
+              sudo usermod -aG docker $USER
+              sudo systemctl start docker
+              sudo systemctl enable docker
+              echo "✅ Docker installed"
+            else
+              echo "ℹ️  Docker already installed"
+            fi
+
+            # Install .NET 8 if not present
+            if ! command -v dotnet &> /dev/null; then
+              echo "📦 Installing .NET 8..."
+              wget https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
+              sudo dpkg -i packages-microsoft-prod.deb
+              rm packages-microsoft-prod.deb
+              sudo apt update
+              sudo apt install -y dotnet-sdk-8.0 aspnetcore-runtime-8.0
+              echo "✅ .NET 8 installed"
+            else
+              echo "ℹ️  .NET already installed"
+            fi
+
+            # Install Nginx if not present
+            if ! command -v nginx &> /dev/null; then
+              echo "📦 Installing Nginx..."
+              sudo apt install -y nginx
+              sudo systemctl start nginx
+              sudo systemctl enable nginx
+              echo "✅ Nginx installed"
+            else
+              echo "ℹ️  Nginx already installed"
+            fi
+
+            echo ""
+            echo "🚀 Building and Publishing Application..."
+
+            # Build and publish the application
+            cd /var/www/cmc-app
+            dotnet restore
+            dotnet publish src/CMC.Web/CMC.Web.csproj \
+              --configuration Release \
+              --output /var/www/cmc-app/publish \
+              --no-restore
+
+            # Move published files to root
+            sudo cp -r /var/www/cmc-app/publish/* /var/www/cmc-app/
+            sudo rm -rf /var/www/cmc-app/publish
+            sudo chown -R www-data:www-data /var/www/cmc-app
+
+            echo ""
+            echo "🗄️  Setting up Database..."
+
+            # Create production environment file
+            sudo tee /var/www/cmc-app/.env > /dev/null <<EOF
+            POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+            PGADMIN_EMAIL=${{ secrets.PGADMIN_EMAIL }}
+            PGADMIN_PASSWORD=${{ secrets.PGADMIN_PASSWORD }}
+            ASPNETCORE_ENVIRONMENT=Production
+            EOF
+
+            # Start PostgreSQL with Docker if docker-compose exists
+            if [ -f "/var/www/cmc-app/docker-compose.prod.yml" ]; then
+              echo "🐳 Starting PostgreSQL container..."
+              cd /var/www/cmc-app
+              docker compose -f docker-compose.prod.yml up -d postgres
+              echo "⏳ Waiting for database to start..."
+              sleep 30
+            else
+              echo "⚠️  docker-compose.prod.yml not found, creating basic setup..."
+              docker run -d \
+                --name cmc-postgres-prod \
+                -e POSTGRES_USER=cmc_user \
+                -e POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }} \
+                -e POSTGRES_DB=cmc_production \
+                -p 127.0.0.1:5432:5432 \
+                --restart unless-stopped \
+                postgres:15
+              sleep 30
+            fi
+
+            echo ""
+            echo "⚙️  Setting up Systemd Service..."
+
+            # Create systemd service file
+            sudo tee /etc/systemd/system/cmc-app.service > /dev/null <<'EOF'
+            [Unit]
+            Description=CMC Cybersecurity Management Cockpit
+            After=network.target docker.service
+            Requires=docker.service
+
+            [Service]
+            Type=notify
+            WorkingDirectory=/var/www/cmc-app
+            ExecStart=/usr/bin/dotnet /var/www/cmc-app/CMC.Web.dll
+            Restart=always
+            RestartSec=10
+            KillSignal=SIGINT
+            SyslogIdentifier=cmc-app
+            User=www-data
+            Group=www-data
+            Environment=ASPNETCORE_ENVIRONMENT=Production
+            Environment=ASPNETCORE_URLS=http://localhost:5000
+            Environment=DOTNET_USE_POLLING_FILE_WATCHER=true
+
+            [Install]
+            WantedBy=multi-user.target
+            EOF
+
+            # Enable and start service
+            sudo systemctl daemon-reload
+            sudo systemctl enable cmc-app.service
+
+            echo ""
+            echo "🌐 Setting up Nginx for Port 80..."
+
+            # Create Nginx configuration
+            sudo tee /etc/nginx/sites-available/cmc-app > /dev/null <<EOF
+            server {
+                listen 80;
+                listen [::]:80;
+                server_name ${{ secrets.HETZNER_HOST }} localhost;
+
+                # Security Headers
+                add_header X-Frame-Options "SAMEORIGIN" always;
+                add_header X-XSS-Protection "1; mode=block" always;
+                add_header X-Content-Type-Options "nosniff" always;
+
+                # Gzip Compression
+                gzip on;
+                gzip_vary on;
+                gzip_min_length 1024;
+                gzip_types text/plain text/css text/xml text/javascript application/javascript application/xml+rss application/json;
+
+                # Static Files
+                location ~* \.(css|js|ico|png|jpg|jpeg|gif|webp|svg|woff|woff2|ttf|eot)$ {
+                    expires 1y;
+                    add_header Cache-Control "public, immutable";
+                    try_files \$uri =404;
+                }
+
+                # Blazor SignalR Hub
+                location /_blazor {
+                    proxy_pass http://localhost:5000;
+                    proxy_http_version 1.1;
+                    proxy_set_header Upgrade \$http_upgrade;
+                    proxy_set_header Connection "upgrade";
+                    proxy_set_header Host \$host;
+                    proxy_set_header X-Real-IP \$remote_addr;
+                    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+                    proxy_set_header X-Forwarded-Proto \$scheme;
+                    proxy_cache_bypass \$http_upgrade;
+                    proxy_buffering off;
+                    proxy_read_timeout 100s;
+                }
+
+                # API Routes
+                location /api/ {
+                    proxy_pass http://localhost:5000;
+                    proxy_http_version 1.1;
+                    proxy_set_header Host \$host;
+                    proxy_set_header X-Real-IP \$remote_addr;
+                    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+                    proxy_set_header X-Forwarded-Proto \$scheme;
+                }
+
+                # Main Application
+                location / {
+                    proxy_pass http://localhost:5000;
+                    proxy_http_version 1.1;
+                    proxy_set_header Host \$host;
+                    proxy_set_header X-Real-IP \$remote_addr;
+                    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+                    proxy_set_header X-Forwarded-Proto \$scheme;
+                    client_max_body_size 10M;
+                }
+
+                # Logs
+                access_log /var/log/nginx/cmc-app.access.log;
+                error_log /var/log/nginx/cmc-app.error.log;
+            }
+            EOF
+
+            # Enable site and remove default
+            sudo ln -sf /etc/nginx/sites-available/cmc-app /etc/nginx/sites-enabled/
+            sudo rm -f /etc/nginx/sites-enabled/default
+
+            # Test and reload Nginx
+            sudo nginx -t && sudo systemctl reload nginx
+
+            echo ""
+            echo "🚀 Starting Application..."
+
+            # Stop any existing service
+            sudo systemctl stop cmc-app.service 2>/dev/null || true
+
+            # Start the application
+            sudo systemctl start cmc-app.service
+
+            # Clean up
+            rm /tmp/source-code.tar.gz
+
+            echo ""
+            echo "✅ Deployment completed successfully!"
+            echo "=================================="
+            echo "🌐 Application URL: http://${{ secrets.HETZNER_HOST }}"
+            echo "🧪 Test Login: test@example.com / password123"
+            echo ""
+            echo "📊 Status Check Commands:"
+            echo "   sudo systemctl status cmc-app.service"
+            echo "   sudo systemctl status nginx"
+            echo "   docker ps"
+            echo "   curl -I http://localhost"
+            echo ""
+            echo "📋 Logs:"
+            echo "   sudo journalctl -u cmc-app.service -f"
+            echo "   sudo tail -f /var/log/nginx/cmc-app.error.log"

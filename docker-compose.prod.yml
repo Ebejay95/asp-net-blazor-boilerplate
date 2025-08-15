@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: cmc-postgres-prod
+    environment:
+      POSTGRES_USER: cmc_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: cmc_production
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    ports:
+      - "127.0.0.1:5432:5432"  # Nur localhost access
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cmc_user -d cmc_production"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - cmc-network
+
+  # Optional: pgAdmin für Administration (nur wenn benötigt)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: cmc-pgadmin-prod
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+      PGADMIN_CONFIG_SERVER_MODE: 'True'
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    ports:
+      - "127.0.0.1:8080:80"  # Nur localhost access
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - cmc-network
+    profiles:
+      - admin  # Nur starten wenn explizit gewünscht
+
+volumes:
+  postgres_data:
+    driver: local
+  pgladmin_data:
+    driver: local
+
+networks:
+  cmc-network:
+    driver: bridge
