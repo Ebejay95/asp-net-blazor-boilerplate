@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+name: CI/CD Pipeline (Password Auth)
 
 on:
   push:
@@ -48,51 +48,93 @@ jobs:
         cd publish
         tar -czf ../cmc-app.tar.gz *
         cd ..
+        ls -la cmc-app.tar.gz
 
-    - name: Copy deployment package to Hetzner
+    - name: Copy deployment package to Hetzner (Password Auth)
       uses: appleboy/scp-action@v0.1.7
       with:
         host: ${{ secrets.HETZNER_HOST }}
         username: ${{ secrets.HETZNER_USER }}
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        passphrase: ${{ secrets.SSH_PRIVATE_KEY_PW }}
+        password: ${{ secrets.SSH_PRIVATE_KEY_USER_PW }}
         source: "cmc-app.tar.gz"
         target: "/tmp/"
         timeout: 30s
         command_timeout: 10m
+        debug: true
 
-    - name: Deploy and restart application
+    - name: Deploy and restart application (Password Auth)
       uses: appleboy/ssh-action@v1.0.0
       with:
         host: ${{ secrets.HETZNER_HOST }}
         username: ${{ secrets.HETZNER_USER }}
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        passphrase: ${{ secrets.SSH_PRIVATE_KEY_PW }}
+        password: ${{ secrets.SSH_PRIVATE_KEY_USER_PW }}
         timeout: 30s
         command_timeout: 10m
         script: |
-          # Stop the application service
-          sudo systemctl stop meineapp.service
+          echo "=== Starting Deployment ==="
+
+          # Check if file was uploaded
+          ls -la /tmp/cmc-app.tar.gz
+
+          # Stop the application service (if it exists)
+          sudo systemctl stop meineapp.service 2>/dev/null || echo "Service not running"
 
           # Backup current deployment (optional)
           if [ -d "/var/www/cmc-app" ]; then
             sudo mv /var/www/cmc-app /var/www/cmc-app-backup-$(date +%Y%m%d_%H%M%S)
+            echo "Created backup"
           fi
 
           # Create application directory
           sudo mkdir -p /var/www/cmc-app
+          echo "Created directory /var/www/cmc-app"
 
           # Extract new deployment
           cd /var/www/cmc-app
           sudo tar -xzf /tmp/cmc-app.tar.gz
+          echo "Extracted deployment package"
+
+          # List contents
+          ls -la
 
           # Set proper permissions
-          sudo chown -R www-data:www-data /var/www/cmc-app
-          sudo chmod +x /var/www/cmc-app/CMC.Web
+          sudo chown -R www-data:www-data /var/www/cmc-app 2>/dev/null || sudo chown -R $USER:$USER /var/www/cmc-app
+          sudo chmod +x /var/www/cmc-app/CMC.Web 2>/dev/null || echo "CMC.Web not found or not executable"
+          echo "Set permissions"
 
           # Clean up
           rm /tmp/cmc-app.tar.gz
+          echo "Cleaned up temporary files"
+
+          # Check if systemd service exists, if not create a simple one
+          if [ ! -f "/etc/systemd/system/meineapp.service" ]; then
+            echo "Creating systemd service file..."
+            sudo tee /etc/systemd/system/meineapp.service > /dev/null <<EOF
+          [Unit]
+          Description=CMC Web Application
+          After=network.target
+
+          [Service]
+          Type=notify
+          ExecStart=/usr/bin/dotnet /var/www/cmc-app/CMC.Web.dll
+          Restart=always
+          RestartSec=5
+          User=www-data
+          Environment=ASPNETCORE_ENVIRONMENT=Production
+          Environment=ASPNETCORE_URLS=http://localhost:5000
+          WorkingDirectory=/var/www/cmc-app
+
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+            sudo systemctl daemon-reload
+            sudo systemctl enable meineapp.service
+            echo "Created and enabled systemd service"
+          fi
 
           # Start the application service
           sudo systemctl start meineapp.service
-          sudo systemctl status meineapp.service
+          sleep 2
+          sudo systemctl status meineapp.service --no-pager
+
+          echo "=== Deployment Complete ==="
