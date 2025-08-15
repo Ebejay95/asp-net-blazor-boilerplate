@@ -1,0 +1,4 @@
+@import "tailwindcss";
+@source "../**/*.{razor,html,cshtml}";
+
+@import "./buttons.css";
