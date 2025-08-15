@@ -13,7 +13,7 @@ clean: docker-clean
 # Docker Development (Empfohlen)
 docker-dev: docker-setup
 	@echo "🚀 Starting CMC with Docker (PostgreSQL + pgAdmin + App)..."
-	docker-compose up -d postgres pgadmin
+	docker-compose -f docker-compose.yml up -d postgres pgadmin
 	@echo "⏳ Waiting for services to be ready..."
 	@sleep 10
 	@$(MAKE) dev-migrate
@@ -39,11 +39,11 @@ docker-setup:
 
 docker-down:
 	@echo "🛑 Stopping all Docker services..."
-	docker-compose down
+	docker-compose -f docker-compose.yml down
 
 docker-clean:
 	@echo "🧹 Cleaning all Docker resources..."
-	docker-compose down --volumes --remove-orphans
+	docker-compose -f docker-compose.yml down --volumes --remove-orphans
 	docker system prune -f
 
 # Legacy Commands (für Rückwärtskompatibilität)
@@ -80,7 +80,7 @@ debug-docker:
 
 logs:
 	@echo "📋 Service Logs:"
-	docker-compose logs --tail=50
+	docker-compose -f docker-compose.yml logs --tail=50
 
 logs-postgres:
 	docker logs postgres-cmc-compose --tail=50
