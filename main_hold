@@ -40,6 +40,9 @@ jobs:
     - name: Build
       run: dotnet build --configuration Release
 
+    - name: Run Tests
+      run: dotnet test --no-build --verbosity normal
+
     - name: Publish
       run: dotnet publish -c Release -o ./publish
 
