@@ -1,4 +1,4 @@
-name: Source Code Deployment Pipeline
+name: Simple Repository Deployment
 
 on:
   push:
@@ -7,34 +7,58 @@ on:
     branches: [ main ]
 
 jobs:
-  deploy-source:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    - name: Create source archive
+    - name: Create clean source archive
       run: |
         echo "Creating source code archive..."
-        # Exclude unnecessary files
-        tar -czf source-code.tar.gz \
-          --exclude='.git' \
-          --exclude='.github' \
-          --exclude='bin' \
-          --exclude='obj' \
-          --exclude='*.user' \
-          --exclude='.vs' \
-          --exclude='.vscode' \
-          --exclude='node_modules' \
-          .
+
+        # Create archive directly from current directory, excluding unwanted files
+        tar --exclude='.git' \
+            --exclude='.github' \
+            --exclude='bin' \
+            --exclude='obj' \
+            --exclude='*/bin' \
+            --exclude='*/obj' \
+            --exclude='*.user' \
+            --exclude='.vs' \
+            --exclude='.vscode' \
+            --exclude='node_modules' \
+            -czf source-code.tar.gz .
 
         echo "Archive created:"
         ls -la source-code.tar.gz
-        echo "Archive contents preview:"
-        tar -tzf source-code.tar.gz | head -20
+        echo "Archive size:"
+        du -h source-code.tar.gz
 
-    - name: Upload source code to server
+    - name: Upload and extract source code
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.HETZNER_HOST }}
+        username: ${{ secrets.HETZNER_USER }}
+        password: ${{ secrets.SSH_PRIVATE_KEY_USER_PW }}
+        timeout: 300s
+        script: |
+          echo "=== Starting Repository Deployment ==="
+
+          # Create backup if directory exists
+          if [ -d "/var/www/cmc-app" ]; then
+            mv /var/www/cmc-app /var/www/cmc-app-backup-$(date +%Y%m%d_%H%M%S)
+            echo "Created backup"
+          fi
+
+          # Create target directory
+          mkdir -p /var/www/cmc-app
+          cd /var/www/cmc-app
+
+          echo "=== Directory prepared ==="
+
+    - name: Upload source code
       uses: appleboy/scp-action@v0.1.7
       with:
         host: ${{ secrets.HETZNER_HOST }}
@@ -43,123 +67,30 @@ jobs:
         source: "source-code.tar.gz"
         target: "/tmp/"
         timeout: 60s
-        debug: true
         overwrite: true
 
-    - name: Build and deploy on server
+    - name: Extract and finalize
       uses: appleboy/ssh-action@v1.0.0
       with:
         host: ${{ secrets.HETZNER_HOST }}
         username: ${{ secrets.HETZNER_USER }}
         password: ${{ secrets.SSH_PRIVATE_KEY_USER_PW }}
         timeout: 300s
-        command_timeout: 15m
         script: |
-          echo "=== Starting Source Code Deployment ==="
+          echo "=== Extracting source code ==="
 
-          # Check if source was uploaded
-          if [ ! -f "/tmp/source-code.tar.gz" ]; then
-            echo "ERROR: Source code not uploaded!"
-            exit 1
-          fi
-
-          echo "Source archive info:"
-          ls -la /tmp/source-code.tar.gz
-
-          # Stop application
-          sudo systemctl stop meineapp.service 2>/dev/null || echo "Service not running"
-
-          # Backup current deployment
-          if [ -d "/var/www/cmc-app" ]; then
-            sudo mv /var/www/cmc-app /var/www/cmc-app-backup-$(date +%Y%m%d_%H%M%S)
-            echo "Created backup"
-          fi
-
-          # Create working directory
-          sudo mkdir -p /var/www/cmc-app
+          # Extract source code to target directory
           cd /var/www/cmc-app
-
-          # Extract source code
-          echo "Extracting source code..."
-          sudo tar -xzf /tmp/source-code.tar.gz
+          tar -xzf /tmp/source-code.tar.gz
 
           echo "Source code extracted. Contents:"
           ls -la
 
-          # Check if .NET is installed
-          dotnet --version || { echo "Installing .NET..."; wget https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh; chmod +x ./dotnet-install.sh; ./dotnet-install.sh --channel 8.0; export PATH="$PATH:$HOME/.dotnet"; }
-
-          echo "=== Building Application ==="
-
-          # Restore dependencies
-          echo "Restoring dependencies..."
-          dotnet restore
-
-          # Build application
-          echo "Building application..."
-          dotnet build --configuration Release
-
-          # Publish application
-          echo "Publishing application..."
-          dotnet publish src/CMC.Web/CMC.Web.csproj -c Release -o ./published
-
-          echo "Published files:"
-          ls -la ./published/
-
           # Set proper permissions
-          sudo chown -R www-data:www-data /var/www/cmc-app 2>/dev/null || sudo chown -R $USER:$USER /var/www/cmc-app
-
-          # Create systemd service
-          if [ ! -f "/etc/systemd/system/meineapp.service" ]; then
-            echo "Creating systemd service..."
-            sudo tee /etc/systemd/system/meineapp.service > /dev/null <<EOF
-          [Unit]
-          Description=CMC Web Application
-          After=network.target
-
-          [Service]
-          Type=notify
-          ExecStart=/usr/bin/dotnet /var/www/cmc-app/published/CMC.Web.dll
-          Restart=always
-          RestartSec=5
-          User=www-data
-          Environment=ASPNETCORE_ENVIRONMENT=Production
-          Environment=ASPNETCORE_URLS=http://localhost:5000
-          WorkingDirectory=/var/www/cmc-app/published
-
-          [Install]
-          WantedBy=multi-user.target
-          EOF
-            sudo systemctl daemon-reload
-            sudo systemctl enable meineapp.service
-            echo "Service created and enabled"
-          else
-            # Update existing service to point to new location
-            sudo sed -i 's|ExecStart=.*|ExecStart=/usr/bin/dotnet /var/www/cmc-app/published/CMC.Web.dll|' /etc/systemd/system/meineapp.service
-            sudo sed -i 's|WorkingDirectory=.*|WorkingDirectory=/var/www/cmc-app/published|' /etc/systemd/system/meineapp.service
-            sudo systemctl daemon-reload
-            echo "Service updated"
-          fi
-
-          # Start service
-          echo "Starting application..."
-          sudo systemctl start meineapp.service
-          sleep 5
-
-          # Check service status
-          echo "=== Service Status ==="
-          sudo systemctl status meineapp.service --no-pager -l
-
-          # Test application
-          echo "=== Testing Application ==="
-          curl -s -o /dev/null -w "HTTP Status: %{http_code}\n" http://localhost:5000 || echo "App not responding yet"
-
-          # Show application logs
-          echo "=== Recent Application Logs ==="
-          sudo journalctl -u meineapp.service -n 10 --no-pager
+          chown -R $USER:$USER /var/www/cmc-app
 
           # Clean up
           rm /tmp/source-code.tar.gz
 
           echo "=== Deployment Complete ==="
-          echo "Application should be running at http://localhost:5000"
+          echo "Repository content is now in /var/www/cmc-app/"
