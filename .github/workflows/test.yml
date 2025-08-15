@@ -1,4 +1,4 @@
-name: CI Deployment
+name: CI Tests
 
 on:
   push:
@@ -24,3 +24,6 @@ jobs:
 
     - name: Build
       run: dotnet build --no-restore --configuration Release
+
+    - name: Run tests
+      run: dotnet test --no-build --configuration Release --verbosity normal
