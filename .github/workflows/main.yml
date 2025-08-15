@@ -1,4 +1,4 @@
-name: Source Code Deployment Pipeline
+name: Simple Source Code Deployment
 
 on:
   push:
@@ -14,25 +14,30 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    - name: Create source archive
+    - name: Create clean source archive
       run: |
         echo "Creating source code archive..."
-        # Exclude unnecessary files
-        tar -czf source-code.tar.gz \
-          --exclude='.git' \
-          --exclude='.github' \
-          --exclude='bin' \
-          --exclude='obj' \
-          --exclude='*.user' \
-          --exclude='.vs' \
-          --exclude='.vscode' \
-          --exclude='node_modules' \
-          .
+
+        # Copy files to a clean directory
+        mkdir -p ../clean-source
+        cp -r . ../clean-source/
+
+        # Remove unwanted files from clean copy
+        cd ../clean-source
+        rm -rf .git .github bin obj ***/bin ***/obj *.user .vs .vscode node_modules
+
+        # Create archive
+        cd ..
+        tar -czf source-code.tar.gz clean-source/
+
+        # Move back to original directory
+        mv source-code.tar.gz $GITHUB_WORKSPACE/
+        cd $GITHUB_WORKSPACE
 
         echo "Archive created:"
         ls -la source-code.tar.gz
-        echo "Archive contents preview:"
-        tar -tzf source-code.tar.gz | head -20
+        echo "Archive size:"
+        du -h source-code.tar.gz
 
     - name: Upload source code to server
       uses: appleboy/scp-action@v0.1.7
@@ -81,13 +86,23 @@ jobs:
 
           # Extract source code
           echo "Extracting source code..."
-          sudo tar -xzf /tmp/source-code.tar.gz
+          sudo tar -xzf /tmp/source-code.tar.gz --strip-components=1
 
           echo "Source code extracted. Contents:"
           ls -la
 
-          # Check if .NET is installed
-          dotnet --version || { echo "Installing .NET..."; wget https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh; chmod +x ./dotnet-install.sh; ./dotnet-install.sh --channel 8.0; export PATH="$PATH:$HOME/.dotnet"; }
+          # Install .NET if not available
+          if ! command -v dotnet &> /dev/null; then
+            echo "Installing .NET 8..."
+            wget https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh
+            chmod +x ./dotnet-install.sh
+            ./dotnet-install.sh --channel 8.0
+            export PATH="$PATH:$HOME/.dotnet"
+            export DOTNET_ROOT="$HOME/.dotnet"
+          fi
+
+          echo "Using .NET version:"
+          dotnet --version
 
           echo "=== Building Application ==="
 
@@ -109,10 +124,9 @@ jobs:
           # Set proper permissions
           sudo chown -R www-data:www-data /var/www/cmc-app 2>/dev/null || sudo chown -R $USER:$USER /var/www/cmc-app
 
-          # Create systemd service
-          if [ ! -f "/etc/systemd/system/meineapp.service" ]; then
-            echo "Creating systemd service..."
-            sudo tee /etc/systemd/system/meineapp.service > /dev/null <<EOF
+          # Create or update systemd service
+          echo "Setting up systemd service..."
+          sudo tee /etc/systemd/system/meineapp.service > /dev/null <<EOF
           [Unit]
           Description=CMC Web Application
           After=network.target
@@ -125,21 +139,15 @@ jobs:
           User=www-data
           Environment=ASPNETCORE_ENVIRONMENT=Production
           Environment=ASPNETCORE_URLS=http://localhost:5000
+          Environment=DOTNET_ROOT=/usr/share/dotnet
           WorkingDirectory=/var/www/cmc-app/published
 
           [Install]
           WantedBy=multi-user.target
           EOF
-            sudo systemctl daemon-reload
-            sudo systemctl enable meineapp.service
-            echo "Service created and enabled"
-          else
-            # Update existing service to point to new location
-            sudo sed -i 's|ExecStart=.*|ExecStart=/usr/bin/dotnet /var/www/cmc-app/published/CMC.Web.dll|' /etc/systemd/system/meineapp.service
-            sudo sed -i 's|WorkingDirectory=.*|WorkingDirectory=/var/www/cmc-app/published|' /etc/systemd/system/meineapp.service
-            sudo systemctl daemon-reload
-            echo "Service updated"
-          fi
+
+          sudo systemctl daemon-reload
+          sudo systemctl enable meineapp.service
 
           # Start service
           echo "Starting application..."
@@ -152,11 +160,15 @@ jobs:
 
           # Test application
           echo "=== Testing Application ==="
-          curl -s -o /dev/null -w "HTTP Status: %{http_code}\n" http://localhost:5000 || echo "App not responding yet"
+          response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000)
+          echo "HTTP Status: $response"
 
-          # Show application logs
-          echo "=== Recent Application Logs ==="
-          sudo journalctl -u meineapp.service -n 10 --no-pager
+          if [ "$response" = "200" ]; then
+            echo "✅ Application is responding successfully!"
+          else
+            echo "⚠️ Application may not be ready yet. Checking logs..."
+            sudo journalctl -u meineapp.service -n 20 --no-pager
+          fi
 
           # Clean up
           rm /tmp/source-code.tar.gz
