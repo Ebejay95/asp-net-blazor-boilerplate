@@ -23,10 +23,15 @@ public class AuthIntegrationTests: IClassFixture<CustomWebApplicationFactory<Pro
     response.EnsureSuccessStatusCode();
     response.StatusCode.Should().Be(HttpStatusCode.OK);
 
+    // Check Content-Type header
+    response.Content.Headers.ContentType
+      ?.ToString().Should().StartWith("text/html");
+
     var content = await response.Content.ReadAsStringAsync();
-    // Check for the basic HTML structure instead of specific Blazor content
+    // Check for the basic HTML structure
     content.Should().Contain("CMC");
-    content.Should().Contain("text/html");
+    content.Should().Contain("<!DOCTYPE html>");
+    content.Should().Contain("<title>CMC</title>");
   }[Fact]
   public async Task Get_Register_ReturnsSuccessAndCorrectContentType() {
     // Act
@@ -36,10 +41,15 @@ public class AuthIntegrationTests: IClassFixture<CustomWebApplicationFactory<Pro
     response.EnsureSuccessStatusCode();
     response.StatusCode.Should().Be(HttpStatusCode.OK);
 
+    // Check Content-Type header
+    response.Content.Headers.ContentType
+      ?.ToString().Should().StartWith("text/html");
+
     var content = await response.Content.ReadAsStringAsync();
-    // Check for the basic HTML structure instead of specific Blazor content
+    // Check for the basic HTML structure
     content.Should().Contain("CMC");
-    content.Should().Contain("text/html");
+    content.Should().Contain("<!DOCTYPE html>");
+    content.Should().Contain("<title>CMC</title>");
   }[Fact]
   public async Task Get_Dashboard_WithoutAuth_ShouldReturnOKButWithoutUserData() {
     // Note: In a Blazor Server app, authorization is handled client-side
