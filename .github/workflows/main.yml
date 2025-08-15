@@ -18,18 +18,30 @@ jobs:
       run: |
         echo "Creating source code archive..."
 
-        # Create archive directly from current directory, excluding unwanted files
-        tar --exclude='.git' \
-            --exclude='.github' \
-            --exclude='bin' \
-            --exclude='obj' \
-            --exclude='*/bin' \
-            --exclude='*/obj' \
-            --exclude='*.user' \
-            --exclude='.vs' \
-            --exclude='.vscode' \
-            --exclude='node_modules' \
-            -czf source-code.tar.gz .
+        # Create a clean copy in a temporary directory
+        mkdir -p /tmp/clean-source
+
+        # Copy all files except excluded ones
+        rsync -av \
+          --exclude='.git/' \
+          --exclude='.github/' \
+          --exclude='bin/' \
+          --exclude='obj/' \
+          --exclude='*/bin/' \
+          --exclude='*/obj/' \
+          --exclude='*.user' \
+          --exclude='.vs/' \
+          --exclude='.vscode/' \
+          --exclude='node_modules/' \
+          ./ /tmp/clean-source/
+
+        # Create archive from the clean copy
+        cd /tmp
+        tar -czf source-code.tar.gz clean-source/
+
+        # Move archive to workspace
+        mv source-code.tar.gz $GITHUB_WORKSPACE/
+        cd $GITHUB_WORKSPACE
 
         echo "Archive created:"
         ls -la source-code.tar.gz
