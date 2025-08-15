@@ -1,4 +1,4 @@
-name: CI/CD Pipeline - Final Working
+name: Source Code Deployment Pipeline
 
 on:
   push:
@@ -7,104 +7,66 @@ on:
     branches: [ main ]
 
 jobs:
-  build-and-deploy:
+  deploy-source:
     runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_USER: postgres
-          POSTGRES_DB: test_db
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
 
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: '8.0.x'
-
-    - name: Restore dependencies
-      run: dotnet restore
-
-    - name: Build
-      run: dotnet build --configuration Release
-
-    - name: Publish Web Application
-      run: dotnet publish src/CMC.Web/CMC.Web.csproj -c Release -o ./publish --no-build
-
-    - name: Verify published files
+    - name: Create source archive
       run: |
-        echo "Published files:"
-        ls -la ./publish/
-        echo "Total size:"
-        du -sh ./publish/
-        echo "Looking for main DLL:"
-        find ./publish -name "*.dll" -type f | head -5
+        echo "Creating source code archive..."
+        # Exclude unnecessary files
+        tar -czf source-code.tar.gz \
+          --exclude='.git' \
+          --exclude='.github' \
+          --exclude='bin' \
+          --exclude='obj' \
+          --exclude='*.user' \
+          --exclude='.vs' \
+          --exclude='.vscode' \
+          --exclude='node_modules' \
+          .
 
-    - name: Create deployment package
-      run: |
-        cd publish
-        tar -czf ../cmc-app.tar.gz *
-        cd ..
-        echo "Package created:"
-        ls -la cmc-app.tar.gz
-        echo "Package contents preview:"
-        tar -tzf cmc-app.tar.gz | head -10
+        echo "Archive created:"
+        ls -la source-code.tar.gz
+        echo "Archive contents preview:"
+        tar -tzf source-code.tar.gz | head -20
 
-    - name: Upload deployment package
+    - name: Upload source code to server
       uses: appleboy/scp-action@v0.1.7
       with:
         host: ${{ secrets.HETZNER_HOST }}
         username: ${{ secrets.HETZNER_USER }}
         password: ${{ secrets.SSH_PRIVATE_KEY_USER_PW }}
-        source: "cmc-app.tar.gz"
+        source: "source-code.tar.gz"
         target: "/tmp/"
         timeout: 60s
         debug: true
         overwrite: true
 
-    - name: Deploy application
+    - name: Build and deploy on server
       uses: appleboy/ssh-action@v1.0.0
       with:
         host: ${{ secrets.HETZNER_HOST }}
         username: ${{ secrets.HETZNER_USER }}
         password: ${{ secrets.SSH_PRIVATE_KEY_USER_PW }}
-        timeout: 60s
-        command_timeout: 10m
+        timeout: 300s
+        command_timeout: 15m
         script: |
-          echo "=== Starting Deployment ==="
+          echo "=== Starting Source Code Deployment ==="
 
-          # Verify upload
-          if [ ! -f "/tmp/cmc-app.tar.gz" ]; then
-            echo "ERROR: Deployment package not found!"
+          # Check if source was uploaded
+          if [ ! -f "/tmp/source-code.tar.gz" ]; then
+            echo "ERROR: Source code not uploaded!"
             exit 1
           fi
 
-          echo "Package info:"
-          ls -la /tmp/cmc-app.tar.gz
+          echo "Source archive info:"
+          ls -la /tmp/source-code.tar.gz
 
-          # Test package integrity
-          tar -tzf /tmp/cmc-app.tar.gz > /dev/null
-          if [ $? -ne 0 ]; then
-            echo "ERROR: Package is corrupted!"
-            exit 1
-          fi
-
-          echo "Package is valid. Contents:"
-          tar -tzf /tmp/cmc-app.tar.gz | head -5
-
-          # Stop service
+          # Stop application
           sudo systemctl stop meineapp.service 2>/dev/null || echo "Service not running"
 
           # Backup current deployment
@@ -113,15 +75,38 @@ jobs:
             echo "Created backup"
           fi
 
-          # Create directory and extract
+          # Create working directory
           sudo mkdir -p /var/www/cmc-app
           cd /var/www/cmc-app
-          sudo tar -xzf /tmp/cmc-app.tar.gz
 
-          echo "Deployment extracted. Contents:"
+          # Extract source code
+          echo "Extracting source code..."
+          sudo tar -xzf /tmp/source-code.tar.gz
+
+          echo "Source code extracted. Contents:"
           ls -la
 
-          # Set permissions
+          # Check if .NET is installed
+          dotnet --version || { echo "Installing .NET..."; wget https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh; chmod +x ./dotnet-install.sh; ./dotnet-install.sh --channel 8.0; export PATH="$PATH:$HOME/.dotnet"; }
+
+          echo "=== Building Application ==="
+
+          # Restore dependencies
+          echo "Restoring dependencies..."
+          dotnet restore
+
+          # Build application
+          echo "Building application..."
+          dotnet build --configuration Release
+
+          # Publish application
+          echo "Publishing application..."
+          dotnet publish src/CMC.Web/CMC.Web.csproj -c Release -o ./published
+
+          echo "Published files:"
+          ls -la ./published/
+
+          # Set proper permissions
           sudo chown -R www-data:www-data /var/www/cmc-app 2>/dev/null || sudo chown -R $USER:$USER /var/www/cmc-app
 
           # Create systemd service
@@ -134,13 +119,13 @@ jobs:
 
           [Service]
           Type=notify
-          ExecStart=/usr/bin/dotnet /var/www/cmc-app/CMC.Web.dll
+          ExecStart=/usr/bin/dotnet /var/www/cmc-app/published/CMC.Web.dll
           Restart=always
           RestartSec=5
           User=www-data
           Environment=ASPNETCORE_ENVIRONMENT=Production
           Environment=ASPNETCORE_URLS=http://localhost:5000
-          WorkingDirectory=/var/www/cmc-app
+          WorkingDirectory=/var/www/cmc-app/published
 
           [Install]
           WantedBy=multi-user.target
@@ -148,21 +133,33 @@ jobs:
             sudo systemctl daemon-reload
             sudo systemctl enable meineapp.service
             echo "Service created and enabled"
+          else
+            # Update existing service to point to new location
+            sudo sed -i 's|ExecStart=.*|ExecStart=/usr/bin/dotnet /var/www/cmc-app/published/CMC.Web.dll|' /etc/systemd/system/meineapp.service
+            sudo sed -i 's|WorkingDirectory=.*|WorkingDirectory=/var/www/cmc-app/published|' /etc/systemd/system/meineapp.service
+            sudo systemctl daemon-reload
+            echo "Service updated"
           fi
 
           # Start service
+          echo "Starting application..."
           sudo systemctl start meineapp.service
-          sleep 3
+          sleep 5
 
           # Check service status
           echo "=== Service Status ==="
           sudo systemctl status meineapp.service --no-pager -l
 
-          # Check if app is responding
+          # Test application
           echo "=== Testing Application ==="
-          curl -s -o /dev/null -w "%{http_code}" http://localhost:5000 || echo "App not responding yet (normal on first start)"
+          curl -s -o /dev/null -w "HTTP Status: %{http_code}\n" http://localhost:5000 || echo "App not responding yet"
+
+          # Show application logs
+          echo "=== Recent Application Logs ==="
+          sudo journalctl -u meineapp.service -n 10 --no-pager
 
           # Clean up
-          rm /tmp/cmc-app.tar.gz
+          rm /tmp/source-code.tar.gz
 
           echo "=== Deployment Complete ==="
+          echo "Application should be running at http://localhost:5000"
