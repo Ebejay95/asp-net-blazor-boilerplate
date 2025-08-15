@@ -2,7 +2,7 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, test ]
   pull_request:
     branches: [ main ]
 
@@ -21,7 +21,7 @@ jobs:
           --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 5
+          --health-retries 5s
         ports:
           - 5432:5432
 
@@ -40,28 +40,62 @@ jobs:
     - name: Build
       run: dotnet build --configuration Release
 
-    - name: Publish
-      run: dotnet publish -c Release -o ./publish
+    - name: Run Tests
+      run: dotnet test --configuration Release --no-build --verbosity normal
 
-    - name: Copy files to Hetzner
+    - name: Publish Web Application
+      run: dotnet publish src/CMC.Web/CMC.Web.csproj -c Release -o ./publish --no-build
+
+    - name: Create deployment package
+      run: |
+        cd publish
+        tar -czf ../cmc-app.tar.gz *
+        cd ..
+
+    - name: Copy deployment package to Hetzner
       uses: appleboy/scp-action@v0.1.7
       with:
         host: ${{ secrets.HETZNER_HOST }}
         username: ${{ secrets.HETZNER_USER }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         passphrase: ${{ secrets.SSH_PRIVATE_KEY_PW }}
-        source: "./publish/*"
-        target: "/var/www/cmc-app"
+        source: "cmc-app.tar.gz"
+        target: "/tmp/"
+        timeout: 30s
+        command_timeout: 10m
 
-    - name: Build & Restart on Hetzner
+    - name: Deploy and restart application
       uses: appleboy/ssh-action@v1.0.0
       with:
         host: ${{ secrets.HETZNER_HOST }}
         username: ${{ secrets.HETZNER_USER }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         passphrase: ${{ secrets.SSH_PRIVATE_KEY_PW }}
+        timeout: 30s
+        command_timeout: 10m
         script: |
+          # Stop the application service
+          sudo systemctl stop meineapp.service
+
+          # Backup current deployment (optional)
+          if [ -d "/var/www/cmc-app" ]; then
+            sudo mv /var/www/cmc-app /var/www/cmc-app-backup-$(date +%Y%m%d_%H%M%S)
+          fi
+
+          # Create application directory
+          sudo mkdir -p /var/www/cmc-app
+
+          # Extract new deployment
           cd /var/www/cmc-app
-          dotnet restore
-          dotnet build --configuration Release
-          systemctl restart meineapp.service
+          sudo tar -xzf /tmp/cmc-app.tar.gz
+
+          # Set proper permissions
+          sudo chown -R www-data:www-data /var/www/cmc-app
+          sudo chmod +x /var/www/cmc-app/CMC.Web
+
+          # Clean up
+          rm /tmp/cmc-app.tar.gz
+
+          # Start the application service
+          sudo systemctl start meineapp.service
+          sudo systemctl status meineapp.service

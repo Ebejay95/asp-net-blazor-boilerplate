@@ -4,3 +4,8 @@ find . -name "bin" -type d -exec rm -rf {} + && find . -name "obj" -type d -exec
 
 
 doener schmeckt
+
+SSH_PRIVATE_KEY_USER_PW
+SSH_PRIVATE_KEY_PW
+SSH_PRIVATE_KEY
+HETZNER_HOST, HETZNER_USER
