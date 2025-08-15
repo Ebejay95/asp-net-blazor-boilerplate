@@ -31,7 +31,7 @@ docker-dev: docker-setup
 	@echo "   🗄️  PostgreSQL: localhost:5432 (postgres / password)"
 	@echo "   🧪 Test Login: test@example.com / password123"
 	@echo ""
-	cd src/CMC.Web && dotnet run
+	@$(MAKE) app-watch
 
 docker-setup:
 	@echo "📁 Setting up Docker configuration files…"
@@ -62,16 +62,23 @@ dev-test:
 	@echo "🧪 Running tests…"
 	dotnet test
 
+# ==== App (.NET Hot Reload) ====
+app-watch:
+	@echo "👀 .NET Hot Reload…"
+	@cd src/CMC.Web && DOTNET_WATCH_RESTART_ON_RUDE_EDIT=1 DOTNET_USE_POLLING_FILE_WATCHER=1 \
+	dotnet watch --non-interactive run
+
 # ==== Help ====
 help:
 	@echo "🎯 CMC Development Commands:"
 	@echo ""
 	@echo "Main:"
-	@echo "  make docker-dev              # Start all (DB + pgAdmin + App + Tailwind)"
+	@echo "  make docker-dev              # Start all (DB + pgAdmin + App + Tailwind + Hot Reload)"
 	@echo "  make down / make clean       # Stop / Prune"
 	@echo ""
 	@echo "Tailwind:"
-	@echo "  make tailwind-start          # Start watcher (TW_MODE=bg|term)"
+	@echo "  make tailwind-start          # Prebuild + Watch (TW_MODE=bg|term, --poll)"
+	@echo "  make tailwind-rebuild        # Force one-shot rebuild"
 	@echo "  make tailwind-stop           # Stop watcher"
 	@echo "  make tailwind-status         # Show PID & last logs"
 	@echo "  make tailwind-build          # Build prod"
@@ -80,28 +87,40 @@ help:
 	@echo "  make dev-migrate             # EF migrations"
 	@echo "  make dev-test                # dotnet test"
 
-
 # ==== Tailwind (plattformneutral) ====
 tailwind-ensure:
 	@mkdir -p $(WEB_DIR)/Styles $(WEB_DIR)/wwwroot
 	@if [ ! -f "$(TW_IN)" ]; then \
 		echo "➕ Creating $(TW_IN)"; \
-		printf '@import "tailwindcss";\n@source "../";\n' > $(TW_IN); \
+		printf '@import "tailwindcss";\n@source "../**/*.razor";\n@source "../**/*.cshtml";\n@source "../**/*.html";\n@source "../**/*.js";\n@source "../**/*.ts";\n@source "./buttons.css";\n@import "./buttons.css";\n' > $(TW_IN); \
+	fi
+	@# Stelle sicher, dass buttons.css existiert
+	@if [ ! -f "$(WEB_DIR)/Styles/buttons.css" ]; then \
+		printf '@layer utilities { a{ @apply bg-red-800 hover:bg-blue-600 text-white px-4 py-2 rounded; } }\n' > $(WEB_DIR)/Styles/buttons.css; \
 	fi
 
-tailwind-bg: tailwind-ensure
-	@echo "🎨 Starting Tailwind v4 watcher in background..."
+# --- One-shot Prebuild (fix für "leere style.css" beim ersten Lauf) ---
+tailwind-prebuild: tailwind-ensure
+	@echo "🏗️  Tailwind prebuild (dev)…"
+	@cd $(WEB_DIR) && $(TWCLI) -i ./Styles/app.css -o ./wwwroot/style.css --verbose
+	@# simple sanity check
+	@test -s $(TW_OUT) || (echo "❌ style.css ist leer – check @source/@import Pfade" && exit 1)
+	@echo "✅ Prebuild ok: $$(wc -c < $(TW_OUT)) bytes"
+
+# --- Watcher ---
+tailwind-bg: tailwind-prebuild
+	@echo "🎨 Starting Tailwind v4 watcher in background (poll, verbose)…"
 	@rm -f $(TW_PID) $(TW_LOG)
-	@(cd $(WEB_DIR) && $(TWCLI) -i ./Styles/app.css -o ./wwwroot/style.css -w) > $(TW_LOG) 2>&1 & echo $$! > $(TW_PID)
+	@(cd $(WEB_DIR) && $(TWCLI) -i ./Styles/app.css -o ./wwwroot/style.css -w --poll --verbose) > $(TW_LOG) 2>&1 & echo $$! > $(TW_PID)
 	@echo "✅ Tailwind watcher started (PID: $$(cat $(TW_PID)))"
 
-tailwind-term: tailwind-ensure
+tailwind-term: tailwind-prebuild
 	@if command -v gnome-terminal >/dev/null; then \
 		echo "🪟 gnome-terminal detected — starting Tailwind…"; \
-		gnome-terminal -- bash -c "cd '$(WEB_DIR)'; $(TWCLI) -i ./Styles/app.css -o ./wwwroot/style.css -w; exec bash"; \
+		gnome-terminal -- bash -c "cd '$(WEB_DIR)'; $(TWCLI) -i ./Styles/app.css -o ./wwwroot/style.css -w --poll --verbose; exec bash"; \
 	elif command -v xterm >/dev/null; then \
 		echo "🪟 xterm detected — starting Tailwind…"; \
-		xterm -e "cd '$(WEB_DIR)' && $(TWCLI) -i ./Styles/app.css -o ./wwwroot/style.css -w"; \
+		xterm -e "cd '$(WEB_DIR)' && $(TWCLI) -i ./Styles/app.css -o ./wwwroot/style.css -w --poll --verbose"; \
 	else \
 		echo "⚠️  No GUI terminal found — falling back to background mode"; \
 		$(MAKE) tailwind-bg; \
@@ -113,6 +132,12 @@ tailwind-start:
 	else \
 		$(MAKE) tailwind-bg; \
 	fi
+
+tailwind-rebuild: tailwind-ensure
+	@echo "🔁 Forcing Tailwind rebuild (dev)…"
+	@cd $(WEB_DIR) && $(TWCLI) -i ./Styles/app.css -o ./wwwroot/style.css --verbose
+	@test -s $(TW_OUT) || (echo "❌ style.css ist leer – check @source/@import" && exit 1)
+	@echo "✅ Rebuilt: $$(wc -c < $(TW_OUT)) bytes"
 
 tailwind-stop:
 	@echo "🛑 Stopping Tailwind watcher..."
@@ -127,14 +152,15 @@ tailwind-stop:
 tailwind-status:
 	@echo "ℹ️  Tailwind PID: $$(test -f $(TW_PID) && cat $(TW_PID) || echo '-')"
 	@echo "ℹ️  CSS exists: $$(test -f $(TW_OUT) && echo YES || echo NO)"
-	@echo "📋 Last logs:"; tail -n 15 $(TW_LOG) 2>/dev/null || echo "no logs"
+	@echo "📋 Last logs:"; tail -n 30 $(TW_LOG) 2>/dev/null || echo "no logs"
 
 tailwind-build: tailwind-ensure
 	@echo "🏗️  Building Tailwind (prod, minify)…"
-	@$(TWCLI) -i $(WEB_DIR)/Styles/app.css -o $(WEB_DIR)/wwwroot/style.css --minify --cwd $(WEB_DIR)
+	@cd $(WEB_DIR) && $(TWCLI) -i ./Styles/app.css -o ./wwwroot/style.css --minify
+	@test -s $(TW_OUT) || (echo "❌ style.css ist leer – prod build fehlgeschlagen" && exit 1)
 	@echo "✅ Built $$(wc -c < $(TW_OUT)) bytes"
 
-
 .PHONY: all down clean docker-dev docker-setup docker-down docker-clean \
-	tailwind-ensure tailwind-bg tailwind-term tailwind-start tailwind-stop \
-	tailwind-status tailwind-build dev-migrate dev-test help
+	tailwind-ensure tailwind-prebuild tailwind-bg tailwind-term tailwind-start \
+	tailwind-rebuild tailwind-stop tailwind-status tailwind-build \
+	dev-migrate dev-test app-watch help
