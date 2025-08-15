@@ -1,3 +1,6 @@
 find . -name "bin" -type d -exec rm -rf {} + && find . -name "obj" -type d -exec rm -rf {} + && (find . -type f -not -path "./.git/*" -exec ls -la {} \; && echo "=== FILE CONTENTS ===" && find . -type f -not -path "./.git/*" -exec sh -c 'echo "=== {} ==="; cat "{}"' \;) > ./../out
 
 .NET 8.0 nutzen
+
+
+doener schmeckt
