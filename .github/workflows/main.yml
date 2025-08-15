@@ -77,7 +77,6 @@ jobs:
         host: ${{ secrets.HETZNER_HOST }}
         username: ${{ secrets.HETZNER_USER }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
-        passphrase: ${{ secrets.SSH_PRIVATE_KEY_PW }}
         timeout: 300s
         script: |
           echo "=== Starting Repository Deployment ==="
@@ -101,7 +100,6 @@ jobs:
         host: ${{ secrets.HETZNER_HOST }}
         username: ${{ secrets.HETZNER_USER }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
-        passphrase: ${{ secrets.SSH_PRIVATE_KEY_PW }}
         source: "source-code.tar.gz"
         target: "/tmp/"
         timeout: 60s
@@ -113,7 +111,6 @@ jobs:
         host: ${{ secrets.HETZNER_HOST }}
         username: ${{ secrets.HETZNER_USER }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
-        passphrase: ${{ secrets.SSH_PRIVATE_KEY_PW }}
         timeout: 900s
         script: |
           echo "=== Starting Production Setup ==="
