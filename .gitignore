@@ -41,3 +41,5 @@ TestResults/
 
 ## Secrets
 appsettings.Production.json
+
+.DS_Store
