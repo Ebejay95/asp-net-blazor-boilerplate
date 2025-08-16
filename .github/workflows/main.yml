@@ -16,10 +16,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
 
-      - name: Create source tarball (exclude junk)
+      - name: Create source tarball
         run: |
           tar \
             --exclude='.git' \
@@ -35,46 +33,46 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_KEY }}
           source: "source-code.tar.gz"
-          target: "/tmp/source-code.tar.gz"
-          strip_components: 0
-          overwrite: true
+          target: "/tmp"
 
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.0.0
-        env:
-          SUDO_PASS: ${{ secrets.SUDO_PASS }}
-          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-          APP_DIR: ${{ secrets.SERVER_APP_DIR || '/var/www/cmc-app' }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_KEY }}
-          command_timeout: 30m
           script_stop: true
+          command_timeout: 30m
           script: |
             set -euo pipefail
 
-            echo "=== Starting Production Setup ==="
-            APP_DIR="${APP_DIR:-/var/www/cmc-app}"
+            # ==== Variablen ====
+            APP_DIR="${SERVER_APP_DIR:-/var/www/cmc-app}"
 
-            # --- Verzeichnisse & Code ausrollen
+            # ==== Secrets an Umgebungsvariablen binden ====
+            # appleboy/ssh-action setzt die GitHub-Secrets NICHT automatisch als Env im Remote-Host.
+            # Darum übergeben wir sie als Inline-Variablen in die Shell.
+            POSTGRES_PASSWORD='${{ secrets.POSTGRES_PASSWORD }}'
+            SUDO_PASS='${{ secrets.SUDO_PASS }}'
+
+            echo "=== Starting Production Setup ==="
+
+            # --- App-Verzeichnis und Code ausrollen
             echo "$SUDO_PASS" | sudo -S mkdir -p "$APP_DIR"
             echo "$SUDO_PASS" | sudo -S chown "$USER:$USER" "$APP_DIR"
             cd "$APP_DIR"
             tar -xzf /tmp/source-code.tar.gz --strip-components=1
             echo "✅ Source code extracted"
 
-            # --- Systemabhängigkeiten nur wenn nötig
+            # --- Systemabhängigkeiten (nur falls fehlen)
             echo "$SUDO_PASS" | sudo -S apt update -y
 
-            # Docker (nur falls nicht vorhanden)
             if ! command -v docker >/dev/null 2>&1; then
               curl -fsSL https://get.docker.com -o get-docker.sh
               echo "$SUDO_PASS" | sudo -S sh get-docker.sh
               echo "$SUDO_PASS" | sudo -S systemctl enable --now docker
             fi
 
-            # .NET 8 SDK / ASP.NET Runtime (nur falls nicht vorhanden)
             if ! command -v dotnet >/dev/null 2>&1; then
               wget -q https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
               echo "$SUDO_PASS" | sudo -S dpkg -i packages-microsoft-prod.deb
@@ -83,39 +81,36 @@ jobs:
               echo "$SUDO_PASS" | sudo -S apt install -y dotnet-sdk-8.0 aspnetcore-runtime-8.0
             fi
 
-            # Nginx (Reverse Proxy)
             if ! command -v nginx >/dev/null 2>&1; then
               echo "$SUDO_PASS" | sudo -S apt install -y nginx
               echo "$SUDO_PASS" | sudo -S systemctl enable --now nginx
             fi
 
-            # Node.js 20 (für Tailwind v4) – nur falls node fehlt
             if ! command -v node >/dev/null 2>&1; then
               echo "$SUDO_PASS" | sudo -S apt install -y ca-certificates curl gnupg
               curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
               echo "$SUDO_PASS" | sudo -S apt install -y nodejs
             fi
 
-            # --- Tailwind v4 Build (prod, minify)
-            echo "🎨 Building Tailwind (v4) for Production…"
+            # --- Tailwind v4 (Prod Minify)
+            echo "🎨 Building Tailwind v4…"
             cd "$APP_DIR/src/CMC.Web"
             npx @tailwindcss/cli@latest -i ./Styles/app.css -o ./wwwroot/style.css --minify
             test -s ./wwwroot/style.css || (echo "❌ Tailwind output missing/empty" && exit 1)
-            echo "✅ Tailwind built: $(wc -c < ./wwwroot/style.css) bytes"
+            echo "✅ Tailwind built"
 
-            # --- .NET Restore/Publish
+            # --- .NET publish
             cd "$APP_DIR"
             dotnet restore
-            dotnet publish src/CMC.Web/CMC.Web.csproj --configuration Release --output "$APP_DIR/publish" --no-restore
-
-            # In Place bereitstellen
+            dotnet publish src/CMC.Web/CMC.Web.csproj -c Release -o "$APP_DIR/publish" --no-restore
             cp -r "$APP_DIR/publish/"* "$APP_DIR/"
             rm -rf "$APP_DIR/publish"
             echo "$SUDO_PASS" | sudo -S chown -R "$USER:$USER" "$APP_DIR"
 
-            # --- Postgres-Container sicherstellen (Passwort aus Secret)
+            # --- Postgres-Container idempotent bereitstellen
             echo "$SUDO_PASS" | sudo -S docker stop cmc-postgres-prod 2>/dev/null || true
             echo "$SUDO_PASS" | sudo -S docker rm   cmc-postgres-prod 2>/dev/null || true
+
             echo "$SUDO_PASS" | sudo -S docker run -d --name cmc-postgres-prod --restart unless-stopped \
               -e POSTGRES_USER=cmc_user \
               -e POSTGRES_PASSWORD="${POSTGRES_PASSWORD}" \
@@ -124,21 +119,21 @@ jobs:
               -v cmc_postgres_data:/var/lib/postgresql/data \
               postgres:15
 
-            # Kurze Wartezeit, bis PG bereit ist
+            # Warten bis PG bereit
             sleep 10
             echo "$SUDO_PASS" | sudo -S docker exec cmc-postgres-prod pg_isready -U cmc_user -d cmc_production
 
-            # --- systemd Unit (Basis) nur einmalig anlegen, falls nicht da
+            # --- systemd Unit einmalig anlegen (ohne Secrets)
             if [ ! -f /etc/systemd/system/cmc-app.service ]; then
-              echo "$SUDO_PASS" | sudo -S bash -c 'cat > /etc/systemd/system/cmc-app.service <<SVC
+              echo "$SUDO_PASS" | sudo -S bash -c "cat > /etc/systemd/system/cmc-app.service <<'SVC'
 [Unit]
 Description=CMC Cybersecurity Management Cockpit
 After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory='"$APP_DIR"'
-ExecStart=/usr/bin/dotnet '"$APP_DIR"'/CMC.Web.dll --urls http://localhost:5000
+WorkingDirectory=${APP_DIR}
+ExecStart=/usr/bin/dotnet ${APP_DIR}/CMC.Web.dll --urls http://localhost:5000
 Restart=always
 RestartSec=10
 User=www-data
@@ -146,32 +141,30 @@ Group=www-data
 
 [Install]
 WantedBy=multi-user.target
-SVC'
+SVC"
               echo "$SUDO_PASS" | sudo -S systemctl enable cmc-app.service
             fi
 
-            # --- systemd Drop-In mit **Secrets** (keine .env nötig)
+            # --- systemd Drop-In mit Secrets (keine .env)
             echo "$SUDO_PASS" | sudo -S mkdir -p /etc/systemd/system/cmc-app.service.d
-            echo "$SUDO_PASS" | sudo -S bash -c 'cat > /etc/systemd/system/cmc-app.service.d/override.conf <<EOF
+            echo "$SUDO_PASS" | sudo -S bash -c "cat > /etc/systemd/system/cmc-app.service.d/override.conf <<EOF
 [Service]
 Environment=ASPNETCORE_ENVIRONMENT=Production
 Environment=ASPNETCORE_URLS=http://localhost:5000
 Environment=POSTGRES_HOST=127.0.0.1
 Environment=POSTGRES_PORT=5432
 Environment=POSTGRES_USER=cmc_user
-Environment=POSTGRES_PASSWORD='"${POSTGRES_PASSWORD}"'
-Environment=ConnectionStrings__DefaultConnection=Host=127.0.0.1;Port=5432;Database=cmc_production;Username=cmc_user;Password='"${POSTGRES_PASSWORD}"';Pooling=true;SSL Mode=Disable;Trust Server Certificate=true;
-EOF'
+Environment=POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+Environment=ConnectionStrings__DefaultConnection=Host=127.0.0.1;Port=5432;Database=cmc_production;Username=cmc_user;Password=${POSTGRES_PASSWORD};Pooling=true;SSL Mode=Disable;Trust Server Certificate=true;
+EOF"
 
             echo "$SUDO_PASS" | sudo -S systemctl daemon-reload
             echo "$SUDO_PASS" | sudo -S systemctl restart cmc-app.service
 
-            # --- Nginx Site aktivieren (falls du sie schon auf dem Server hast)
-            # Hier wird nur getestet & neu geladen – die Datei /etc/nginx/sites-available/cmc-app
-            # solltest du bereits einmalig erstellt haben.
+            # --- Nginx neu laden (deine Site-Datei muss einmalig vorhanden sein)
             echo "$SUDO_PASS" | sudo -S nginx -t
             echo "$SUDO_PASS" | sudo -S systemctl reload nginx
 
             echo "=============================================="
-            echo "✅ Successfully executed commands to all host."
+            echo "✅ Deployment finished."
             echo "=============================================="
