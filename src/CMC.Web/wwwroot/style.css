@@ -282,7 +282,12 @@
   -webkit-box-shadow: 0px 1px 6px 0px var(--audicius-orange-light);
   -moz-box-shadow: 0px 1px 6px 0px var(--audicius-orange-light);
 }
-@layer components;
+@layer components {
+  .btn {
+    background-color: var(--audicius-blue);
+    color: var(--color-white);
+  }
+}
 @layer components {
   main {
     margin: auto;
