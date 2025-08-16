@@ -1,3 +1,5 @@
 @layer components {
-    
+    .btn {
+        @apply bg-[var(--audicius-blue)] text-white;
+    }
 }
