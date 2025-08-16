@@ -2,6 +2,7 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Authorization
 @attribute [AllowAnonymous]
+@inject IJSRuntime JS
 
 <PageTitle>CMC - Home</PageTitle>
 
@@ -13,32 +14,57 @@
     </div>
 </section>
 <section class="slim">
-    <div class="card">
-        <h1>
-            Buttons
-        </h1>
+	<div class="card">
+		<h2>Button Variants (ungrouped)</h2>
 
-    </div>
-    <div class="card">
-        <h1>
-            Form
-        </h1>
-    </div>
+		<!-- primary -->
+		<p><strong>primary</strong></p>
+		<a class="btn primary" href="#">Link </a>
+		<NavLink class="btn primary" href="#">NavLink</NavLink>
+		<button class="btn primary" @onclick='() => Alert("Primary clicked!")'>Button</button>
+
+		<!-- flat -->
+		<p><strong>flat</strong></p>
+		<a class="btn flat" href="#">Link </a>
+		<NavLink class="btn flat" href="#">NavLink</NavLink>
+		<button class="btn flat" @onclick='() => Alert("Flat clicked!")'>Button</button>
+
+		<!-- danger -->
+		<p><strong>danger</strong></p>
+		<a class="btn danger" href="#">Link </a>
+		<NavLink class="btn danger" href="#">NavLink</NavLink>
+		<button class="btn danger" @onclick='() => Alert("Danger clicked!")'>Button</button>
+	</div>
+
+	<div class="card">
+		<h2>Button Variants (grouped)</h2>
+
+		<p><strong>primary</strong></p>
+		<div class="btn-group">
+			<a class="btn primary" href="#">Link </a>
+			<NavLink class="btn primary" href="#">NavLink</NavLink>
+			<button class="btn primary" @onclick='() => Alert("Primary in group!")'>Button</button>
+		</div>
+
+		<p><strong>flat</strong></p>
+		<div class="btn-group">
+			<a class="btn flat" href="#">Link </a>
+			<NavLink class="btn flat" href="#">NavLink</NavLink>
+			<button class="btn flat" @onclick='() => Alert("Flat in group!")'>Button</button>
+		</div>
+
+		<p><strong>danger</strong></p>
+		<div class="btn-group">
+			<a class="btn danger" href="#">Link </a>
+			<NavLink class="btn danger" href="#">NavLink</NavLink>
+			<button class="btn danger" @onclick='() => Alert("Danger in group!")'>Button</button>
+		</div>
+	</div>
 </section>
 <section class="slim">
     <div class="card">
         <h1>
-            Test
-        </h1>
-    </div>
-    <div class="card">
-        <h1>
-            Test
-        </h1>
-    </div>
-    <div class="card">
-        <h1>
-            Test
+            Form
         </h1>
     </div>
 </section>
@@ -72,3 +98,10 @@
     <NotAuthorized>
     </NotAuthorized>
 </AuthorizeView>
+
+@code {
+	private async Task Alert(string message)
+	{
+		await JS.InvokeVoidAsync("alert", message);
+	}
+}

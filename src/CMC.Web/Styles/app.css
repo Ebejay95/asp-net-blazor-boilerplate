@@ -14,10 +14,11 @@
 	--audicius-text: #444;
 	--main-bg: #fefefefe;
 	--audicius-blue: #00609c;
-	--audicius-orange: #ff99005f;
-	--audicius-shadow: 0px 1px 6px 0px var(--audicius-orange);
-    -webkit-box-shadow: 0px 1px 6px 0px var(--audicius-orange);
-    -moz-box-shadow: 0px 1px 6px 0px var(--audicius-orange);
+	--audicius-orange: #ffae00;
+	--audicius-orange-light: #ffae0060;
+	--audicius-shadow: 0px 1px 6px 0px var(--audicius-orange-light);
+    -webkit-box-shadow: 0px 1px 6px 0px var(--audicius-orange-light);
+    -moz-box-shadow: 0px 1px 6px 0px var(--audicius-orange-light);
 }
 
 @import "./buttons.css";
