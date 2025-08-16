@@ -1,3 +1,21 @@
+h1, h2, h3, h4, h5, h6 {
+    @apply text-[var(--audicius-text)] font-bold;
+}
 h1 {
-    @apply text-[var(--audicius-text)] text-4xl font-bold mb-8 text-center;
+    @apply text-4xl mb-6;
+}
+h2 {
+    @apply text-3xl mb-5;
+}
+h3 {
+    @apply text-2xl mb-4;
+}
+h4 {
+    @apply text-xl mb-4;
+}
+h5 {
+    @apply text-lg mb-3;
+}
+h6 {
+    @apply text-base mb-3
 }

@@ -39,7 +39,4 @@ TestResults/
 *.swp
 *.swo
 
-## Secrets
-appsettings.Production.json
-
 .DS_Store
