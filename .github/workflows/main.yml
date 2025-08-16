@@ -12,38 +12,35 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout Code
-      uses: actions/checkout@v4
-
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v3
-      with:
-        dotnet-version: '8.0.x'
-
-    - name: Restore dependencies
-      run: dotnet restore
-
-    - name: Build
-      run: dotnet build --no-restore --configuration Release
-
-    - name: Run tests
-      run: dotnet test --no-build --configuration Release --verbosity normal
-  deploy:
-    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Create source tarball
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build (Release)
+        run: dotnet build -c Release --no-restore
+
+      - name: Test
+        run: dotnet test --no-build --verbosity normal
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Wichtig: Archiv aus dem Git-Snapshot, damit nichts währenddessen "sich ändert"
+      - name: Create source tarball from HEAD
         run: |
-          tar \
-            --exclude='.git' \
-            --exclude='.github' \
-            --exclude='**/bin' \
-            --exclude='**/obj' \
-            -czf source-code.tar.gz .
+          git archive --format=tar.gz -o source-code.tar.gz HEAD
 
       - name: Upload files to server
         uses: appleboy/scp-action@v0.1.7
@@ -80,8 +77,8 @@ jobs:
             tar -xzf /tmp/source-code.tar.gz --strip-components=1
             echo "✅ Source code extracted"
 
-            # --- Abhängigkeiten
-            echo "$SUDO_PASS" | sudo -S apt update
+            # --- Basis-Pakete
+            echo "$SUDO_PASS" | sudo -S apt-get update
             if ! command -v docker >/dev/null 2>&1; then
               curl -fsSL https://get.docker.com -o get-docker.sh
               echo "$SUDO_PASS" | sudo -S sh get-docker.sh
@@ -91,17 +88,17 @@ jobs:
               wget -q https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
               echo "$SUDO_PASS" | sudo -S dpkg -i packages-microsoft-prod.deb
               rm -f packages-microsoft-prod.deb
-              echo "$SUDO_PASS" | sudo -S apt update
-              echo "$SUDO_PASS" | sudo -S apt install -y dotnet-sdk-8.0 aspnetcore-runtime-8.0
+              echo "$SUDO_PASS" | sudo -S apt-get update
+              echo "$SUDO_PASS" | sudo -S apt-get install -y dotnet-sdk-8.0 aspnetcore-runtime-8.0
             fi
             if ! command -v nginx >/dev/null 2>&1; then
-              echo "$SUDO_PASS" | sudo -S apt install -y nginx
+              echo "$SUDO_PASS" | sudo -S apt-get install -y nginx
               echo "$SUDO_PASS" | sudo -S systemctl enable --now nginx
             fi
             if ! command -v node >/dev/null 2>&1; then
-              echo "$SUDO_PASS" | sudo -S apt install -y ca-certificates curl gnupg
+              echo "$SUDO_PASS" | sudo -S apt-get install -y ca-certificates curl gnupg
               curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-              echo "$SUDO_PASS" | sudo -S apt install -y nodejs
+              echo "$SUDO_PASS" | sudo -S apt-get install -y nodejs
             fi
 
             # --- Tailwind v4 Build (Prod)
@@ -119,7 +116,7 @@ jobs:
             rm -rf "$APP_DIR/publish"
             echo "$SUDO_PASS" | sudo -S chown -R "$USER:$USER" "$APP_DIR"
 
-            # --- Postgres-Container
+            # --- Postgres-Container (127.0.0.1 only)
             echo "$SUDO_PASS" | sudo -S docker stop cmc-postgres-prod 2>/dev/null || true
             echo "$SUDO_PASS" | sudo -S docker rm   cmc-postgres-prod 2>/dev/null || true
             echo "$SUDO_PASS" | sudo -S docker run -d --name cmc-postgres-prod --restart unless-stopped \
@@ -129,14 +126,19 @@ jobs:
               -p 127.0.0.1:5432:5432 \
               -v cmc_postgres_data:/var/lib/postgresql/data \
               postgres:15
-            sleep 10
-            echo "$SUDO_PASS" | sudo -S docker exec cmc-postgres-prod pg_isready -U cmc_user -d cmc_production
+            # Warten bis DB bereit
+            for i in {1..30}; do
+              if sudo docker exec cmc-postgres-prod pg_isready -U cmc_user -d cmc_production >/dev/null 2>&1; then
+                echo "✅ Postgres ready"; break
+              fi
+              sleep 2
+            done
 
-            # --- systemd Unit aus Repo installieren (secrets-frei)
+            # --- systemd Unit aus Repo (secrets-frei)
             echo "$SUDO_PASS" | sudo -S install -m 0644 /tmp/deployment-scripts/cmc-app.service /etc/systemd/system/cmc-app.service
             echo "$SUDO_PASS" | sudo -S systemctl enable cmc-app.service
 
-            # --- Drop-In mit Secrets (ohne Here-Doc!)
+            # --- Drop-In mit Secrets (stabil via printf)
             echo "$SUDO_PASS" | sudo -S mkdir -p /etc/systemd/system/cmc-app.service.d
             echo "$SUDO_PASS" | sudo -S bash -c "printf '%s\n' \
               '[Service]' \
@@ -152,7 +154,7 @@ jobs:
             echo "$SUDO_PASS" | sudo -S systemctl daemon-reload
             echo "$SUDO_PASS" | sudo -S systemctl restart cmc-app.service
 
-            # --- Nginx reload (falls Site schon eingerichtet)
+            # --- Nginx testen & reload (falls Site konfiguriert ist)
             echo "$SUDO_PASS" | sudo -S nginx -t || true
             echo "$SUDO_PASS" | sudo -S systemctl reload nginx || true
 
