@@ -2,121 +2,16 @@
 @using System.Security.Claims
 @inject NavigationManager Navigation
 
-<div class="top-row ps-3 navbar" style="background:black">
-    <div class="container-fluid">
-        <a class="bg-red-800 hover:bg-blue-600 text-white px-4 py-2 rounded" href="">CMC</a>
-        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-    </div>
-</div>
-
-<div class="@NavMenuCssClass nav-scrollable" @onclick="CollapseNavMenu">
-    <nav class="flex-column">
-        <AuthorizeView>
-            <Authorized>
-                <!-- Benutzerdaten anzeigen -->
-                <div class="nav-item px-3 mb-3 border-bottom pb-3">
-                    <div class="text-light">
-                        <div class="d-flex align-items-center mb-2">
-                            <span class="badge bg-success me-2">●</span>
-                            <strong>@context.User.Identity?.Name</strong>
-                        </div>
-                        <div class="text-muted small">
-                            @GetFullName(context)
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Navigation für eingeloggte User -->
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="dashboard" Match="NavLinkMatch.All">
-                        <span class="oi oi-home" aria-hidden="true"></span> Dashboard
-                    </NavLink>
-                </div>
-
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="profile">
-                        <span class="oi oi-person" aria-hidden="true"></span> Mein Profil
-                    </NavLink>
-                </div>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="profile">
-                        <span class="oi oi-person" aria-hidden="true"></span> Mein Profil
-                    </NavLink>
-                </div>
-
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="secret">
-                        <span class="oi oi-lock-locked" aria-hidden="true"></span> Secret Page
-                    </NavLink>
-                </div>
-                <!-- Logout Button -->
-                <div class="nav-item px-3 mt-3">
-                    <a href="/logout" class="btn btn-outline-light">
-                        <span class="oi oi-account-logout" aria-hidden="true"></span> Abmelden
-                    </a>
-                </div>
-            </Authorized>
-
-            <NotAuthorized>
-                <!-- Navigation für nicht-eingeloggte User -->
-                <div class="nav-item px-3 mb-3">
-                    <div class="text-light text-center py-3">
-                        <div class="text-muted">Nicht angemeldet</div>
-                    </div>
-                </div>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="profile">
-                        <span class="oi oi-person" aria-hidden="true"></span> Mein Profil
-                    </NavLink>
-                </div>
-
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="secret">
-                        <span class="oi oi-lock-locked" aria-hidden="true"></span> Secret Page
-                    </NavLink>
-                </div>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="login">
-                        <span class="oi oi-account-login" aria-hidden="true"></span> Anmelden
-                    </NavLink>
-                </div>
-
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="register">
-                        <span class="oi oi-plus" aria-hidden="true"></span> Registrieren
-                    </NavLink>
-                </div>
-            </NotAuthorized>
-        </AuthorizeView>
-    </nav>
-</div>
-
-@code {
-    private bool collapseNavMenu = true;
-
-    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
-
-    private void ToggleNavMenu()
-    {
-        collapseNavMenu = !collapseNavMenu;
-    }
-
-    private void CollapseNavMenu()
-    {
-        collapseNavMenu = true;
-    }
-
-    private string GetFullName(AuthenticationState authState)
-    {
-        var firstName = GetClaim(authState, ClaimTypes.GivenName);
-        var lastName = GetClaim(authState, ClaimTypes.Surname);
-        return $"{firstName} {lastName}".Trim();
-    }
-
-    private string GetClaim(AuthenticationState authState, string claimType)
-    {
-        return authState.User.FindFirst(claimType)?.Value ?? "N/A";
-    }
-}
+<header class="header-main">
+    <AuthorizeView>
+        <Authorized>
+            <div>
+            <a href="dashboard">CMC</a></div>
+        </Authorized>
+        <NotAuthorized>
+            <div>
+            <a href="">CMC</a></div>
+        </NotAuthorized>
+    </AuthorizeView>
+    <ProfileMenu/>
+</header>

@@ -1,0 +1,44 @@
+@layer components {
+    main {
+        @apply min-h-[100vh] w-full box-border m-auto pt-[60px] py-0;
+    }
+    header.header-main {
+        @apply bg-[white] fixed w-full flex justify-between items-center pl-4 pr-4 h-[60px];
+        box-shadow: var(--audicius-shadow)
+    }
+    header.header-main .profile-card{
+        @apply bg-[var(--audicius-blue)] rounded text-[white];
+    }
+    aside.aside-main {
+        @apply bg-[var(--audicius-blue)];
+    }
+    section {
+        @apply pt-2 pb-2 pl-4 pr-4 flex gap-4;
+    }
+
+    section.tiny {
+        @apply pt-0 pb-0;
+    }
+
+    section.slim {
+        @apply max-w-[1200px] m-auto;
+    }
+
+    section.fill {
+        @apply pl-0 pr-0;
+    }
+    main > section:not(.tiny):first-of-type {
+        @apply pt-4;
+    }
+    main > section:not(.tiny):last-of-type {
+        @apply pb-4;
+    }
+    .card {
+        @apply bg-[white] rounded border border-solid border-[#ddd] p-4 w-full;
+        box-shadow: var(--audicius-shadow);
+    }
+    footer {
+        @apply fixed bottom-0 left-0 right-0 bg-white border-t border-t-[#ddd] rounded-t;
+        box-shadow: var(--audicius-shadow);
+    }
+}

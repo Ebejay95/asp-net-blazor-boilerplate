@@ -23,7 +23,7 @@ docker-dev: docker-setup
 	@echo "⏳ Waiting for services to be ready…"
 	@sleep 10
 	@$(MAKE) dev-migrate
-	@$(MAKE) tailwind-start
+	@$(MAKE) tailwind
 	@echo ""
 	@echo "✅ Services ready!"
 	@echo "   📡 Application: http://localhost:5000 | https://localhost:5001"
@@ -126,7 +126,7 @@ tailwind-term: tailwind-prebuild
 		$(MAKE) tailwind-bg; \
 	fi
 
-tailwind-start:
+tailwind:
 	@if [ "$(TW_MODE)" = "term" ]; then \
 		$(MAKE) tailwind-term; \
 	else \
@@ -161,6 +161,6 @@ tailwind-build: tailwind-ensure
 	@echo "✅ Built $$(wc -c < $(TW_OUT)) bytes"
 
 .PHONY: all down clean docker-dev docker-setup docker-down docker-clean \
-	tailwind-ensure tailwind-prebuild tailwind-bg tailwind-term tailwind-start \
+	tailwind-ensure tailwind-prebuild tailwind-bg tailwind-term tailwind \
 	tailwind-rebuild tailwind-stop tailwind-status tailwind-build \
 	dev-migrate dev-test app-watch help
