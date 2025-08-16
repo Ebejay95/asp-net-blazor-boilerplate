@@ -69,18 +69,34 @@ jobs:
 
       - name: Deploy & Setup (one shot)
         uses: appleboy/ssh-action@v1.0.0
-        env:                                   # <-- NEU: Secret in ENV injizieren
-          SUDO_PASS: ${{ secrets.SUDO_PASS }}  # <-- DAMIT $SUDO_PASS existiert
+        env:
+          SUDO_PASS: ${{ secrets.SUDO_PASS }}
         with:
           host: ${{ secrets.HETZNER_HOST }}
           username: ${{ secrets.HETZNER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           timeout: 900s
-          envs: SUDO_PASS                      # <-- diese Namen werden zur Remote-Session durchgereicht
+          envs: SUDO_PASS
           script: |
             set -euo pipefail
-            echo "=== Starting Production Setup ==="
 
+            # --- APT LOCK HANDLING ---
+            APT_LOCKS="/var/lib/dpkg/lock-frontend /var/lib/apt/lists/lock /var/cache/apt/archives/lock"
+            apt_wait() {
+              for i in {1..120}; do
+                if ! fuser $APT_LOCKS >/dev/null 2>&1; then return 0; fi
+                sleep 3
+              done
+              return 1
+            }
+            echo "$SUDO_PASS" | sudo -S systemctl stop apt-daily.service apt-daily-upgrade.service 2>/dev/null || true
+            echo "$SUDO_PASS" | sudo -S systemctl kill --kill-who=all apt-daily.service apt-daily-upgrade.service 2>/dev/null || true
+            apt_wait || { echo "apt locks busy"; exit 1; }
+            echo "$SUDO_PASS" | sudo -S rm -f /var/lib/apt/lists/lock /var/cache/apt/archives/lock /var/lib/dpkg/lock-frontend 2>/dev/null || true
+            echo "$SUDO_PASS" | sudo -S dpkg --configure -a || true
+            export DEBIAN_FRONTEND=noninteractive
+
+            echo "=== Starting Production Setup ==="
             echo "$SUDO_PASS" | sudo -S mkdir -p /var/www/cmc-app
             echo "$SUDO_PASS" | sudo -S chown $USER:$USER /var/www/cmc-app
 
@@ -88,30 +104,37 @@ jobs:
             tar -xzf /tmp/source-code.tar.gz --strip-components=1
             echo "✅ Source code extracted"
 
-            echo "$SUDO_PASS" | sudo -S apt update
+            # --- PACKAGES / SERVICES ---
+            echo "$SUDO_PASS" | sudo -S apt -y update
+
             if ! command -v docker >/dev/null 2>&1; then
               curl -fsSL https://get.docker.com -o get-docker.sh
+              # get-docker.sh nutzt intern apt -> vorher sicherstellen, dass keine Locks da sind
+              apt_wait || true
               echo "$SUDO_PASS" | sudo -S sh get-docker.sh
               echo "$SUDO_PASS" | sudo -S systemctl enable --now docker
             fi
+
             if ! command -v dotnet >/dev/null 2>&1; then
               wget -q https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
               echo "$SUDO_PASS" | sudo -S dpkg -i packages-microsoft-prod.deb
               rm -f packages-microsoft-prod.deb
-              echo "$SUDO_PASS" | sudo -S apt update
-              echo "$SUDO_PASS" | sudo -S apt install -y dotnet-sdk-8.0 aspnetcore-runtime-8.0
+              echo "$SUDO_PASS" | sudo -S apt -y update
+              echo "$SUDO_PASS" | sudo -S apt -y install dotnet-sdk-8.0 aspnetcore-runtime-8.0
             fi
+
             if ! command -v nginx >/dev/null 2>&1; then
-              echo "$SUDO_PASS" | sudo -S apt install -y nginx
+              echo "$SUDO_PASS" | sudo -S apt -y install nginx
               echo "$SUDO_PASS" | sudo -S systemctl enable --now nginx
             fi
 
+            # --- BUILD & PUBLISH ---
             dotnet restore
             dotnet publish src/CMC.Web/CMC.Web.csproj --configuration Release --output /var/www/cmc-app/publish --no-restore
             cp -r /var/www/cmc-app/publish/* /var/www/cmc-app/
             rm -rf /var/www/cmc-app/publish
 
-            # .env  -> ACHTUNG: Secret-Namen prüfen!
+            # --- ENV / DB ---
             cat > /var/www/cmc-app/.env << EOF
             POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
             PGADMIN_EMAIL=${{ secrets.PGADMIN_EMAIL }}
@@ -131,6 +154,7 @@ jobs:
 
             sleep 30
 
+            # --- SYSTEMD + NGINX ---
             echo "$SUDO_PASS" | sudo -S systemctl stop cmc-app.service 2>/dev/null || true
             echo "$SUDO_PASS" | sudo -S bash -c 'cat > /etc/systemd/system/cmc-app.service << SVC
             [Unit]
@@ -157,32 +181,32 @@ jobs:
 
             echo "$SUDO_PASS" | sudo -S bash -c 'cat > /etc/nginx/sites-available/cmc-app << EOF
             server {
-                listen 80 default_server;
-                listen [::]:80 default_server;
-                server_name _;
-                add_header X-Frame-Options "SAMEORIGIN" always;
-                add_header X-XSS-Protection "1; mode=block" always;
-                add_header X-Content-Type-Options "nosniff" always;
-                gzip on; gzip_vary on; gzip_min_length 1024;
-                gzip_types text/plain text/css text/xml text/javascript application/javascript application/xml+rss application/json;
-                location ~* \.(css|js|ico|png|jpg|jpeg|gif|webp|svg|woff|woff2|ttf|eot)$ { expires 1y; add_header Cache-Control "public, immutable"; try_files \$uri =404; }
-                location /_blazor {
-                    proxy_pass http://localhost:5000;
-                    proxy_http_version 1.1;
-                    proxy_set_header Upgrade \$http_upgrade;
-                    proxy_set_header Connection "upgrade";
-                    proxy_set_header Host \$host;
-                    proxy_set_header X-Real-IP \$remote_addr;
-                    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-                    proxy_set_header X-Forwarded-Proto \$scheme;
-                    proxy_cache_bypass \$http_upgrade;
-                    proxy_buffering off;
-                    proxy_read_timeout 100s;
-                }
-                location /api/ { proxy_pass http://localhost:5000; proxy_http_version 1.1; proxy_set_header Host \$host; proxy_set_header X-Real-IP \$remote_addr; proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto \$scheme; }
-                location / { proxy_pass http://localhost:5000; proxy_http_version 1.1; proxy_set_header Host \$host; proxy_set_header X-Real-IP \$remote_addr; proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto \$scheme; client_max_body_size 10M; }
-                access_log /var/log/nginx/cmc-app.access.log;
-                error_log /var/log/nginx/cmc-app.error.log;
+              listen 80 default_server;
+              listen [::]:80 default_server;
+              server_name _;
+              add_header X-Frame-Options "SAMEORIGIN" always;
+              add_header X-XSS-Protection "1; mode=block" always;
+              add_header X-Content-Type-Options "nosniff" always;
+              gzip on; gzip_vary on; gzip_min_length 1024;
+              gzip_types text/plain text/css text/xml text/javascript application/javascript application/xml+rss application/json;
+              location ~* \.(css|js|ico|png|jpg|jpeg|gif|webp|svg|woff|woff2|ttf|eot)$ { expires 1y; add_header Cache-Control "public, immutable"; try_files \$uri =404; }
+              location /_blazor {
+                proxy_pass http://localhost:5000;
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade \$http_upgrade;
+                proxy_set_header Connection "upgrade";
+                proxy_set_header Host \$host;
+                proxy_set_header X-Real-IP \$remote_addr;
+                proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto \$scheme;
+                proxy_cache_bypass \$http_upgrade;
+                proxy_buffering off;
+                proxy_read_timeout 100s;
+              }
+              location /api/ { proxy_pass http://localhost:5000; proxy_http_version 1.1; proxy_set_header Host \$host; proxy_set_header X-Real-IP \$remote_addr; proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto \$scheme; }
+              location / { proxy_pass http://localhost:5000; proxy_http_version 1.1; proxy_set_header Host \$host; proxy_set_header X-Real-IP \$remote_addr; proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto \$scheme; client_max_body_size 10M; }
+              access_log /var/log/nginx/cmc-app.access.log;
+              error_log /var/log/nginx/cmc-app.error.log;
             }
             EOF'
             echo "$SUDO_PASS" | sudo -S ln -sf /etc/nginx/sites-available/cmc-app /etc/nginx/sites-enabled/cmc-app
@@ -192,4 +216,3 @@ jobs:
 
             echo "$SUDO_PASS" | sudo -S systemctl start cmc-app.service
             rm -f /tmp/source-code.tar.gz
-
