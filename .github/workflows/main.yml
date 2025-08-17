@@ -80,7 +80,7 @@ jobs:
 
             SUDO="sudo -S"
             if [ -n "${{ secrets.SUDO_PASS }}" ]; then
-              SUDO="echo '${{ secrets.SUDO_PASS }}' | sudo -S"
+                SUDO="echo '${{ secrets.SUDO_PASS }}' | sudo -S"
             fi
 
             # --- Packages ---
@@ -96,34 +96,48 @@ jobs:
             TS="$(date -u +%Y%m%d-%H%M%S)"
             THIS_BACKUP="${BACKUP_ROOT}/${TS}"
 
-            # --- Backup (nur wenn es schon eine laufende Version gibt) ---
+            # --- Backup (nur falls schon was läuft) ---
             echo "=== Backup phase ==="
             if [ -d "$APP_DIR" ] && [ "$(ls -A "$APP_DIR" 2>/dev/null)" ]; then
-              echo "Stopping service for consistent snapshot..."
-              $SUDO systemctl stop cmc-app.service || true
+                echo "Stopping service for consistent snapshot..."
+                $SUDO systemctl stop cmc-app.service || true
 
-              $SUDO mkdir -p "$THIS_BACKUP"
+                $SUDO mkdir -p "$THIS_BACKUP"
 
-              echo "Backing up current deployed files (publish output only)..."
-              # Schnell & klein: nur das was aktuell läuft
-              $SUDO bash -c "tar -C '${APP_DIR}' -I 'zstd -19' -cf '${THIS_BACKUP}/app.tar.zst' ."
+                echo "Backing up current deployed files..."
+                $SUDO bash -c "tar -C '${APP_DIR}' -I 'zstd -19' -cf '${THIS_BACKUP}/app.tar.zst' ."
 
-              echo "Checking Postgres readiness..."
-              # Falls Container nicht existiert, überspringen wir Dump (erstes Deploy)
-              if $SUDO docker ps --format '{{.Names}}' | grep -q '^cmc-postgres-prod$'; then
-                $SUDO docker exec cmc-postgres-prod pg_isready -U cmc_user -d cmc_production -h 127.0.0.1 -p 5432 || sleep 5
-                echo "Dumping Postgres (custom format)..."
-                $SUDO docker exec -e PGPASSWORD='${{ secrets.POSTGRES_PASSWORD }}' cmc-postgres-prod \
-                  pg_dump -U cmc_user -d cmc_production -Fc > "${THIS_BACKUP}/db.dump"
-              else
-                echo "No Postgres container yet, skipping DB dump."
-              fi
+                # Robuster DB-Dump (nur wenn Container existiert + ready)
+                if $SUDO docker ps --format '{{.Names}}' | grep -q '^cmc-postgres-prod$'; then
+                    echo "Checking Postgres readiness..."
+                    $SUDO docker exec cmc-postgres-prod pg_isready -U cmc_user -h 127.0.0.1 -p 5432 >/dev/null 2>&1 || sleep 5
+                    if $SUDO docker exec cmc-postgres-prod pg_isready -U cmc_user -h 127.0.0.1 -p 5432 >/dev/null 2>&1; then
+                        echo "Dumping Postgres (custom format)…"
+                        TMP_DUMP="${THIS_BACKUP}/db.dump.tmp"
+                        if $SUDO bash -c "set -o pipefail; docker exec -e PGPASSWORD='${{ secrets.POSTGRES_PASSWORD }}' cmc-postgres-prod pg_dump -U cmc_user -d cmc_production -Fc > '${TMP_DUMP}'"; then
+                            if $SUDO test -s "${TMP_DUMP}"; then
+                                $SUDO mv "${TMP_DUMP}" "${THIS_BACKUP}/db.dump"
+                                $SUDO bash -c "printf '%s  %s\n' \"\$(du -h '${THIS_BACKUP}/db.dump' | awk '{print \$1}')\" '${THIS_BACKUP}/db.dump'"
+                                echo "✅ DB dump created"
+                            else
+                                echo "⚠️  DB dump empty -> skipping keep"
+                                $SUDO rm -f "${TMP_DUMP}" || true
+                            fi
+                        else
+                            echo "❌ pg_dump failed (check container logs)"
+                            $SUDO rm -f "${TMP_DUMP}" || true
+                        fi
+                    else
+                        echo "❌ Postgres not ready -> skipping DB dump"
+                    fi
+                else
+                    echo "No Postgres container yet, skipping DB dump."
+                fi
 
-              $SUDO bash -c "printf '%s\n' '${TS}' > '${THIS_BACKUP}/timestamp.txt'"
-
-              echo "Backup done at ${THIS_BACKUP}"
+                $SUDO bash -c "printf '%s\n' '${TS}' > '${THIS_BACKUP}/timestamp.txt'"
+                echo "Backup done at ${THIS_BACKUP}"
             else
-              echo "No existing deployment found, skipping backup."
+                echo "No existing deployment found, skipping backup."
             fi
 
             # --- Prepare deploy target ---
@@ -154,12 +168,12 @@ jobs:
             $SUDO docker rm -f cmc-postgres-prod 2>/dev/null || true
             $SUDO docker volume create cmc_postgres_data >/dev/null
             $SUDO docker run -d --name cmc-postgres-prod --restart unless-stopped \
-              -e POSTGRES_USER=cmc_user \
-              -e POSTGRES_PASSWORD='${{ secrets.POSTGRES_PASSWORD }}' \
-              -e POSTGRES_DB=cmc_production \
-              -p 127.0.0.1:5432:5432 \
-              -v cmc_postgres_data:/var/lib/postgresql/data \
-              postgres:15
+                -e POSTGRES_USER=cmc_user \
+                -e POSTGRES_PASSWORD='${{ secrets.POSTGRES_PASSWORD }}' \
+                -e POSTGRES_DB=cmc_production \
+                -p 127.0.0.1:5432:5432 \
+                -v cmc_postgres_data:/var/lib/postgresql/data \
+                postgres:15
 
             echo "Waiting for Postgres port..."
             for i in $(seq 1 30); do nc -z 127.0.0.1 5432 && break; sleep 1; done
@@ -169,7 +183,6 @@ jobs:
             [Unit]
             Description=CMC Cybersecurity Management Cockpit
             After=network.target
-
             [Service]
             Type=simple
             WorkingDirectory=/var/www/cmc-app
@@ -206,29 +219,27 @@ jobs:
             $SUDO bash -c "cat > /etc/nginx/sites-available/cmc-app <<'NGX'
             map $http_upgrade $connection_upgrade { default upgrade; '' close; }
             server {
-              listen 80 default_server;
-              listen [::]:80 default_server;
-              server_name _;
-              add_header X-Frame-Options 'SAMEORIGIN' always;
-              add_header X-XSS-Protection '1; mode=block' always;
-              add_header X-Content-Type-Options 'nosniff' always;
-              gzip on; gzip_vary on; gzip_min_length 1024;
-              gzip_types text/plain text/css text/xml text/javascript application/javascript application/xml+rss application/json;
-
-              location / {
-                proxy_pass http://localhost:5000;
-                proxy_http_version 1.1;
-                proxy_set_header Host $host;
-                proxy_set_header X-Real-IP $remote_addr;
-                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                proxy_set_header X-Forwarded-Proto $scheme;
-                proxy_set_header Upgrade $http_upgrade;
-                proxy_set_header Connection $connection_upgrade;
-                proxy_read_timeout 100s;
-              }
-
-              access_log /var/log/nginx/cmc-app.access.log;
-              error_log  /var/log/nginx/cmc-app.error.log;
+                listen 80 default_server;
+                listen [::]:80 default_server;
+                server_name _;
+                add_header X-Frame-Options 'SAMEORIGIN' always;
+                add_header X-XSS-Protection '1; mode=block' always;
+                add_header X-Content-Type-Options 'nosniff' always;
+                gzip on; gzip_vary on; gzip_min_length 1024;
+                gzip_types text/plain text/css text/xml text/javascript application/javascript application/xml+rss application/json;
+                location / {
+                    proxy_pass http://localhost:5000;
+                    proxy_http_version 1.1;
+                    proxy_set_header Host $host;
+                    proxy_set_header X-Real-IP $remote_addr;
+                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                    proxy_set_header X-Forwarded-Proto $scheme;
+                    proxy_set_header Upgrade $http_upgrade;
+                    proxy_set_header Connection $connection_upgrade;
+                    proxy_read_timeout 100s;
+                }
+                access_log /var/log/nginx/cmc-app.access.log;
+                error_log  /var/log/nginx/cmc-app.error.log;
             }
             NGX"
             $SUDO ln -sf /etc/nginx/sites-available/cmc-app /etc/nginx/sites-enabled/cmc-app
@@ -236,19 +247,19 @@ jobs:
             $SUDO nginx -t
             $SUDO systemctl reload nginx
 
-            # --- Healthcheck & optional Auto-Rollback (einfacher Check) ---
+            # --- Healthcheck ---
             echo "Healthcheck..."
             for i in $(seq 1 30); do
-              if curl -fsS http://localhost:5000/ >/dev/null; then ok=1; break; fi
-              sleep 1
+                if curl -fsS http://localhost:5000/ >/dev/null; then ok=1; break; fi
+                sleep 1
             done
             if [ "${ok:-0}" -ne 1 ]; then
-              echo "Healthcheck FAILED. (Rollback manuell mit letztem Snapshot möglich)"
+                echo "Healthcheck FAILED. (Rollback manuell mit letztem Snapshot möglich)"
             else
-              echo "Health OK"
+                echo "Health OK"
             fi
 
-            # --- Retention (letzte 14 Backups behalten) ---
+            # --- Retention (14 Snapshots behalten) ---
             $SUDO mkdir -p "$BACKUP_ROOT"
             $SUDO bash -c "cd '${BACKUP_ROOT}' 2>/dev/null && ls -1dt */ | tail -n +15 | xargs -r -I{} rm -rf '{}'"
 
