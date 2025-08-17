@@ -73,7 +73,7 @@ migrate_database() {
     sudo systemctl stop cmc-app.service
 
     echo "📊 Running migrations..."
-    sudo -u www-data dotnet CMC.Web.dll --migrate-database
+    sudo -u cmc-user dotnet CMC.Web.dll --migrate-database
 
     echo "🚀 Starting application..."
     sudo systemctl start cmc-app.service
