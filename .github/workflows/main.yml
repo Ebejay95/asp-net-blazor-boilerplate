@@ -98,46 +98,53 @@ jobs:
 
             # --- Backup (nur falls schon was läuft) ---
             echo "=== Backup phase ==="
+            $SUDO mkdir -p "$BACKUP_ROOT"   # <— sicherstellen, dass Root existiert
             if [ -d "$APP_DIR" ] && [ "$(ls -A "$APP_DIR" 2>/dev/null)" ]; then
-                echo "Stopping service for consistent snapshot..."
-                $SUDO systemctl stop cmc-app.service || true
+              echo "Stopping service for consistent snapshot..."
+              $SUDO systemctl stop cmc-app.service || true
 
-                $SUDO mkdir -p "$THIS_BACKUP"
+              $SUDO mkdir -p "$THIS_BACKUP"
 
-                echo "Backing up current deployed files..."
-                $SUDO bash -c "tar -C '${APP_DIR}' -I 'zstd -19' -cf '${THIS_BACKUP}/app.tar.zst' ."
+              echo "Backing up current deployed files..."
+              # Wichtig: Umleitung inside sudo, sonst Permission denied
+              $SUDO bash -lc "tar -C '$APP_DIR' -I 'zstd -19' -cf '$THIS_BACKUP/app.tar.zst' ."
 
-                # Robuster DB-Dump (nur wenn Container existiert + ready)
-                if $SUDO docker ps --format '{{.Names}}' | grep -q '^cmc-postgres-prod$'; then
-                    echo "Checking Postgres readiness..."
-                    $SUDO docker exec cmc-postgres-prod pg_isready -U cmc_user -h 127.0.0.1 -p 5432 >/dev/null 2>&1 || sleep 5
-                    if $SUDO docker exec cmc-postgres-prod pg_isready -U cmc_user -h 127.0.0.1 -p 5432 >/dev/null 2>&1; then
-                        echo "Dumping Postgres (custom format)…"
-                        TMP_DUMP="${THIS_BACKUP}/db.dump.tmp"
-                        if $SUDO bash -c "set -o pipefail; docker exec -e PGPASSWORD='${{ secrets.POSTGRES_PASSWORD }}' cmc-postgres-prod pg_dump -U cmc_user -d cmc_production -Fc > '${TMP_DUMP}'"; then
-                            if $SUDO test -s "${TMP_DUMP}"; then
-                                $SUDO mv "${TMP_DUMP}" "${THIS_BACKUP}/db.dump"
-                                $SUDO bash -c "printf '%s  %s\n' \"\$(du -h '${THIS_BACKUP}/db.dump' | awk '{print \$1}')\" '${THIS_BACKUP}/db.dump'"
-                                echo "✅ DB dump created"
-                            else
-                                echo "⚠️  DB dump empty -> skipping keep"
-                                $SUDO rm -f "${TMP_DUMP}" || true
-                            fi
-                        else
-                            echo "❌ pg_dump failed (check container logs)"
-                            $SUDO rm -f "${TMP_DUMP}" || true
-                        fi
+              # Robuster DB-Dump (nur wenn Container existiert + ready)
+              if $SUDO docker ps --format '{{.Names}}' | grep -q '^cmc-postgres-prod$'; then
+                echo "Checking Postgres readiness..."
+                $SUDO docker exec cmc-postgres-prod pg_isready -U cmc_user -h 127.0.0.1 -p 5432 >/dev/null 2>&1 || sleep 5
+                if $SUDO docker exec cmc-postgres-prod pg_isready -U cmc_user -h 127.0.0.1 -p 5432 >/dev/null 2>&1; then
+                  # Passwort direkt aus Container-Env holen (keine Secrets-Differenzen)
+                  PW="$($SUDO docker exec cmc-postgres-prod printenv POSTGRES_PASSWORD || true)"
+                  if [ -n "$PW" ]; then
+                    echo "Dumping Postgres (custom format)…"
+                    TMP_DUMP="${THIS_BACKUP}/db.dump.tmp"
+                    # Umleitung in sudo-Shell!
+                    if $SUDO sh -c "docker exec -e PGPASSWORD='$PW' cmc-postgres-prod \
+                          pg_dump -U cmc_user -d cmc_production -Fc > '$TMP_DUMP'"; then
+                      if $SUDO test -s "$TMP_DUMP"; then
+                        $SUDO mv "$TMP_DUMP" "${THIS_BACKUP}/db.dump"
+                        echo "✅ DB dump created: $THIS_BACKUP/db.dump"
+                      else
+                        echo "⚠️  DB dump empty -> skipping keep"; $SUDO rm -f "$TMP_DUMP" || true
+                      fi
                     else
-                        echo "❌ Postgres not ready -> skipping DB dump"
+                      echo "❌ pg_dump failed"; $SUDO rm -f "$TMP_DUMP" || true
                     fi
+                  else
+                    echo "WARN: POSTGRES_PASSWORD not found in container env – skipping DB dump."
+                  fi
                 else
-                    echo "No Postgres container yet, skipping DB dump."
+                  echo "❌ Postgres not ready -> skipping DB dump"
                 fi
+              else
+                echo "No Postgres container yet, skipping DB dump."
+              fi
 
-                $SUDO bash -c "printf '%s\n' '${TS}' > '${THIS_BACKUP}/timestamp.txt'"
-                echo "Backup done at ${THIS_BACKUP}"
+              $SUDO bash -c "printf '%s\n' '$TS' > '$THIS_BACKUP/timestamp.txt'"
+              echo "Backup done at $THIS_BACKUP"
             else
-                echo "No existing deployment found, skipping backup."
+              echo "No existing deployment found, skipping backup."
             fi
 
             # --- Prepare deploy target ---
