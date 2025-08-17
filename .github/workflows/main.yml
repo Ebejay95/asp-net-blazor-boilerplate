@@ -67,7 +67,7 @@ jobs:
           overwrite: true
           timeout: 60s
 
-- name: Deploy on server (extract, build, systemd, nginx, db)
+      - name: Deploy on server (extract, build, systemd, nginx, db)
         uses: appleboy/ssh-action@v1.0.0
         with:
             host: ${{ secrets.HETZNER_HOST }}
