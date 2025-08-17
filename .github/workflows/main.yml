@@ -67,189 +67,197 @@ jobs:
           overwrite: true
           timeout: 60s
 
-      - name: Deploy on server (extract, build, systemd, nginx, db)
+- name: Deploy on server (extract, build, systemd, nginx, db)
         uses: appleboy/ssh-action@v1.0.0
         with:
-          host: ${{ secrets.HETZNER_HOST }}
-          username: ${{ secrets.HETZNER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: 22
-          timeout: 900s
-          script: |
-            echo "=== Starting Production Setup ==="
+            host: ${{ secrets.HETZNER_HOST }}
+            username: ${{ secrets.HETZNER_USER }}
+            key: ${{ secrets.SSH_PRIVATE_KEY }}
+            port: 22
+            timeout: 900s
+            script: |
+                echo "=== Starting Production Setup ==="
 
-            SUDO="sudo -S"
-            if [ -n "${{ secrets.SUDO_PASS }}" ]; then
-              SUDO="echo '${{ secrets.SUDO_PASS }}' | sudo -S"
-            fi
+                SUDO="sudo -S"
+                if [ -n "${{ secrets.SUDO_PASS }}" ]; then
+                    SUDO="echo '${{ secrets.SUDO_PASS }}' | sudo -S"
+                fi
 
-            # --- Packages (Docker, .NET, Nginx, Node 20) ---
-            $SUDO apt-get update -y
-            if ! command -v docker >/dev/null 2>&1; then
-              curl -fsSL https://get.docker.com -o get-docker.sh
-              $SUDO sh get-docker.sh
-              $SUDO systemctl enable --now docker
-            fi
-            if ! command -v dotnet >/dev/null 2>&1; then
-              wget https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
-              $SUDO dpkg -i packages-microsoft-prod.deb
-              rm packages-microsoft-prod.deb
-              $SUDO apt-get update -y
-              $SUDO apt-get install -y dotnet-sdk-8.0 aspnetcore-runtime-8.0
-            fi
-            if ! command -v nginx >/dev/null 2>&1; then
-              $SUDO apt-get install -y nginx
-              $SUDO systemctl enable --now nginx
-            fi
-            # Node 20 für Tailwind
-            if ! command -v node >/dev/null 2>&1; then
-              curl -fsSL https://deb.nodesource.com/setup_20.x | $SUDO -E bash -
-              $SUDO apt-get install -y nodejs
-            fi
+                $SUDO apt-get update -y
+                if ! command -v docker >/dev/null 2>&1; then
+                    curl -fsSL https://get.docker.com -o get-docker.sh
+                    $SUDO sh get-docker.sh
+                    $SUDO systemctl enable --now docker
+                fi
+                if ! command -v dotnet >/dev/null 2>&1; then
+                    wget https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
+                    $SUDO dpkg -i packages-microsoft-prod.deb
+                    rm -f packages-microsoft-prod.deb
+                    $SUDO apt-get update -y
+                    $SUDO apt-get install -y dotnet-sdk-8.0 aspnetcore-runtime-8.0
+                fi
+                if ! command -v nginx >/dev/null 2>&1; then
+                    $SUDO apt-get install -y nginx
+                    $SUDO systemctl enable --now nginx
+                fi
+                if ! command -v node >/dev/null 2>&1; then
+                    curl -fsSL https://deb.nodesource.com/setup_20.x | $SUDO -E bash -
+                    $SUDO apt-get install -y nodejs
+                fi
 
-            # --- App Verzeichnis vorbereiten ---
-            $SUDO mkdir -p /var/www/cmc-app
-            $SUDO chown "$USER":"$USER" /var/www/cmc-app
-            cd /var/www/cmc-app
-            rm -rf ./*
+                $SUDO apt-get install -y zstd postgresql-client || true
 
-            # --- Source entpacken ---
-            tar -xzf /tmp/source-code.tar.gz --strip-components=1
-            echo "✅ Source code extracted"
+                APP_DIR="/var/www/cmc-app"
+                BACKUP_ROOT="/var/backups/cmc-app"
+                TS="$(date -u +%Y%m%d-%H%M%S)"
+                THIS_BACKUP="${BACKUP_ROOT}/${TS}"
 
-            # --- Tailwind v4 Build (npx) ---
-            cd /var/www/cmc-app/src/CMC.Web
-            npx @tailwindcss/cli@latest -i ./Styles/app.css -o ./wwwroot/style.css --minify
-            test -s ./wwwroot/style.css || (echo "❌ Tailwind build failed: style.css empty" && exit 1)
-            echo "✅ Tailwind built"
+                $SUDO mkdir -p "$BACKUP_ROOT"
 
-            # --- .NET Publish ---
-            cd /var/www/cmc-app
-            dotnet restore
-            dotnet publish src/CMC.Web/CMC.Web.csproj -c Release -o /var/www/cmc-app/publish --no-restore
-            cp -r /var/www/cmc-app/publish/* /var/www/cmc-app/
-            rm -rf /var/www/cmc-app/publish
-            echo "✅ .NET published"
+                echo "=== Backup phase (if previous version exists) ==="
+                if [ -d "$APP_DIR" ] && [ "$(ls -A "$APP_DIR" 2>/dev/null)" ]; then
+                    echo "Stopping service for consistent snapshot..."
+                    $SUDO systemctl stop cmc-app.service || true
 
-            # --- Postgres Container (prod) ---
-            docker rm -f cmc-postgres-prod 2>/dev/null || true
-            docker volume create cmc_postgres_data >/dev/null
-            docker run -d --name cmc-postgres-prod --restart unless-stopped \
-              -e POSTGRES_USER=cmc_user \
-              -e POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD }}" \
-              -e POSTGRES_DB=cmc_production \
-              -p 127.0.0.1:5432:5432 \
-              -v cmc_postgres_data:/var/lib/postgresql/data \
-              postgres:15
-            echo "⏳ Waiting for Postgres..."
-            sleep 20
+                    echo "Creating backup folder ${THIS_BACKUP} ..."
+                    $SUDO mkdir -p "$THIS_BACKUP"
 
-            # --- systemd Unit + Drop-In mit Env/ConnectionString ---
-            $SUDO bash -c 'cat > /etc/systemd/system/cmc-app.service <<EOF
-            [Unit]
-            Description=CMC Cybersecurity Management Cockpit
-            After=network.target
+                    echo "Backing up app files with zstd..."
+                    $SUDO bash -c "tar -C /var/www -I 'zstd -19' -cf '${THIS_BACKUP}/app.tar.zst' 'cmc-app'"
 
-            [Service]
-            Type=simple
-            WorkingDirectory=/var/www/cmc-app
-            ExecStart=/usr/bin/dotnet /var/www/cmc-app/CMC.Web.dll
-            Restart=always
-            RestartSec=10
-            User='"$USER"'
-            Group='"$USER"'
-            # Basis-Umgebung
-            Environment=ASPNETCORE_ENVIRONMENT=Production
-            Environment=ASPNETCORE_URLS=http://localhost:5000
-            Environment=DOTNET_USE_POLLING_FILE_WATCHER=true
+                    echo "Dumping Postgres (custom format)..."
+                    $SUDO docker exec -e PGPASSWORD='${{ secrets.POSTGRES_PASSWORD }}' cmc-postgres-prod \
+                        pg_dump -U cmc_user -d cmc_production -Fc > "${THIS_BACKUP}/db.dump"
 
-            [Install]
-            WantedBy=multi-user.target
-            EOF'
+                    $SUDO bash -c "printf '%s\n' '${TS}' > '${THIS_BACKUP}/timestamp.txt'"
 
-            $SUDO mkdir -p /etc/systemd/system/cmc-app.service.d
-            $SUDO bash -c 'cat > /etc/systemd/system/cmc-app.service.d/override.conf <<EOF
-            [Service]
-            Environment=POSTGRES_HOST=127.0.0.1
-            Environment=POSTGRES_PORT=5432
-            Environment=POSTGRES_USER=cmc_user
-            Environment=POSTGRES_PASSWORD='${{ secrets.POSTGRES_PASSWORD }}'
-            Environment=ConnectionStrings__DefaultConnection=Host=127.0.0.1;Port=5432;Database=cmc_production;Username=cmc_user;Password='${{ secrets.POSTGRES_PASSWORD }}';Pooling=true;SSL Mode=Disable;Trust Server Certificate=true;
-            EOF'
+                    echo "Backup done: ${THIS_BACKUP}"
+                else
+                    echo "No existing app to back up. Skipping backup."
+                fi
 
-            $SUDO systemctl daemon-reload
-            $SUDO systemctl enable cmc-app.service
-            $SUDO systemctl restart cmc-app.service
+                echo "=== Prepare deploy target ==="
+                $SUDO mkdir -p "$APP_DIR"
+                $SUDO chown "$USER":"$USER" "$APP_DIR"
+                cd "$APP_DIR"
+                rm -rf ./*
 
-            # --- Nginx Reverse Proxy 80 -> 5000 ---
-            $SUDO bash -c "cat > /etc/nginx/sites-available/cmc-app <<'NGX'
-            server {
-              listen 80 default_server;
-              listen [::]:80 default_server;
-              server_name _;
+                echo "=== Extract source ==="
+                tar -xzf /tmp/source-code.tar.gz --strip-components=1
+                echo "✅ Source code extracted"
 
-              add_header X-Frame-Options 'SAMEORIGIN' always;
-              add_header X-XSS-Protection '1; mode=block' always;
-              add_header X-Content-Type-Options 'nosniff' always;
+                echo "=== Tailwind build ==="
+                cd "$APP_DIR/src/CMC.Web"
+                npx @tailwindcss/cli@latest -i ./Styles/app.css -o ./wwwroot/style.css --minify
+                test -s ./wwwroot/style.css || (echo "❌ Tailwind build failed: style.css empty" && exit 1)
+                echo "✅ Tailwind built"
 
-              gzip on;
-              gzip_vary on;
-              gzip_min_length 1024;
-              gzip_types text/plain text/css text/xml text/javascript application/javascript application/xml+rss application/json;
+                echo "=== .NET publish ==="
+                cd "$APP_DIR"
+                dotnet restore
+                dotnet publish src/CMC.Web/CMC.Web.csproj -c Release -o "$APP_DIR/publish" --no-restore
+                cp -r "$APP_DIR/publish/"* "$APP_DIR/"
+                rm -rf "$APP_DIR/publish"
+                echo "✅ .NET published"
 
-              location ~* \.(css|js|ico|png|jpg|jpeg|gif|webp|svg|woff|woff2|ttf|eot)$ {
-                expires 1y;
-                add_header Cache-Control 'public, immutable';
-                try_files $uri =404;
-              }
+                echo "=== Postgres container (ensure) ==="
+                $SUDO docker rm -f cmc-postgres-prod 2>/dev/null || true
+                $SUDO docker volume create cmc_postgres_data >/dev/null
+                $SUDO docker run -d --name cmc-postgres-prod --restart unless-stopped \
+                    -e POSTGRES_USER=cmc_user \
+                    -e POSTGRES_PASSWORD='${{ secrets.POSTGRES_PASSWORD }}' \
+                    -e POSTGRES_DB=cmc_production \
+                    -p 127.0.0.1:5432:5432 \
+                    -v cmc_postgres_data:/var/lib/postgresql/data \
+                    postgres:15
+                echo "⏳ Waiting for Postgres..."
+                for i in $(seq 1 30); do
+                    nc -z 127.0.0.1 5432 && break
+                    sleep 1
+                done
 
-              location /_blazor {
-                proxy_pass http://localhost:5000;
-                proxy_http_version 1.1;
-                proxy_set_header Upgrade $http_upgrade;
-                proxy_set_header Connection 'upgrade';
-                proxy_set_header Host $host;
-                proxy_set_header X-Real-IP $remote_addr;
-                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                proxy_set_header X-Forwarded-Proto $scheme;
-                proxy_cache_bypass $http_upgrade;
-                proxy_buffering off;
-                proxy_read_timeout 100s;
-              }
+                echo "=== systemd unit + drop-in ==="
+                $SUDO bash -c 'cat > /etc/systemd/system/cmc-app.service <<EOF
+                [Unit]
+                Description=CMC Cybersecurity Management Cockpit
+                After=network.target
 
-              location /api/ {
-                proxy_pass http://localhost:5000;
-                proxy_http_version 1.1;
-                proxy_set_header Host $host;
-                proxy_set_header X-Real-IP $remote_addr;
-                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                proxy_set_header X-Forwarded-Proto $scheme;
-              }
+                [Service]
+                Type=simple
+                WorkingDirectory=/var/www/cmc-app
+                ExecStart=/usr/bin/dotnet /var/www/cmc-app/CMC.Web.dll
+                Restart=always
+                RestartSec=10
+                User='"$USER"'
+                Group='"$USER"'
+                Environment=ASPNETCORE_ENVIRONMENT=Production
+                Environment=ASPNETCORE_URLS=http://localhost:5000
+                Environment=DOTNET_USE_POLLING_FILE_WATCHER=true
 
-              location / {
-                proxy_pass http://localhost:5000;
-                proxy_http_version 1.1;
-                proxy_set_header Host $host;
-                proxy_set_header X-Real-IP $remote_addr;
-                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                proxy_set_header X-Forwarded-Proto $scheme;
-                client_max_body_size 10M;
-              }
+                [Install]
+                WantedBy=multi-user.target
+                EOF'
 
-              access_log /var/log/nginx/cmc-app.access.log;
-              error_log  /var/log/nginx/cmc-app.error.log;
-            }
-            NGX"
+                $SUDO mkdir -p /etc/systemd/system/cmc-app.service.d
+                $SUDO bash -c 'cat > /etc/systemd/system/cmc-app.service.d/override.conf <<EOF
+                [Service]
+                Environment=POSTGRES_HOST=127.0.0.1
+                Environment=POSTGRES_PORT=5432
+                Environment=POSTGRES_USER=cmc_user
+                Environment=POSTGRES_PASSWORD='${{ secrets.POSTGRES_PASSWORD }}'
+                Environment="ConnectionStrings__DefaultConnection=Host=127.0.0.1;Port=5432;Database=cmc_production;Username=cmc_user;Password='${{ secrets.POSTGRES_PASSWORD }}';Pooling=true;SslMode=Disable;TrustServerCertificate=true;"
+                ExecStart=
+                ExecStart=/usr/bin/dotnet /var/www/cmc-app/CMC.Web.dll --urls http://localhost:5000
+                EOF'
 
-            $SUDO ln -sf /etc/nginx/sites-available/cmc-app /etc/nginx/sites-enabled/cmc-app
-            $SUDO rm -f /etc/nginx/sites-enabled/default
-            $SUDO nginx -t
-            $SUDO systemctl reload nginx
+                $SUDO systemctl daemon-reload
+                $SUDO systemctl enable cmc-app.service
+                $SUDO systemctl restart cmc-app.service
 
-            # Cleanup
-            rm -f /tmp/source-code.tar.gz || true
+                echo "=== Nginx reverse proxy ==="
+                $SUDO bash -c "cat > /etc/nginx/sites-available/cmc-app <<'NGX'
+                map $http_upgrade $connection_upgrade {
+                    default upgrade;
+                    ''      close;
+                }
+                server {
+                    listen 80 default_server;
+                    listen [::]:80 default_server;
+                    server_name _;
+                    add_header X-Frame-Options 'SAMEORIGIN' always;
+                    add_header X-XSS-Protection '1; mode=block' always;
+                    add_header X-Content-Type-Options 'nosniff' always;
 
-            echo "✅ Deployment done. Check:"
-            echo " - systemctl status cmc-app.service"
-            echo " - sudo journalctl -u cmc-app.service -n 100 --no-pager"
-            echo " - curl -I http://localhost"
+                    gzip on; gzip_vary on; gzip_min_length 1024;
+                    gzip_types text/plain text/css text/xml text/javascript application/javascript application/xml+rss application/json;
+
+                    location / {
+                        proxy_pass http://localhost:5000;
+                        proxy_http_version 1.1;
+                        proxy_set_header Host $host;
+                        proxy_set_header X-Real-IP $remote_addr;
+                        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                        proxy_set_header X-Forwarded-Proto $scheme;
+                        proxy_set_header Upgrade $http_upgrade;
+                        proxy_set_header Connection $connection_upgrade;
+                        proxy_read_timeout 100s;
+                    }
+
+                    access_log /var/log/nginx/cmc-app.access.log;
+                    error_log  /var/log/nginx/cmc-app.error.log;
+                }
+                NGX"
+                $SUDO ln -sf /etc/nginx/sites-available/cmc-app /etc/nginx/sites-enabled/cmc-app
+                $SUDO rm -f /etc/nginx/sites-enabled/default
+                $SUDO nginx -t
+                $SUDO systemctl reload nginx
+
+                echo "=== Backup retention (keep last 14) ==="
+                $SUDO bash -c "cd '${BACKUP_ROOT}' 2>/dev/null && ls -1dt */ | tail -n +15 | xargs -r -I{} rm -rf '{}'" || true
+
+                rm -f /tmp/source-code.tar.gz || true
+
+                echo "✅ Deployment done. Check:"
+                echo " - systemctl status cmc-app.service"
+                echo " - sudo journalctl -u cmc-app.service -n 100 --no-pager"
+                echo " - curl -I http://localhost"
