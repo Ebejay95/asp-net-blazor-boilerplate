@@ -4,23 +4,19 @@ using Microsoft.EntityFrameworkCore;
 using CMC.Contracts.Users;
 using CMC.Application.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Components.Authorization;
-using CMC.Application.Ports;
+using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 🔧 SSL Development Fix - Nur für Development
+// 🔧 SSL Development Fix – nur im Development
 if (builder.Environment.IsDevelopment()) {
   builder.WebHost.ConfigureKestrel(options => {
     options.ConfigureHttpsDefaults(httpsOptions => {
-      httpsOptions.ServerCertificate = null; // Verwendet Development-Zertifikat
+      httpsOptions.ServerCertificate = null;
     });
   });
 }
-
-// Kestrel URLs explizit setzen
-builder.WebHost.UseUrls("http://localhost:5000", "https://localhost:5001");
 
 // Add services
 builder.Services.AddRazorPages();
@@ -28,29 +24,26 @@ builder.Services.AddServerSideBlazor(options => {
   options.DetailedErrors = true;
 });
 
-// 🔧 API Controllers hinzufügen
 builder.Services.AddControllers();
 
-// 🔧 SignalR für Blazor konfigurieren
 builder.Services.AddSignalR(options => {
   options.EnableDetailedErrors = true;
   options.ClientTimeoutInterval = TimeSpan.FromSeconds(60);
   options.HandshakeTimeout = TimeSpan.FromSeconds(30);
 });
 
-// HttpClient mit SSL-Bypass für Development
+// HttpClient mit SSL-Bypass nur im Development
 builder.Services.AddHttpClient("default", client => {
   client.Timeout = TimeSpan.FromSeconds(30);
 }).ConfigurePrimaryHttpMessageHandler(() => {
   var handler = new HttpClientHandler();
   if (builder.Environment.IsDevelopment()) {
-    // SSL-Zertifikat-Validierung für Development ausschalten
     handler.ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true;
   }
   return handler;
 });
 
-// 🔧 Authentication Fix - KORREKTE Cookie-Konfiguration für echte Persistenz
+// Authentication + Cookie Setup
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(options => {
   options.Cookie.Name = "CMC_Auth";
   options.Cookie.HttpOnly = true;
@@ -59,14 +52,16 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     ? CookieSecurePolicy.SameAsRequest
     : CookieSecurePolicy.Always;
 
-  // 🔧 KRITISCH für echte Persistenz - das ist der Schlüssel!
   options.ExpireTimeSpan = TimeSpan.FromDays(30);
   options.SlidingExpiration = true;
   options.Cookie.MaxAge = TimeSpan.FromDays(30);
   options.Cookie.Path = "/";
   options.Cookie.IsEssential = true;
 
-  // 🔧 WICHTIG: Diese Einstellung macht Cookies persistent über Browser-Restarts
+  options.LoginPath = "/login";
+  options.LogoutPath = "/api/auth/logout";
+  options.AccessDeniedPath = "/login";
+
   options.Events.OnSigningIn = context => {
     context.Properties.IsPersistent = true;
     context.Properties.ExpiresUtc = DateTimeOffset.UtcNow.AddDays(30);
@@ -76,11 +71,6 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         ?.Name);
     return Task.CompletedTask;
   };
-
-  options.LoginPath = "/login";
-  options.LogoutPath = "/api/auth/logout"; // 🔧 API Route verwenden
-  options.AccessDeniedPath = "/login";
-
   options.Events.OnSignedIn = context => {
     Console.WriteLine(
       "✅ User signed in: " + context.Principal
@@ -88,7 +78,6 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         ?.Name);
     return Task.CompletedTask;
   };
-
   options.Events.OnValidatePrincipal = context => {
     Console.WriteLine(
       "🔍 Validating principal: " + context.Principal
@@ -98,9 +87,9 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
       context.Principal
       ?.Identity
         ?.IsAuthenticated == true) {
-      Console.WriteLine("✅ Principal is valid and authenticated");
+      Console.WriteLine("✅ Principal valid");
     } else {
-      Console.WriteLine("❌ Principal validation failed");
+      Console.WriteLine("❌ Principal invalid");
       context.RejectPrincipal();
     }
     return Task.CompletedTask;
@@ -111,43 +100,41 @@ builder.Services.AddAuthorization();
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddHttpContextAccessor();
 
-// Infrastructure
+// Infrastruktur (zieht ConnectionString aus Config / Env)
 builder.Services.AddInfrastructure(builder.Configuration);
 
 var app = builder.Build();
 
-// Configure pipeline
+// Forwarded Headers (wichtig hinter Nginx für HTTPS/Cookies)
+var fwdOptions = new ForwardedHeadersOptions {
+  ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
+  KnownNetworks = {},
+  KnownProxies = {}
+};
+app.UseForwardedHeaders(fwdOptions);
+
+// Pipeline
 if (!app.Environment.IsDevelopment()) {
   app.UseExceptionHandler("/Error");
   app.UseHsts();
 } else {
   app.UseDeveloperExceptionPage();
-
-  // 🔧 Development SSL Trust Helper
   Console.WriteLine("🔧 Development SSL Info:");
-  Console.WriteLine("   Falls SSL-Fehler auftreten, führe aus:");
   Console.WriteLine("   dotnet dev-certs https --trust");
-  Console.WriteLine("   Oder nutze HTTP: http://localhost:5000");
+  Console.WriteLine("   oder nutze http://localhost:5000");
 }
 
 app.UseStaticFiles();
 app.UseRouting();
-
-// 🔧 KRITISCH: Authentication MUSS vor Authorization stehen
 app.UseAuthentication();
 app.UseAuthorization();
 
-// 🔧 API Controllers VOR Blazor
 app.MapControllers();
-
-// 🔧 Blazor Hub
 app.MapBlazorHub();
-
-// 🔧 WICHTIG: Reihenfolge der Mappings
 app.MapRazorPages();
 app.MapFallbackToPage("/_Host");
 
-// Database setup
+// Datenbank-Migration
 using(var scope = app.Services.CreateScope()) {
   try {
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -160,10 +147,7 @@ using(var scope = app.Services.CreateScope()) {
 }
 
 Console.WriteLine("🚀 Starting CMC application...");
-Console.WriteLine("   📡 Available at:");
-Console.WriteLine("      http://localhost:5000 (empfohlen für Development)");
-Console.WriteLine("      https://localhost:5001 (requires trusted certificate)");
-Console.WriteLine("   🔧 Bei SSL-Problemen: dotnet dev-certs https --trust");
+Console.WriteLine("   📡 URLs kommen aus ASPNETCORE_URLS oder appsettings.json");
 
 app.Run();
 

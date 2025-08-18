@@ -12,7 +12,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./backups:/backups
     ports:
-      - "127.0.0.1:5432:5432"  # Nur localhost access
+      - "127.0.0.1:5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U cmc_user -d cmc_production"]
       interval: 10s
@@ -33,7 +33,7 @@ services:
     volumes:
       - pgadmin_data:/var/lib/pgadmin
     ports:
-      - "127.0.0.1:8080:80"  # Nur localhost access
+      - "127.0.0.1:8080:80"
     depends_on:
       postgres:
         condition: service_healthy
