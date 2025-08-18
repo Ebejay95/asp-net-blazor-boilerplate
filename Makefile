@@ -29,7 +29,6 @@ docker-dev: docker-setup
 	@echo "   📡 Application: http://localhost:5000 | https://localhost:5001"
 	@echo "   📊 pgAdmin: http://localhost:8080 (admin@example.com / admin)"
 	@echo "   🗄️  PostgreSQL: localhost:5432 (postgres / password)"
-	@echo "   🧪 Test Login: test@example.com / password123"
 	@echo ""
 	@$(MAKE) app-watch
 

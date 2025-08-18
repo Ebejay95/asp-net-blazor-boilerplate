@@ -1,21 +1,53 @@
+@font-face {
+    font-family: 'Audicius';
+    src: url('/fonts/earthorbiter/earthorbiter.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: 'Rubik';
+    src: url('/fonts/rubik/Rubik-Light.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: 'Rubik Bold';
+    src: url('/fonts/rubik/Rubik-Medium.ttf') format('truetype');
+}
+
+
 h1, h2, h3, h4, h5, h6 {
     @apply text-[var(--audicius-text)] font-bold;
 }
-h1 {
+h1, .like-h1 {
     @apply text-4xl mb-6;
+    font-family: 'Rubik Bold', sans-serif;
 }
-h2 {
+h2, .like-h2 {
     @apply text-3xl mb-5;
 }
-h3 {
+h3, .like-h3 {
     @apply text-2xl mb-4;
 }
-h4 {
+h4, .like-h4 {
     @apply text-xl mb-4;
 }
-h5 {
+h5, .like-h5 {
     @apply text-lg mb-3;
 }
-h6 {
+h6, .like-h6 {
     @apply text-base mb-3
+}
+
+.audicius {
+    font-family: 'Audicius', sans-serif;
+}
+
+.subtle {
+    font-size: 0.7em;
+    opacity: 0.5;
+}
+.center {
+    @apply text-center;
+}
+html, body {
+    font-family: 'Rubik', sans-serif;
 }

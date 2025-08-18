@@ -6,8 +6,8 @@
 
 <PageTitle>Login</PageTitle>
 
-<div class="row justify-content-center">
-    <div>
+<section class="slim">
+    <div class="card">
         <h2>Login</h2>
 
         @if (!string.IsNullOrEmpty(errorMessage))
@@ -24,19 +24,19 @@
             <DataAnnotationsValidator />
             <ValidationSummary />
 
-            <div class="form-group mb-3">
+            <div class="form-group">
                 <label for="email">Email:</label>
                 <InputText id="email" class="form-control" @bind-Value="loginRequest.Email" />
                 <ValidationMessage For="@(() => loginRequest.Email)" />
             </div>
 
-            <div class="form-group mb-3">
+            <div class="form-group">
                 <label for="password">Password:</label>
                 <InputText id="password" type="password" class="form-control" @bind-Value="loginRequest.Password" />
                 <ValidationMessage For="@(() => loginRequest.Password)" />
             </div>
 
-            <button type="submit" class="btn btn-primary" disabled="@isLoading">
+            <button type="submit" class="btn primary" disabled="@isLoading">
                 @if (isLoading)
                 {
                     <span class="spinner-border spinner-border-sm" role="status"></span>
@@ -49,7 +49,6 @@
             </button>
         </EditForm>
 
-        <hr />
         <p>
             Don't have an account? <a href="/register">Register here</a>
         </p>
@@ -57,15 +56,8 @@
             <a href="/forgot-password">Forgot Password?</a>
         </p>
 
-        <!-- Debug Button -->
-        <div class="mb-3">
-            <button class="btn btn-success" @onclick="QuickTestLogin">
-                🧪 Quick Test Login (test@example.com)
-            </button>
-        </div>
     </div>
-</div>
-
+</section>
 @code {
     private LoginRequest loginRequest = new()
     {
@@ -116,10 +108,4 @@
         }
     }
 
-    private async Task QuickTestLogin()
-    {
-        loginRequest.Email = "test@example.com";
-        loginRequest.Password = "password123";
-        await HandleLogin();
-    }
 }

@@ -23,6 +23,12 @@
 		<NavLink class="btn primary" href="#">NavLink</NavLink>
 		<button class="btn primary" @onclick='() => Alert("Primary clicked!")'>Button</button>
 
+		<!-- secondary -->
+		<p><strong>secondary</strong></p>
+		<a class="btn secondary" href="#">Link </a>
+		<NavLink class="btn secondary" href="#">NavLink</NavLink>
+		<button class="btn secondary" @onclick='() => Alert("Sekundär clicked!")'>Button</button>
+
 		<!-- flat -->
 		<p><strong>flat</strong></p>
 		<a class="btn flat" href="#">Link </a>
@@ -34,6 +40,30 @@
 		<a class="btn danger" href="#">Link </a>
 		<NavLink class="btn danger" href="#">NavLink</NavLink>
 		<button class="btn danger" @onclick='() => Alert("Danger clicked!")'>Button</button>
+
+		<!-- primary -->
+		<p><strong>primary</strong></p>
+		<a class="btn sm primary" href="#">Link </a>
+		<NavLink class="btn sm primary" href="#">NavLink</NavLink>
+		<button class="btn sm primary" @onclick='() => Alert("Primary clicked!")'>Button</button>
+
+		<!-- secondary -->
+		<p><strong>secondary</strong></p>
+		<a class="btn sm secondary" href="#">Link </a>
+		<NavLink class="btn sm secondary" href="#">NavLink</NavLink>
+		<button class="btn sm secondary" @onclick='() => Alert("Sekundär clicked!")'>Button</button>
+
+		<!-- flat -->
+		<p><strong>flat</strong></p>
+		<a class="btn sm flat" href="#">Link </a>
+		<NavLink class="btn sm flat" href="#">NavLink</NavLink>
+		<button class="btn sm flat" @onclick='() => Alert("Flat clicked!")'>Button</button>
+
+		<!-- danger -->
+		<p><strong>danger</strong></p>
+		<a class="btn sm danger" href="#">Link </a>
+		<NavLink class="btn sm danger" href="#">NavLink</NavLink>
+		<button class="btn sm danger" @onclick='() => Alert("Danger clicked!")'>Button</button>
 	</div>
 
 	<div class="card">
@@ -44,6 +74,13 @@
 			<a class="btn primary" href="#">Link </a>
 			<NavLink class="btn primary" href="#">NavLink</NavLink>
 			<button class="btn primary" @onclick='() => Alert("Primary in group!")'>Button</button>
+		</div>
+
+		<p><strong>secondary</strong></p>
+		<div class="btn-group">
+			<a class="btn secondary" href="#">Link </a>
+			<NavLink class="btn secondary" href="#">NavLink</NavLink>
+			<button class="btn secondary" @onclick='() => Alert("Secondary in group!")'>Button</button>
 		</div>
 
 		<p><strong>flat</strong></p>
@@ -59,6 +96,34 @@
 			<NavLink class="btn danger" href="#">NavLink</NavLink>
 			<button class="btn danger" @onclick='() => Alert("Danger in group!")'>Button</button>
 		</div>
+
+		<p><strong>primary</strong></p>
+		<div class="btn-group">
+			<a class="btn sm primary" href="#">Link </a>
+			<NavLink class="btn sm primary" href="#">NavLink</NavLink>
+			<button class="btn sm primary" @onclick='() => Alert("Primary in group!")'>Button</button>
+		</div>
+
+		<p><strong>secondary</strong></p>
+		<div class="btn-group">
+			<a class="btn sm secondary" href="#">Link </a>
+			<NavLink class="btn sm secondary" href="#">NavLink</NavLink>
+			<button class="btn sm secondary" @onclick='() => Alert("Secondary in group!")'>Button</button>
+		</div>
+
+		<p><strong>flat</strong></p>
+		<div class="btn-group">
+			<a class="btn sm flat" href="#">Link </a>
+			<NavLink class="btn sm flat" href="#">NavLink</NavLink>
+			<button class="btn sm flat" @onclick='() => Alert("Flat in group!")'>Button</button>
+		</div>
+
+		<p><strong>danger</strong></p>
+		<div class="btn-group">
+			<a class="btn sm danger" href="#">Link </a>
+			<NavLink class="btn sm danger" href="#">NavLink</NavLink>
+			<button class="btn sm danger" @onclick='() => Alert("Danger in group!")'>Button</button>
+		</div>
 	</div>
 </section>
 <section class="slim">
@@ -66,28 +131,225 @@
         <h1>
             Form
         </h1>
+
+		<form action="#" method="post" autocomplete="on">
+
+			<fieldset>
+				<legend>Profil</legend>
+
+				<div class="form-group">
+					<label for="name">Vollständiger Name</label>
+					<input id="name" name="name" type="text" class="form-control"
+						autocomplete="name" required />
+				</div>
+
+				<div class="form-group">
+					<label for="email">E-Mail</label>
+					<input id="email" name="email" type="email" class="form-control"
+						autocomplete="email" inputmode="email" required />
+					<small id="email-help">Wir teilen deine E-Mail nicht.</small>
+				</div>
+
+				<div class="form-group">
+					<label for="password">Passwort</label>
+					<input id="password" name="password" type="password" class="form-control"
+						autocomplete="new-password" minlength="8" required aria-describedby="pw-help" />
+					<small id="pw-help">Mind. 8 Zeichen.</small>
+				</div>
+
+				<div class="form-group">
+					<label for="tel">Telefon</label>
+					<input id="tel" name="tel" type="tel" class="form-control"
+						autocomplete="tel" inputmode="tel" placeholder="+49 123 456789" />
+				</div>
+			</fieldset>
+
+			<fieldset>
+				<legend>Eingaben</legend>
+
+				<div class="form-group">
+					<label for="username">Username (mit Vorschlägen)</label>
+					<input id="username" name="username" type="text" class="form-control" list="user-suggestions" />
+					<datalist id="user-suggestions">
+						<option value="jonathan42"></option>
+						<option value="jkjeberle"></option>
+						<option value="dev-jon"></option>
+					</datalist>
+				</div>
+
+				<div class="form-group">
+					<label for="search">Suche</label>
+					<input id="search" name="search" type="search" class="form-control" inputmode="search" />
+				</div>
+
+				<div class="form-group">
+					<label for="url">Website</label>
+					<input id="url" name="url" type="url" class="form-control" placeholder="https://example.com" />
+				</div>
+
+				<div class="form-group">
+					<label for="number">Zahl (0–100)</label>
+					<input id="number" name="number" type="number" class="form-control" min="0" max="100" step="1" />
+				</div>
+
+				<div class="form-group">
+					<label for="range">Range (Live-Ausgabe)</label>
+					<input id="range" name="range" type="range" min="0" max="10" value="5"
+						oninput="range_out.value=this.value" />
+					<output id="range_out" for="range">5</output>
+				</div>
+
+				<div class="form-group">
+					<label for="color">Farbe</label>
+					<input id="color" name="color" type="color" value="#4f46e5" />
+				</div>
+
+				<div class="form-group">
+					<label for="file">Datei(en)</label>
+					<input id="file" name="file" type="file" multiple accept=".png,.jpg,.jpeg,.pdf" />
+				</div>
+
+				<div class="form-group">
+					<label for="bio">Kurzbio</label>
+					<textarea id="bio" name="bio" class="form-control" rows="4" maxlength="500" spellcheck="true"></textarea>
+				</div>
+
+				<div class="form-group">
+					<label for="select">Auswahl</label>
+					<select id="select" name="select" class="form-control" required>
+						<option value="" disabled selected>Bitte wählen…</option>
+						<optgroup label="Gruppe A">
+							<option value="a1">A1</option>
+							<option value="a2">A2</option>
+						</optgroup>
+						<optgroup label="Gruppe B">
+							<option value="b1">B1</option>
+							<option value="b2">B2</option>
+						</optgroup>
+					</select>
+				</div>
+			</fieldset>
+
+			<!-- Zeit & Datum -->
+			<fieldset>
+				<legend>Zeit & Datum</legend>
+
+				<div class="form-group">
+					<label for="date">Datum</label>
+					<input id="date" name="date" type="date" />
+				</div>
+
+				<div class="form-group">
+					<label for="time">Uhrzeit</label>
+					<input id="time" name="time" type="time" />
+				</div>
+
+				<div class="form-group">
+					<label for="datetime">Lokal (Datum & Zeit)</label>
+					<input id="datetime" name="datetime" type="datetime-local" />
+				</div>
+
+				<div class="form-group">
+					<label for="month">Monat</label>
+					<input id="month" name="month" type="month" />
+				</div>
+
+				<div class="form-group">
+					<label for="week">Kalenderwoche</label>
+					<input id="week" name="week" type="week" />
+				</div>
+			</fieldset>
+
+			<fieldset>
+				<legend>Optionen</legend>
+
+				<div class="form-group">
+					<span id="rad-legend">Radio</span><br />
+					<input id="r1" name="radio" type="radio" value="1" aria-labelledby="rad-legend" />
+					<label for="r1">Option 1</label>
+					<input id="r2" name="radio" type="radio" value="2" />
+					<label for="r2">Option 2</label>
+				</div>
+
+				<div class="form-group">
+					<span id="chk-legend">Checkboxen</span><br />
+					<input id="c1" name="features" type="checkbox" value="f1" aria-labelledby="chk-legend" />
+					<label for="c1">Feature 1</label>
+					<input id="c2" name="features" type="checkbox" value="f2" />
+					<label for="c2">Feature 2</label>
+				</div>
+			</fieldset>
+
+			<fieldset>
+				<legend>Extras</legend>
+
+				<div class="form-group">
+					<label for="meter">Fortschritt (Meter)</label>
+					<meter id="meter" min="0" max="100" low="30" high="70" optimum="85" value="60">60</meter>
+				</div>
+
+				<div class="form-group">
+					<label for="progress">Upload (Progress)</label>
+					<progress id="progress" value="0" max="100">0%</progress>
+				</div>
+
+				<input type="hidden" name="hidden_token" value="abc123" />
+			</fieldset>
+
+			<div class="form-group">
+				<button type="submit" class="btn primary">Absenden</button>
+				<button type="reset" class="btn flat">Zurücksetzen</button>
+			</div>
+		</form>
     </div>
 </section>
 <section class="slim">
     <div class="card">
         <h1>
             Test
-        </h1>
-    </div>
-    <div class="card">
-        <h1>
-            Test
-        </h1>
-    </div>
-    <div class="card">
-        <h1>
-            Test
-        </h1>
-    </div>
-    <div class="card">
-        <h1>
-            Test
-        </h1>
+        </h1><div class="table-wrap table-sm" style="--col-1-w: 22ch; --col-2-w: 16ch; --col-3-w: 34ch; --col-4-w: 12ch; --col-5-w: 12ch;">
+    <table class="aud-table">
+        <colgroup>
+            <col />
+            <col />
+            <col />
+            <col />
+            <col />
+        </colgroup>
+        <thead>
+            <tr>
+                <th scope="col">Order #</th>
+                <th scope="col">Date</th>
+                <th scope="col">Customer</th>
+                <th scope="col">Total</th>
+                <th scope="col">Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td data-label="Order #" class="td-nowrap">ORD-2025-0001</td>
+                <td data-label="Date" class="td-nowrap">2025-08-01</td>
+                <td data-label="Customer" class="td-truncate">Acme Industries GmbH, Procurement Team South-West</td>
+                <td data-label="Total" class="td-num">1 249,00 €</td>
+                <td data-label="Status"><span class="td-badge success">Paid</span></td>
+            </tr>
+            <tr>
+                <td data-label="Order #" class="td-nowrap">ORD-2025-0002</td>
+                <td data-label="Date" class="td-nowrap">2025-08-03</td>
+                <td data-label="Customer" class="td-truncate">Müller & Söhne KG</td>
+                <td data-label="Total" class="td-num">219,90 €</td>
+                <td data-label="Status"><span class="td-badge warn">Pending</span></td>
+            </tr>
+            <tr>
+                <td data-label="Order #" class="td-nowrap">ORD-2025-0003</td>
+                <td data-label="Date" class="td-nowrap">2025-08-05</td>
+                <td data-label="Customer" class="td-truncate">Globex Europe AG</td>
+                <td data-label="Total" class="td-num">9 870,00 €</td>
+                <td data-label="Status"><span class="td-badge danger">Overdue</span></td>
+            </tr>
+        </tbody>
+    </table>
+</div>
     </div>
 </section>
 

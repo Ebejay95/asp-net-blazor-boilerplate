@@ -1,17 +1,104 @@
+@* Pages/Dashboard.razor *@
 @page "/dashboard"
+@page "/dashboard/kunden"
+@page "/dashboard/szenarien"
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
-@inject AuthenticationStateProvider AuthenticationStateProvider
-@inject NavigationManager Navigation
+@using Microsoft.AspNetCore.Components.Routing
 @attribute [Authorize]
+@inject NavigationManager Navigation
 
 <PageTitle>CMC - Dashboard</PageTitle>
 
-<div>
-    <aside class="aside-main">
-    </aside>
+<div class="dashboard">
+	<aside class="aside-main">
+		<ul>
+			<li>
+				<NavLink href="/dashboard" Match="NavLinkMatch.All" class="nav-item">
+					Übersicht
+				</NavLink>
+			</li>
+			<li>
+				<NavLink href="/dashboard/kunden" class="nav-item">
+					Kunden
+				</NavLink>
+			</li>
+			<li>
+				<NavLink href="/dashboard/szenarien" class="nav-item">
+					Szenarien
+				</NavLink>
+			</li>
+		</ul>
+	</aside>
+
+	<div class="board">
+		@RenderContent()
+	</div>
 </div>
 
 @code {
+	[Parameter] public string? Section { get; set; }
 
+	protected override void OnInitialized()
+	{
+		Navigation.LocationChanged += HandleLocationChanged;
+		UpdateSectionFromUri();
+	}
+
+	protected override void OnParametersSet()
+	{
+		// Falls Route-Parameter genutzt würden – hier ebenfalls nachziehen
+		UpdateSectionFromUri();
+	}
+
+	private void HandleLocationChanged(object? sender, LocationChangedEventArgs e)
+	{
+		UpdateSectionFromUri();
+		InvokeAsync(StateHasChanged);
+	}
+
+	private void UpdateSectionFromUri()
+	{
+		var path = Navigation.ToBaseRelativePath(Navigation.Uri);
+
+		if (path.StartsWith("dashboard/"))
+		{
+			Section = path.Substring("dashboard/".Length);
+		}
+		else if (path == "dashboard" || path == "dashboard/")
+		{
+			Section = "overview";
+		}
+	}
+
+	private RenderFragment RenderContent() => builder =>
+	{
+		var currentPath = Navigation.ToBaseRelativePath(Navigation.Uri);
+
+		if (currentPath == "dashboard" || currentPath == "dashboard/")
+		{
+			builder.OpenComponent<DashboardOverview>(0);
+			builder.CloseComponent();
+		}
+		else if (currentPath == "dashboard/kunden")
+		{
+			builder.OpenComponent<DashboardCustomers>(1);
+			builder.CloseComponent();
+		}
+		else if (currentPath == "dashboard/szenarien")
+		{
+			builder.OpenComponent<DashboardScenarios>(2);
+			builder.CloseComponent();
+		}
+		else
+		{
+			builder.OpenComponent<DashboardOverview>(3);
+			builder.CloseComponent();
+		}
+	};
+
+	public void Dispose()
+	{
+		Navigation.LocationChanged -= HandleLocationChanged;
+	}
 }

@@ -1,5 +1,148 @@
-@layer components {
-    .btn {
-        @apply bg-[var(--audicius-blue)] text-white;
-    }
+/* === Audicius Button Styles === */
+.btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0.6rem 1.2rem;
+	font-size: 1rem;
+	font-weight: 600;
+	border-radius: 0.5rem;
+	cursor: pointer;
+	transition: all 0.2s ease-in-out;
+	border: none;
+	text-decoration: none;
+	color: var(--audicius-text);
+    box-shadow: var(--audicius-shadow);
+}
+.btn.sm {
+	padding: 0.3rem 0.6rem;
+	font-size: 1rem;
+}
+
+/* Base interactive states */
+.btn:hover {
+}
+
+.btn:active {
+    transform: scale(0.96);
+    box-shadow: none;
+}
+
+.btn:focus {
+	outline: none;
+	outline-offset: 0px;
+}
+
+.btn:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+	box-shadow: none;
+}
+
+/* === Variants === */
+
+/* PRIMARY */
+.btn.primary {
+    position: relative;
+    isolation: isolate; /* eigener stacking context */
+    background: transparent; /* Hintergründe liegen in ::before/::after */
+    color: #fff;
+    overflow: hidden;
+}
+
+.btn.primary::before,
+.btn.primary::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: -1; /* hinter dem Text */
+    transition: opacity 0.2s ease-in-out;
+}
+
+/* Basis-Verlauf */
+.btn.primary::before {
+    background: var(--audicius-flare);
+    opacity: 1;
+}
+
+/* Hover-Verlauf */
+.btn.primary::after {
+    background: var(--audicius-flare-mod);
+    opacity: 0;
+}
+
+.btn.primary:hover::after {
+    opacity: 1;
+}
+
+.btn.primary:hover::before {
+    opacity: 0;
+}
+
+/* FLAT (clean, bordered) */
+.btn.flat {
+	background: transparent;
+	color: var(--audicius-blue);
+	box-shadow: none;
+}
+.btn.flat:hover {
+	background: var(--audicius-blue-light);
+	color: #fff;
+}
+.btn.flat:active {
+}
+
+/* DANGER */
+.btn.danger {
+	background: var(--audicius-danger);
+	color: #fff;
+}
+.btn.danger:hover {
+	background: #8f1e00;
+}
+.btn.danger:active {
+	background: #691700;
+}
+
+/* SUCCESS */
+.btn.success {
+	background: var(--audicius-success);
+	color: #fff;
+}
+.btn.success:hover {
+	background: #00461d;
+}
+.btn.success:active {
+	background: #003816;
+}
+
+/* ORANGE Accent */
+.btn.secondary {
+	background: var(--audicius-orange);
+	color: #fff;
+}
+.btn.secondary:hover {
+	background: #e99e00;
+}
+.btn.secondary:active {
+	background: #cc8b00;
+}
+
+/* GROUP (makes buttons stick together) */
+.btn-group {
+	display: inline-flex;
+	gap: 0;
+}
+.btn-group .btn {
+	border-radius: 0;
+}
+.btn-group .btn:first-child {
+	border-top-left-radius: 0.5rem;
+	border-bottom-left-radius: 0.5rem;
+}
+.btn-group .btn:last-child {
+	border-top-right-radius: 0.5rem;
+	border-bottom-right-radius: 0.5rem;
 }
