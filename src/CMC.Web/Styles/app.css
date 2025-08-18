@@ -9,19 +9,36 @@
 @source "./buttons.css";
 @source "./layout.css";
 @source "./typo.css";
+@source "./forms.css";
+@source "./table.css";
 
 :root {
 	--audicius-text: #444;
 	--main-bg: #fefefefe;
 	--audicius-blue: #00609c;
-	--audicius-orange: #ffae00;
-	--audicius-orange-light: #ffae0060;
+	--audicius-blue-light: #00609ce8;
+	--audicius-orange: #b77502;
+	--audicius-violett: #2d0278;
+	--audicius-danger: #b22701;
+	--audicius-success: #005724;
+	--audicius-orange-light: #b7750260;
 	--audicius-shadow: 0px 1px 6px 0px var(--audicius-orange-light);
     -webkit-box-shadow: 0px 1px 6px 0px var(--audicius-orange-light);
     -moz-box-shadow: 0px 1px 6px 0px var(--audicius-orange-light);
+	--audicius-hard-shadow: 0px 1px 6px 0px var(--audicius-orange);
+    -webkit-box-shadow: 0px 1px 6px 0px var(--audicius-orange);
+    -moz-box-shadow: 0px 1px 6px 0px var(--audicius-orange);
+	--audicius-flare: linear-gradient(135deg, var(--audicius-blue-light) 0%, var(--audicius-blue) 15%, var(--audicius-violett) 100%);
+	--audicius-flare-mod: linear-gradient(135deg, var(--audicius-violett)  0%, var(--audicius-blue) 50%, var(--audicius-blue-light) 100%);
+	--board-cols: 12;
+	--grid-size: 16px;
+	--gap: 8px;
+;
 }
 
 @import "./buttons.css";
+@import "./table.css";
+@import "./forms.css";
 @import "./layout.css";
 @import "./typo.css";
 
@@ -37,12 +54,12 @@ body {
 	background-image:
 		radial-gradient(
 			circle at top left,
-			#00609c13,
+			#00609c38,
 			transparent 70%
 		),
 		radial-gradient(
 			circle at bottom right,
-			#00609c13,
+			#00609c38,
 			transparent 70%
 		);
 	background-repeat: no-repeat;

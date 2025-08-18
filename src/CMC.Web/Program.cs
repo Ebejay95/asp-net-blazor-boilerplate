@@ -153,27 +153,6 @@ using(var scope = app.Services.CreateScope()) {
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await context.Database.MigrateAsync();
     Console.WriteLine("✅ Database migrations completed");
-
-    // Test user nur erstellen wenn noch nicht vorhanden
-    try {
-      var userService = scope.ServiceProvider.GetRequiredService<UserService>();
-      var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
-
-      var existingUser = await userRepo.GetByEmailAsync("test@example.com");
-      if (existingUser == null) {
-        await userService.RegisterAsync(new RegisterUserRequest {
-          Email = "test@example.com",
-          Password = "password123",
-          FirstName = "Test",
-          LastName = "User"
-        });
-        Console.WriteLine("✅ Test user created: test@example.com / password123");
-      } else {
-        Console.WriteLine("ℹ️ Test user already exists: test@example.com / password123");
-      }
-    } catch (Exception ex) {
-      Console.WriteLine("⚠️ Test user setup: " + ex.Message);
-    }
   } catch (Exception ex) {
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     logger.LogError(ex, "❌ Database setup failed");
@@ -184,7 +163,6 @@ Console.WriteLine("🚀 Starting CMC application...");
 Console.WriteLine("   📡 Available at:");
 Console.WriteLine("      http://localhost:5000 (empfohlen für Development)");
 Console.WriteLine("      https://localhost:5001 (requires trusted certificate)");
-Console.WriteLine("   🧪 Test Login: test@example.com / password123");
 Console.WriteLine("   🔧 Bei SSL-Problemen: dotnet dev-certs https --trust");
 
 app.Run();

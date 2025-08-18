@@ -5,23 +5,26 @@
 
 <PageTitle>Profile</PageTitle>
 
-<h1>User Profile</h1>
-
-<AuthorizeView>
-    <Authorized>
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">@GetFullName(context)</h5>
-                <p class="card-text">
-                    <strong>Email:</strong> @context.User.Identity?.Name<br />
-                    <strong>User ID:</strong> @GetUserId(context)<br />
-                    <strong>First Name:</strong> @GetClaim(context, System.Security.Claims.ClaimTypes.GivenName)<br />
-                    <strong>Last Name:</strong> @GetClaim(context, System.Security.Claims.ClaimTypes.Surname)
-                </p>
-            </div>
-        </div>
-    </Authorized>
-</AuthorizeView>
+<section class="slim">
+    <div class="card">
+        <h1>User Profile</h1>
+        <AuthorizeView>
+            <Authorized>
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">@GetFullName(context)</h5>
+                        <p class="card-text">
+                            <strong>Email:</strong> @context.User.Identity?.Name<br />
+                            <strong>User ID:</strong> @GetUserId(context)<br />
+                            <strong>First Name:</strong> @GetClaim(context, System.Security.Claims.ClaimTypes.GivenName)<br />
+                            <strong>Last Name:</strong> @GetClaim(context, System.Security.Claims.ClaimTypes.Surname)
+                        </p>
+                    </div>
+                </div>
+            </Authorized>
+        </AuthorizeView>
+    </div>
+</section>
 
 @code {
     private string GetFullName(AuthenticationState authState)
