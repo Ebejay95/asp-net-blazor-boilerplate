@@ -153,6 +153,9 @@ jobs:
             cd "$APP_DIR"
             rm -rf ./*
 
+            # mit sudo ALLES löschen (auch versteckte Dateien/Ordner), aber nur innerhalb von $APP_DIR
+            $SUDO rm -rf "$APP_DIR"/* "$APP_DIR"/.[!.]* "$APP_DIR"/..?* || true
+
             # --- Extract source ---
             tar -xzf /tmp/source-code.tar.gz --strip-components=1
             echo "✅ Source extracted"
