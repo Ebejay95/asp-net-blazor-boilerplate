@@ -1,0 +1,54 @@
+@using CMC.Contracts.Users
+@using CMC.Web.Shared
+@using CMC.Web.Services
+@using CMC.Web.Util
+@inject CMC.Application.Services.UserService UserService
+@inject CMC.Web.Services.EditDrawerService DrawerService
+@inject CMC.Web.Services.DialogService ConfirmService
+
+<div class="card">
+    <AutoTable TItem="UserDto"
+        Items="_users"
+        AllowEdit="true"
+        OnEdit="StartEdit" />
+</div>
+
+@code {
+    private List<UserDto> _users = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _users = await UserService.GetAllAsync();
+    }
+
+    private void StartEdit(UserDto u)
+    {
+        DrawerService.Open(new EditDrawerRequest {
+            Title = "User bearbeiten",
+            Model = u,
+            ContractsAssembly = typeof(UserDto).Assembly,
+            OnSave = async ctx =>
+            {
+                var req = (UpdateUserRequest)ctx.Build("Update");
+                await UserService.UpdateAsync(req);
+                await Reload();
+            },
+            OnDelete = async ctx =>
+            {
+                var email = u.Email;
+                ConfirmService.ConfirmDelete(email, async () =>
+                {
+                    var del = (DeleteUserRequest)ctx.Build("Delete");
+                    await UserService.DeleteAsync(del.Id);
+                    await Reload();
+                }, "user");
+            }
+        });
+    }
+
+    private async Task Reload()
+    {
+        _users = await UserService.GetAllAsync();
+        StateHasChanged();
+    }
+}

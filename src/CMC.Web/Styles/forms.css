@@ -1,48 +1,47 @@
 @layer components {
-	/* Labels & Helfer */
 	.form-label {
+		@apply text-[color:var(--audicius-text)];
 		@apply block mb-1;
-		color: var(--audicius-text);
 	}
+
 	.form-hint {
+		@apply text-[color-mix(in_srgb, var(--audicius-text)_70%, transparent)];
 		@apply mt-1 text-sm;
-		color: color-mix(in srgb, var(--audicius-text) 70%, transparent);
 	}
+
 	.field-error {
+		@apply text-[color:var(--audicius-danger)];
 		@apply mt-1 text-sm;
-		color: var(--audicius-danger);
 	}
+
 	.field-success {
+		@apply text-[color:var(--audicius-success)];
 		@apply mt-1 text-sm;
-		color: var(--audicius-success);
 	}
 
 	/* Text-Inputs, Select, Textarea – einheitlicher Look */
 	.form-control,
 	select.form-control,
 	textarea.form-control {
-		@apply w-full rounded-xl px-2 py-1 text-base transition
-			shadow-inner border outline-none;
-		border-color: #0000001a;
-		color: var(--audicius-text);
+		@apply text-[color:var(--audicius-text)] border-[#0000001a];
+		@apply w-full rounded-xl px-2 py-1 text-base transition shadow-inner border outline-none;
 	}
 
 	/* Placeholders dezent */
 	.form-control::placeholder,
 	textarea.form-control::placeholder {
-		color: color-mix(in srgb, var(--audicius-text) 45%, transparent);
-		opacity: 1;
+		@apply text-[color-mix(in_srgb, var(--audicius-text)_45%, transparent)] opacity-100;
 	}
 
 	/* Fokus: blauer „Audicius“-Ring + leichte harte Schatten-Note */
 	.form-control:focus,
 	select.form-control:focus,
 	textarea.form-control:focus {
+		@apply border-[color:var(--audicius-blue)];
 		@apply ring-2;
 		/* Tailwind arbitrary color token */
 		--tw-ring-color: var(--audicius-blue);
-		border-color: var(--audicius-blue);
-        outline: none;
+		outline: none;
 	}
 
 	/* Disabled / Readonly */
@@ -52,6 +51,7 @@
 		@apply opacity-60 cursor-not-allowed;
 		background: #f7f7f7;
 	}
+
 	.form-control[readonly] {
 		@apply cursor-default;
 		background: #fcfcfc;
@@ -61,40 +61,30 @@
 	.form-control.is-invalid,
 	.form-group.is-invalid .form-control,
 	.form-control:invalid {
-		border-color: var(--audicius-danger);
+		@apply border-[color:var(--audicius-danger)] shadow-[0_0_0_2px_color-mix(in_srgb, var(--audicius-danger)_25%, transparent), var(--audicius-shadow)];
 		--tw-ring-color: color-mix(in srgb, var(--audicius-danger) 75%, transparent);
-		box-shadow: 0 0 0 2px color-mix(in srgb, var(--audicius-danger) 25%, transparent), var(--audicius-shadow);
 	}
+
 	.form-control.is-valid,
 	.form-group.is-valid .form-control {
-		border-color: var(--audicius-success);
+		@apply border-[color:var(--audicius-success)] shadow-[0_0_0_2px_color-mix(in_srgb, var(--audicius-success)_25%, transparent), var(--audicius-shadow)];
 		--tw-ring-color: color-mix(in srgb, var(--audicius-success) 75%, transparent);
-		box-shadow: 0 0 0 2px color-mix(in srgb, var(--audicius-success) 25%, transparent), var(--audicius-shadow);
 	}
+
 	.form-group.is-warning .form-control {
-		border-color: var(--audicius-orange);
+		@apply border-[color:var(--audicius-orange)] shadow-[0_0_0_2px_color-mix(in_srgb, var(--audicius-orange)_25%, transparent), var(--audicius-shadow)];
 		--tw-ring-color: color-mix(in srgb, var(--audicius-orange) 75%, transparent);
-		box-shadow: 0 0 0 2px color-mix(in srgb, var(--audicius-orange) 25%, transparent), var(--audicius-shadow);
 	}
 
 	/* Select: dezentes Caret (native bleibt) */
 	select.form-control {
+		@apply bg-[linear-gradient(45deg, transparent_50%, var(--audicius-text)_50%), linear-gradient(135deg, var(--audicius-text)_50%, transparent_50%), linear-gradient(to_right, transparent, transparent)] bg-[calc(100%_-_22px)_55%, calc(100%_-_16px)_55%, 100%_0] bg-[6px_6px, 6px_6px, 2.5rem_100%];
 		@apply pr-10 appearance-none bg-no-repeat;
-		background-image:
-			linear-gradient(45deg, transparent 50%, var(--audicius-text) 50%),
-			linear-gradient(135deg, var(--audicius-text) 50%, transparent 50%),
-			linear-gradient(to right, transparent, transparent);
-		background-position:
-			calc(100% - 22px) 55%,
-			calc(100% - 16px) 55%,
-			100% 0;
-		background-size: 6px 6px, 6px 6px, 2.5rem 100%;
 	}
 
 	/* Textarea: feste Mindesthöhe */
 	textarea.form-control {
-		min-height: 7rem;
-		resize: vertical;
+		@apply min-h-[7rem] resize-y;
 	}
 
 	/* File Input – neutral, ohne verrücktes Styling */
@@ -106,31 +96,36 @@
 	/* Checkboxen & Radios: System-UI mit Brandfarbe */
 	input[type="checkbox"],
 	input[type="radio"] {
-		accent-color: var(--audicius-blue);
+		@apply accent-[color:var(--audicius-blue)];
 	}
 
 	/* Switch/Toggle (optional) – .switch + input[type=checkbox] */
 	.switch {
-		@apply inline-flex items-center gap-2 cursor-pointer select-none;
+		@apply inline-flex items-center gap-2 cursor-pointer;
 	}
+
 	.switch input[type="checkbox"] {
 		@apply sr-only;
 	}
+
 	.switch .track {
+		@apply shadow-[var(--audicius-shadow)];
 		@apply w-10 h-6 rounded-full relative transition;
 		background: #e6e6e6;
-		box-shadow: var(--audicius-shadow);
 	}
+
 	.switch .thumb {
+		@apply shadow-[0_1px_2px_#0001];
 		@apply absolute top-0.5 left-0.5 w-5 h-5 rounded-full transition;
 		background: #fff;
-		box-shadow: 0 1px 2px #0001;
 	}
-	.switch input:checked + .track {
+
+	.switch input:checked+.track {
 		background: var(--audicius-blue);
 	}
-	.switch input:checked + .track .thumb {
-		transform: translateX(1.0rem);
+
+	.switch input:checked+.track .thumb {
+		@apply translate-x-4;
 	}
 
 	/* Range Slider */
@@ -138,71 +133,95 @@
 		@apply w-full;
 		background: transparent;
 	}
+
 	input[type="range"].form-control::-webkit-slider-runnable-track {
-		height: 6px;
-		border-radius: 999px;
-		background: linear-gradient(90deg, var(--audicius-blue), var(--audicius-violett));
+		@apply h-1.5 rounded-[999px];
+		background: linear-gradient(90deg,
+				var(--audicius-blue),
+				var(--audicius-violett));
 	}
+
 	input[type="range"].form-control::-webkit-slider-thumb {
+		@apply w-[18px] h-[18px] border-[color:var(--audicius-blue)] shadow-[var(--audicius-shadow)] -mt-1.5 rounded-[999px] border-2 border-solid;
 		-webkit-appearance: none;
-		margin-top: -6px;
-		width: 18px; height: 18px; border-radius: 999px;
 		background: #fff;
-		border: 2px solid var(--audicius-blue);
-		box-shadow: var(--audicius-shadow);
 	}
+
 	input[type="range"].form-control::-moz-range-track {
-		height: 6px; border-radius: 999px;
-		background: linear-gradient(90deg, var(--audicius-blue), var(--audicius-violett));
+		@apply h-1.5 rounded-[999px];
+		background: linear-gradient(90deg,
+				var(--audicius-blue),
+				var(--audicius-violett));
 	}
+
 	input[type="range"].form-control::-moz-range-thumb {
-		width: 18px; height: 18px; border-radius: 999px;
-		background: #fff; border: 2px solid var(--audicius-blue);
-		box-shadow: var(--audicius-shadow);
+		@apply w-[18px] h-[18px] border-[color:var(--audicius-blue)] shadow-[var(--audicius-shadow)] rounded-[999px] border-2 border-solid;
+		background: #fff;
 	}
 
 	/* Color Input: runde Kachel */
 	input[type="color"].form-control {
+		@apply shadow-[var(--audicius-shadow)];
 		@apply h-10 w-14 p-1 rounded-xl cursor-pointer;
 		background: #fff;
-		box-shadow: var(--audicius-shadow);
 	}
 
 	/* Progress / Meter */
 	progress.form-control {
 		@apply w-full h-3 rounded-xl overflow-hidden;
 	}
+
 	progress.form-control::-webkit-progress-bar {
+		@apply rounded-[999px];
 		background: #eee;
-		border-radius: 999px;
 	}
+
 	progress.form-control::-webkit-progress-value {
+		@apply rounded-[999px];
 		background: var(--audicius-blue);
-		border-radius: 999px;
 	}
+
 	meter.form-control {
 		@apply w-full h-3;
 	}
+
 	meter::-webkit-meter-bar {
+		@apply rounded-[999px];
 		background: #eee;
-		border-radius: 999px;
 	}
-	meter::-webkit-meter-optimum-value { background: var(--audicius-success); }
-	meter::-webkit-meter-suboptimum-value { background: var(--audicius-orange); }
-	meter::-webkit-meter-even-less-good-value { background: var(--audicius-danger); }
+
+	meter::-webkit-meter-optimum-value {
+		background: var(--audicius-success);
+	}
+
+	meter::-webkit-meter-suboptimum-value {
+		background: var(--audicius-orange);
+	}
+
+	meter::-webkit-meter-even-less-good-value {
+		background: var(--audicius-danger);
+	}
 
 	/* Input-Gruppen mit Icon links/rechts */
 	.input-group {
 		@apply relative;
 	}
+
 	.input-icon-left {
+		@apply text-[color-mix(in_srgb, var(--audicius-text)_65%, transparent)];
 		@apply absolute inset-y-0 left-3 inline-flex items-center;
-		color: color-mix(in srgb, var(--audicius-text) 65%, transparent);
 	}
+
 	.input-icon-right {
+		@apply text-[color-mix(in_srgb, var(--audicius-text)_65%, transparent)];
 		@apply absolute inset-y-0 right-3 inline-flex items-center;
-		color: color-mix(in srgb, var(--audicius-text) 65%, transparent);
 	}
-	.input-group .form-control.pl-icon { @apply pl-10; }
-	.input-group .form-control.pr-icon { @apply pr-10; }
+
+	.input-group .form-control.pl-icon {
+		@apply pl-10;
+	}
+
+	.input-group .form-control.pr-icon {
+		@apply pr-10;
+	}
 }

@@ -1,0 +1,126 @@
+@typeparam TItem
+@using System.ComponentModel.DataAnnotations
+@using System.Reflection
+@using System.Linq
+@attribute [Authorize]
+
+<table class="aud-table">
+	<thead>
+		<tr>
+			@foreach (var col in _cols) @* _cols wird hier benutzt *@
+			{
+				<th scope="col">@col.Header</th>
+			}
+			@if (AllowEdit)
+			{
+				<th scope="col" class="td-nowrap">Aktionen</th>
+			}
+		</tr>
+	</thead>
+	<tbody>
+		@if (Items is not null)
+		{
+			@foreach (var item in Items)
+			{
+				<tr>
+					@foreach (var col in _cols)
+					{
+						<td class="td-nowrap">@col.Render(item)</td>
+					}
+					@if (AllowEdit)
+					{
+						<td class="td-nowrap">
+							@if (EditTemplate is not null)
+							{
+								@EditTemplate(item)
+							}
+							else
+							{
+								<button type="button" class="btn sm flat" @onclick="() => RequestEdit(item)">
+									Bearbeiten
+								</button>
+							}
+						</td>
+					}
+				</tr>
+			}
+		}
+	</tbody>
+</table>
+
+@code {
+	[Parameter] public IEnumerable<TItem>? Items { get; set; }
+	[Parameter] public bool AutoGenerate { get; set; } = true;
+	[Parameter] public bool AllowEdit { get; set; } = false;
+	[Parameter] public EventCallback<TItem> OnEdit { get; set; }
+	[Parameter] public RenderFragment<TItem>? EditTemplate { get; set; }
+
+	private record Col(string Header, Func<TItem, object?> Getter, string? Format)
+	{
+		public RenderFragment Render(TItem item) => builder =>
+		{
+			var val = Getter(item);
+			if (val is null) { builder.AddContent(0, string.Empty); return; }
+			if (!string.IsNullOrWhiteSpace(Format) && val is IFormattable f)
+				builder.AddContent(0, f.ToString(Format, null));
+			else
+				builder.AddContent(0, val.ToString());
+		};
+	}
+
+	private List<Col> _cols = new();
+
+	protected override void OnParametersSet()
+	{
+		if (!AutoGenerate || typeof(TItem).IsPrimitive) return;
+
+		var props = typeof(TItem).GetProperties(BindingFlags.Public | BindingFlags.Instance)
+			.Where(p => p.GetIndexParameters().Length == 0)
+			.Where(p =>
+			{
+				var scaffoldAttr = p.GetCustomAttributes(true).OfType<ScaffoldColumnAttribute>().FirstOrDefault();
+				if (scaffoldAttr is not null && scaffoldAttr.Scaffold == false) return false;
+				var displayAttr = p.GetCustomAttributes(true).OfType<DisplayAttribute>().FirstOrDefault();
+				if (displayAttr is not null && displayAttr.GetAutoGenerateField() == false) return false;
+				return true;
+			})
+			.Select(p =>
+			{
+				var display = p.GetCustomAttributes(true).OfType<DisplayAttribute>().FirstOrDefault();
+				var fmtAttr = p.GetCustomAttributes(true).OfType<DisplayFormatAttribute>().FirstOrDefault();
+
+				var header = display?.GetName() ?? SplitPascal(p.Name);
+				var order = display?.GetOrder() ?? int.MaxValue;
+
+				string? cleanFmt = null;
+				var fmt = fmtAttr?.DataFormatString;
+				if (!string.IsNullOrWhiteSpace(fmt))
+					cleanFmt = fmt.Contains(':') ? fmt[(fmt.IndexOf(':') + 1)..].TrimEnd('}') : fmt;
+
+				Func<TItem, object?> getter = (TItem it) => p.GetValue(it);
+				return (order, col: new Col(header, getter, cleanFmt));
+			})
+			.OrderBy(t => t.order)
+			.Select(t => t.col)
+			.ToList();
+
+		_cols = props;
+	}
+
+	private static string SplitPascal(string s)
+	{
+		var sb = new System.Text.StringBuilder();
+		for (int i = 0; i < s.Length; i++)
+		{
+			if (i > 0 && char.IsUpper(s[i]) && !char.IsUpper(s[i - 1])) sb.Append(' ');
+			sb.Append(s[i]);
+		}
+		return sb.ToString();
+	}
+
+	private async Task RequestEdit(TItem item)
+	{
+		if (OnEdit.HasDelegate)
+			await OnEdit.InvokeAsync(item);
+	}
+}

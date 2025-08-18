@@ -1,0 +1,119 @@
+@* Reusable confirmation dialog for delete operations and other critical actions *@
+@* src/CMC.Web/Pages/Shared/Dialog.razor *@
+@if (IsOpen)
+{
+    <div class="confirm-backdrop" @onclick="HandleBackdropClick"></div>
+
+    <div class="confirm-dialog confirm-dialog--open">
+        <div class="confirm-card" @onclick:stopPropagation>
+            <div class="confirm-header">
+                <h3 id="confirm-title">@Title</h3>
+            </div>
+
+            <div class="confirm-body">
+                <p>@Message</p>
+                @if (!string.IsNullOrWhiteSpace(DetailMessage))
+                {
+                    <small class="text-muted">@DetailMessage</small>
+                }
+            </div>
+
+            <div class="confirm-footer btn-group">
+                <button class="btn danger" @onclick="Confirm" disabled="@_isProcessing">
+                    @if (_isProcessing) { <span>Processing...</span> } else { @ConfirmText }
+                </button>
+                <button class="btn flat" @onclick="Cancel" disabled="@_isProcessing">
+                    @CancelText
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+
+@code {
+    /// <summary>
+    /// Controls the visibility of the confirmation dialog.
+    /// </summary>
+    [Parameter] public bool IsOpen { get; set; }
+
+    /// <summary>
+    /// Title displayed in the dialog header.
+    /// </summary>
+    [Parameter] public string Title { get; set; } = "Confirm Action";
+
+    /// <summary>
+    /// Main confirmation message to display.
+    /// </summary>
+    [Parameter] public string Message { get; set; } = "Are you sure you want to proceed?";
+
+    /// <summary>
+    /// Optional detailed message for additional context.
+    /// </summary>
+    [Parameter] public string? DetailMessage { get; set; }
+
+    /// <summary>
+    /// Text for the confirmation button (default: "Confirm").
+    /// </summary>
+    [Parameter] public string ConfirmText { get; set; } = "Confirm";
+
+    /// <summary>
+    /// Text for the cancel button (default: "Cancel").
+    /// </summary>
+    [Parameter] public string CancelText { get; set; } = "Cancel";
+
+    /// <summary>
+    /// Callback invoked when user confirms the action.
+    /// </summary>
+    [Parameter] public EventCallback OnConfirm { get; set; }
+
+    /// <summary>
+    /// Callback invoked when user cancels the action.
+    /// </summary>
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    /// <summary>
+    /// Controls whether clicking the backdrop should close the dialog.
+    /// </summary>
+    [Parameter] public bool CloseOnBackdropClick { get; set; } = true;
+
+    private bool _isProcessing = false;
+
+    /// <summary>
+    /// Handles the confirmation action with async processing state.
+    /// </summary>
+    private async Task Confirm()
+    {
+        _isProcessing = true;
+        StateHasChanged();
+
+        try
+        {
+            await OnConfirm.InvokeAsync();
+        }
+        finally
+        {
+            _isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// Handles the cancel action.
+    /// </summary>
+    private async Task Cancel()
+    {
+        await OnCancel.InvokeAsync();
+    }
+
+    /// <summary>
+    /// Handles backdrop clicks based on configuration.
+    /// </summary>
+    private async Task HandleBackdropClick()
+    {
+        if (CloseOnBackdropClick && !_isProcessing)
+        {
+            await Cancel();
+        }
+    }
+}

@@ -1,0 +1,74 @@
+@using System.ComponentModel.DataAnnotations
+@using CMC.Web.Shared
+@using CMC.Web.Util
+@using CMC.Web.Services
+
+<div class="ed-backdrop @(IsOpen ? "ed-backdrop--open" : "")" @onclick="Close"></div>
+<div class="ed-wrap @(IsOpen ? "ed-wrap--open" : "")" role="dialog" aria-modal="true" aria-label="@_title">
+	<div class="ed-header">
+		<h3>@_title</h3>
+		<button class="ed-icon" @onclick="Close" aria-label="Close">✕</button>
+	</div>
+
+	<div class="ed-body">
+		@if (_model is not null)
+		{
+			<FormRenderer @ref="_form" Model="_model" />
+		}
+	</div>
+
+	<div class="ed-footer btn-group">
+		<button class="btn primary" @onclick="Save">Speichern</button>
+		<button class="btn danger" @onclick="Delete">Löschen</button>
+		<button class="btn flat" @onclick="Close">Abbrechen</button>
+	</div>
+</div>
+
+@code {
+	private bool IsOpen;
+	private string _title = "";
+	private object? _model;
+	private Assembly? _contractsAsm;
+	private FormRenderer? _form;
+
+	private Func<RequestBuildContext, Task>? _onSave;
+	private Func<RequestBuildContext, Task>? _onDelete;
+
+	public void Open(CMC.Web.Services.EditDrawerRequest req)
+	{
+		_title = req.Title;
+		_model = req.Model;
+		_contractsAsm = req.ContractsAssembly;
+		_onSave = req.OnSave;
+		_onDelete = req.OnDelete;
+		IsOpen = true;
+		StateHasChanged();
+	}
+
+	public void Close()
+	{
+		IsOpen = false;
+		StateHasChanged();
+	}
+
+	private RequestBuildContext BuildCtx()
+	{
+		var changes = _form?.GetChanges() ?? new Dictionary<string, object?>();
+		var provider = new CompositeValueProvider(_model!, changes);
+		return new RequestBuildContext(_model!, _contractsAsm!, provider);
+	}
+
+	private async Task Save()
+	{
+		if (_model is not null && _onSave is not null && _contractsAsm is not null)
+			await _onSave.Invoke(BuildCtx());
+		Close();
+	}
+
+	private async Task Delete()
+	{
+		if (_model is not null && _onDelete is not null && _contractsAsm is not null)
+			await _onDelete.Invoke(BuildCtx());
+		Close();
+	}
+}

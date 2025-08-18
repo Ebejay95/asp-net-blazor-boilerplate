@@ -1,4 +1,4 @@
-window.dashboard = (() => {
+window.cockpit = (() => {
 	function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
 
 	function applyGridPosition(el, x, y, w, h) {

@@ -1,119 +1,246 @@
 @layer components {
-    main {
-        @apply min-h-[100vh] w-full box-border m-auto pt-[60px] py-0;
-    }
-    header.header-main {
-        @apply bg-white fixed w-full flex justify-between items-center pl-4 pr-4 h-[60px] z-[3];
-        box-shadow: var(--audicius-shadow)
-    }
-    header.header-main .profile-card{
-        @apply bg-[var(--audicius-blue)] rounded text-[white];
-    }
-    aside.aside-main {
-        @apply bg-[var(--audicius-blue)];
-    }
-    section {
-        @apply pt-2 pb-2 pl-4 pr-4 flex gap-4;
-    }
 
-    section.tiny {
-        @apply pt-0 pb-0;
-    }
+	html,
+	body {
+		@apply select-none;
+	}
 
-    section.slim {
-        @apply max-w-[1200px] m-auto;
-    }
+	main {
+		@apply min-h-[100vh] w-full box-border m-auto pt-[60px] py-0;
+	}
 
-    section.fill {
-        @apply pl-0 pr-0;
-    }
-    main > section:not(.tiny):first-of-type {
-        @apply pt-4;
-    }
-    main > section:not(.tiny):last-of-type {
-        @apply pb-4;
-    }
-    .card {
-        @apply bg-white rounded border border-solid border-[#ddd] p-4 w-full;
-        box-shadow: var(--audicius-shadow);
-    }
-    footer {
-        @apply sticky bottom-0 bg-white border-t border-t-[#ddd] m-auto;
-    }
-    footer nav ul {
-        @apply flex gap-4 items-center justify-center;
-    }
-.dashboard {
-	height: 100vh;
-	overflow: hidden;
-    @apply flex gap-4;
-}
+	header.header-main {
+		@apply shadow-[var(--audicius-shadow)];
+		@apply bg-white fixed w-full flex justify-between items-center pl-4 pr-4 h-[60px] z-[3];
+	}
 
-/* Sidebar */
-.aside-main {
-	background: var(--audicius-flare);
-	@apply text-white pt-4 pb-4;
-	min-width: 160px;
-	height: 100vh;          /* volle Höhe */
-	display: flex;
-	flex-direction: column; /* damit der Inhalt flexibler wird */
-}
+	header.header-main .profile-card {
+		@apply bg-[var(--audicius-blue)] rounded text-[white];
+	}
 
-.aside-main ul {
-	flex: 1;                /* füllt die Höhe aus */
-	overflow-y: auto;       /* scrollt, wenn overflow */
-	@apply space-y-2;
-}
+	aside.aside-main {
+		@apply bg-[var(--audicius-blue)];
+	}
 
-.aside-main a {
-	@apply block px-3 py-2 rounded-lg hover:bg-white/10 transition;
-}
+	section {
+		@apply pt-2 pb-2 pl-4 pr-4 flex gap-4;
+	}
 
-/* Board */
-.board {
-	@apply pt-4 pb-4;
-}
+	section.tiny {
+		@apply pt-0 pb-0;
+	}
 
+	section.slim {
+		@apply max-w-[1200px] m-auto;
+	}
 
-    /* Basis-Card (du hast .card schon – hier nur mögliche Ergänzungen) */
-    .card {
-        @apply bg-white rounded-xl shadow-md border border-black/5;
-        /* Grid-Positionen werden inline via JS gesetzt (gridColumn, gridRow) */
-        position: relative;
-        overflow: hidden;
-        touch-action: none; /* wichtig für PointerEvents */
-    }
+	section.fill {
+		@apply pl-0 pr-0;
+	}
 
-    .card-header {
-        @apply px-4 py-2 font-semibold select-none cursor-grab;
-    }
+	main>section:not(.tiny):first-of-type {
+		@apply pt-4;
+	}
 
-    .card.dragging .card-header {
-        cursor: grabbing;
-    }
+	main>section:not(.tiny):last-of-type {
+		@apply pb-4;
+	}
 
-    .card-body {
-        @apply p-4;
-        min-height: calc(var(--grid-size) * 6);
-    }
+	.card {
+		@apply shadow-[var(--audicius-shadow)] relative overflow-hidden touch-none;
+		@apply bg-white rounded border border-solid border-[#ddd] p-4 w-full;
+	}
 
-    /* Resize-Handle unten rechts */
-    .card .resize-handle {
-        position: absolute;
-        right: 4px;
-        bottom: 4px;
-        width: 14px;
-        height: 14px;
-        border-radius: 4px;
-        border: 1px solid rgba(0,0,0,.15);
-        background: rgba(0,0,0,.08);
-        cursor: nwse-resize;
-    }
+	footer {
+		@apply sticky bottom-0 bg-white border-t border-t-[#ddd] m-auto;
+	}
 
-    /* Hilfs-Styles beim Drag/Resize */
-    .card.dragging,
-    .card.resizing {
-        box-shadow: 0 8px 24px rgba(0,0,0,.18);
-        transform: translateZ(0);
-    }
+	footer nav ul {
+		@apply flex gap-4 items-center justify-center;
+	}
+
+	/* Cockpit Layout */
+	.cockpit {
+		@apply h-screen overflow-hidden;
+		@apply flex gap-4;
+	}
+
+	/* Sidebar */
+	.aside-main {
+		@apply min-w-[160px] h-screen flex flex-col;
+		background: var(--audicius-flare);
+		@apply text-white pt-4 pb-4;
+	}
+
+	.aside-main ul {
+		@apply flex-1 overflow-y-auto;
+		@apply space-y-2;
+	}
+
+	.aside-main a,
+	.aside-main span {
+		@apply block px-3 py-2 hover:bg-white/10 transition cursor-pointer;
+	}
+
+	/* Active-Style für Blazor NavLink */
+	.aside-main a.active {
+		@apply bg-white/20 font-semibold;
+	}
+
+	/* Dropdown */
+	.aside-dropdown {
+		@apply relative;
+	}
+
+	.aside-dropdown-toggle {
+		@apply text-[white] font-medium border-[none];
+		@apply w-full text-left px-3 py-2 hover:bg-white/10 transition cursor-pointer flex items-center justify-between gap-2;
+		background: transparent;
+	}
+
+	/* Chevron */
+	.aside-dropdown .chevron {
+		@apply transition-transform duration-[0.15s] ease-[ease-in-out];
+	}
+
+	.aside-dropdown.open .chevron {
+		@apply rotate-90;
+	}
+
+	/* Menü */
+	.has-children {
+		@apply hidden flex-col flex;
+		@apply space-y-1;
+	}
+
+	.has-children ul {
+		@apply bg-[rgba(0, 0, 0, 0.1)];
+	}
+
+	.has-children a,
+	.has-children span {
+		@apply block px-3 py-2 hover:bg-white/20 transition;
+	}
+
+	/* Optional: Hover-Open – falls du ausschließlich Klick willst, diese Zeile löschen */
+
+	/* Klick-Open via Klasse */
+	.aside-dropdown.open .has-children {
+		@apply flex;
+	}
+
+	/* Fokus sichtbar */
+	.aside-main a:focus-visible,
+	.aside-dropdown-toggle:focus-visible {
+		@apply outline-offset-2 rounded-lg;
+		outline: 2px solid rgba(255, 255, 255, 0.7);
+	}
+
+	/* Board */
+	.board {
+		@apply pt-4 pb-4;
+	}
+
+	/* Karten – Ergänzungen */
+	.card {
+		@apply bg-white rounded-xl shadow-md border border-black/5;
+	}
+
+	.card-header {
+		@apply px-4 py-2 font-semibold cursor-grab;
+	}
+
+	.card.dragging .card-header {
+		@apply cursor-grabbing;
+	}
+
+	.card-body {
+		@apply min-h-[calc(var(--grid-size)_*_6)];
+		@apply p-4;
+	}
+
+	.card .resize-handle {
+		@apply absolute w-3.5 h-3.5 rounded border cursor-nwse-resize border-solid border-[rgba(0, 0, 0, 0.15)] right-1 bottom-1;
+		background: rgba(0, 0, 0, 0.08);
+	}
+
+	.card.dragging,
+	.card.resizing {
+		@apply shadow-[0_8px_24px_rgba(0, 0, 0, 0.18)];
+		transform: translateZ(0);
+	}
+
+	.ed-backdrop {
+		@apply opacity-0 pointer-events-none fixed transition-opacity duration-[0.15s] ease-[ease] z-40 inset-0;
+		background: rgba(0, 0, 0, 0.3);
+	}
+
+	.ed-backdrop--open {
+		@apply opacity-100 pointer-events-auto;
+	}
+
+	.ed-wrap {
+		@apply fixed h-screen w-[min(520px, 100vw)] shadow-[0_12px_32px_rgba(0, 0, 0, 0.24)] translate-x-full transition-transform duration-[0.2s] ease-[ease] z-50 flex flex-col gap-4 p-4 right-0 top-0;
+		background: #fff;
+	}
+
+	.ed-wrap--open {
+		@apply translate-x-0;
+	}
+
+	.ed-header {
+		@apply flex justify-between items-center p-4;
+	}
+
+	.ed-body {
+		@apply flex flex-col gap-3;
+	}
+
+	.ed-field {
+		@apply flex flex-col;
+	}
+
+	.ed-footer {
+		@apply flex items-start justify-end gap-2 px-4 py-3;
+	}
+
+	/* Confirm/Dialog Overlay */
+	.confirm-backdrop {
+		@apply opacity-0 pointer-events-none fixed transition-opacity duration-[0.18s] ease-[ease] z-[90] inset-0;
+		background: rgba(0, 0, 0, 0.35);
+	}
+
+	.confirm-dialog {
+		@apply fixed flex items-center justify-center opacity-0 pointer-events-none z-[100] transition-opacity duration-[0.18s] ease-[ease] p-4 inset-0;
+
+		/* über Header & ed-wrap */
+	}
+
+	.confirm-dialog--open {
+		@apply opacity-100 pointer-events-auto;
+	}
+
+	.confirm-card {
+		@apply w-full max-w-[520px] border shadow-[0_12px_32px_rgba(0, 0, 0, 0.24)] overflow-hidden translate-y-3 opacity-0 rounded-xl border-solid border-[#ddd];
+		background: #fff;
+		transition: transform 0.18s ease, opacity 0.18s ease;
+	}
+
+	.confirm-dialog--open .confirm-card {
+		@apply translate-y-0 opacity-100;
+	}
+
+	/* Card sections */
+	.confirm-header {
+		@apply px-5 py-4 border-b-[#eee] border-b border-solid;
+	}
+
+	.confirm-body {
+		@apply px-5 py-4;
+	}
+
+	.confirm-footer {
+		@apply flex gap-2 justify-end px-4 py-3 border-t-[#eee] border-t border-solid;
+		background: #f8fafc;
+	}
 }

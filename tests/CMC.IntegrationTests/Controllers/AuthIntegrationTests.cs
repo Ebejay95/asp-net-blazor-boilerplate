@@ -51,12 +51,12 @@ public class AuthIntegrationTests: IClassFixture<CustomWebApplicationFactory<Pro
     content.Should().Contain("<!DOCTYPE html>");
     content.Should().Contain("<title>CMC</title>");
   }[Fact]
-  public async Task Get_Dashboard_WithoutAuth_ShouldReturnOKButWithoutUserData() {
+  public async Task Get_Cockpit_WithoutAuth_ShouldReturnOKButWithoutUserData() {
     // Note: In a Blazor Server app, authorization is handled client-side
     // The initial response will be OK, but the Blazor component will handle auth
 
     // Act
-    var response = await _client.GetAsync("/dashboard");
+    var response = await _client.GetAsync("/cockpit");
 
     // Assert
     response.StatusCode.Should().Be(HttpStatusCode.OK);
