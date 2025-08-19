@@ -5,17 +5,22 @@ namespace CMC.Web.Shared;
 
 public sealed class RequestBuildContext
 {
-	public RequestBuildContext(object model, Assembly contractsAssembly, IValueProvider provider)
-	{
-		Model = model;
-		ContractsAssembly = contractsAssembly;
-		Provider = provider;
-	}
-
 	public object Model { get; }
 	public Assembly ContractsAssembly { get; }
 	public IValueProvider Provider { get; }
+	public string Action { get; }
 
-	public object Build(string action)
-		=> RequestFactory.MapByProvider(Model, Provider, action, ContractsAssembly);
+	public RequestBuildContext(object model, Assembly asm, IValueProvider provider, string action = "Update")
+	{
+		Model = model;
+		ContractsAssembly = asm;
+		Provider = provider;
+		Action = action;
+	}
+
+	public object Build(string? action = null)
+	{
+		var act = action ?? Action;
+		return RequestFactory.MapByProvider(Model, Provider, act, ContractsAssembly);
+	}
 }

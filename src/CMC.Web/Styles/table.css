@@ -1,4 +1,5 @@
 @layer components {
+
     /* === Container === */
     .table-wrap {
         @apply relative w-full overflow-x-auto bg-white;
@@ -17,17 +18,34 @@
     }
 
     /* colgroup nutzt Variablen – super präzise Breitenkontrolle */
-    .aud-table col:nth-child(1) { width: var(--col-1-w); }
-    .aud-table col:nth-child(2) { width: var(--col-2-w); }
-    .aud-table col:nth-child(3) { width: var(--col-3-w); }
-    .aud-table col:nth-child(4) { width: var(--col-4-w); }
-    .aud-table col:nth-child(5) { width: var(--col-5-w); }
-    .aud-table col:nth-child(6) { width: var(--col-6-w); }
+    .aud-table col:nth-child(1) {
+        width: var(--col-1-w);
+    }
+
+    .aud-table col:nth-child(2) {
+        width: var(--col-2-w);
+    }
+
+    .aud-table col:nth-child(3) {
+        width: var(--col-3-w);
+    }
+
+    .aud-table col:nth-child(4) {
+        width: var(--col-4-w);
+    }
+
+    .aud-table col:nth-child(5) {
+        width: var(--col-5-w);
+    }
+
+    .aud-table col:nth-child(6) {
+        width: var(--col-6-w);
+    }
 
     /* === Header === */
     .aud-table thead th {
         @apply sticky top-0 z-2 text-left font-semibold;
-        background: linear-gradient(180deg,#fff, #f8fafc);
+        background: linear-gradient(180deg, #fff, #f8fafc);
         color: var(--audicius-blue);
         @apply border-b border-slate-200;
     }
@@ -43,9 +61,11 @@
     .aud-table tbody tr {
         @apply border-b border-slate-100;
     }
+
     .aud-table tbody tr:hover {
         @apply bg-slate-50;
     }
+
     .aud-table tbody tr:nth-child(even) {
         @apply bg-slate-50/40;
     }
@@ -54,61 +74,87 @@
     .td-truncate {
         @apply max-w-[40ch] overflow-hidden text-ellipsis whitespace-nowrap;
     }
+
     .td-nowrap {
         @apply whitespace-nowrap;
     }
+
     .td-num {
         @apply text-right tabular-nums;
     }
+
     .td-badge {
         @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium;
     }
-    .td-badge.success { @apply bg-emerald-100 text-emerald-700; }
-    .td-badge.warn { @apply bg-amber-100 text-amber-800; }
-    .td-badge.danger { @apply bg-red-100 text-red-700; }
+
+    .td-badge.success {
+        @apply bg-emerald-100 text-emerald-700;
+    }
+
+    .td-badge.warn {
+        @apply bg-amber-100 text-amber-800;
+    }
+
+    .td-badge.danger {
+        @apply bg-red-100 text-red-700;
+    }
 
     /* === Responsive: XS -> Card-Stack (echte table-Elemente bleiben erhalten) === */
     @media (max-width: 640px) {
         .table-wrap {
             @apply rounded-lg;
         }
+
         .aud-table {
             @apply text-[0.95rem];
         }
+
         /* Wir lassen das Semantik-Markup stehen, aber optimieren Lesbarkeit */
         .aud-table thead {
             display: none;
         }
+
         .aud-table tbody tr {
             @apply grid gap-2 p-4;
             grid-template-columns: 1fr 1fr;
-            border: 1px solid rgba(0,0,0,0.05);
+            border: 1px solid rgba(0, 0, 0, 0.05);
             @apply rounded-lg mb-3;
         }
-        .aud-table td, .aud-table th {
+
+        .aud-table td,
+        .aud-table th {
             @apply p-0;
             white-space: normal;
         }
+
         .aud-table td::before {
             content: attr(data-label);
             @apply block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-0.5;
         }
+
         /* Zahlen rechts ausrichten auch mobil */
         .aud-table td.td-num {
             @apply text-right;
         }
+
         .aud-table td.td-num::before {
             @apply text-left;
         }
     }
 
     /* === Kompakte Variante === */
-    .table-sm .aud-table th, .table-sm .aud-table td {
+    .table-sm .aud-table th,
+    .table-sm .aud-table td {
         @apply px-3 py-2;
     }
 
     /* === Dichte Tabellen === */
-    .table-dense .aud-table th, .table-dense .aud-table td {
+    .table-dense .aud-table th,
+    .table-dense .aud-table td {
         @apply px-2 py-1.5 text-[0.9rem];
+    }
+
+    .aud-table-interface {
+        @apply absolute top-0 right-0 z-[12];
     }
 }

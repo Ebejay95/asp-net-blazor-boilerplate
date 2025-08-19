@@ -1,0 +1,83 @@
+@layer components {
+    /* Cockpit Layout */
+    .cockpit {
+        @apply h-screen overflow-hidden;
+        @apply flex gap-4;
+    }
+
+    /* Sidebar */
+    .aside-main {
+        @apply min-w-[160px] h-screen flex flex-col;
+        background: var(--audicius-flare);
+        @apply text-white pt-4 pb-4;
+    }
+
+    .aside-main ul {
+        @apply flex-1 overflow-y-auto;
+        @apply space-y-2;
+    }
+
+    .aside-main a,
+    .aside-main span {
+        @apply block px-3 py-2 hover:bg-white/10 transition cursor-pointer;
+    }
+
+    /* Active-Style für Blazor NavLink */
+    .aside-main a.active {
+        @apply bg-white/20 font-semibold;
+    }
+
+    /* Dropdown */
+    .aside-dropdown {
+        @apply relative;
+    }
+
+    .aside-dropdown-toggle {
+        @apply text-[white] font-medium border-[none];
+        @apply w-full text-left px-3 py-2 hover:bg-white/10 transition cursor-pointer flex items-center justify-between gap-2;
+        background: transparent;
+    }
+
+    /* Chevron */
+    .aside-dropdown .chevron {
+        @apply transition-transform duration-[0.15s] ease-[ease-in-out];
+    }
+
+    .aside-dropdown.open .chevron {
+        @apply rotate-90;
+    }
+
+    /* Menü */
+    .has-children {
+        @apply hidden flex-col flex;
+        @apply space-y-1;
+    }
+
+    .has-children ul {
+        @apply bg-[var(--audicius-darken)];
+    }
+
+    .has-children a,
+    .has-children span {
+        @apply block px-3 py-2 hover:bg-white/20 transition;
+    }
+
+    /* Optional: Hover-Open – falls du ausschließlich Klick willst, diese Zeile löschen */
+
+    /* Klick-Open via Klasse */
+    .aside-dropdown.open .has-children {
+        @apply flex;
+    }
+
+    /* Fokus sichtbar */
+    .aside-main a:focus-visible,
+    .aside-dropdown-toggle:focus-visible {
+        @apply outline-offset-2 rounded-lg;
+        outline: 2px solid rgba(255, 255, 255, 0.7);
+    }
+
+    /* Board */
+    .board {
+        @apply pt-4 pb-4;
+    }
+}

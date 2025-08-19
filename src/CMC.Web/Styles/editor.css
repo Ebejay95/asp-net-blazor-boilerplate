@@ -1,0 +1,31 @@
+@layer components {
+    .ed-backdrop {
+        @apply opacity-0 pointer-events-none fixed transition-opacity duration-[0.15s] ease-[ease] z-40 inset-0;
+        background: var(--audicius-overlay-right);
+    }
+
+    .ed-backdrop--open {
+        @apply opacity-100 pointer-events-auto;
+    }
+
+    .ed-wrap {
+        @apply fixed h-screen w-[500px] translate-x-full transition-transform duration-[0.2s] ease-[ease] z-50 flex flex-col gap-4 p-4 right-0 top-0;
+        background: #fff;
+    }
+
+    .ed-wrap--open {
+        @apply translate-x-0;
+    }
+
+    .ed-header {
+        @apply flex justify-between items-center p-4;
+    }
+
+    .ed-body {
+        @apply flex flex-col gap-3;
+    }
+
+    .ed-field {
+        @apply flex flex-col;
+    }
+}

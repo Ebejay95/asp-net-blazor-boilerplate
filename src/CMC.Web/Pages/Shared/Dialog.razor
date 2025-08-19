@@ -5,7 +5,7 @@
     <div class="confirm-backdrop" @onclick="HandleBackdropClick"></div>
 
     <div class="confirm-dialog confirm-dialog--open">
-        <div class="confirm-card" @onclick:stopPropagation>
+        <div class="card" @onclick:stopPropagation>
             <div class="confirm-header">
                 <h3 id="confirm-title">@Title</h3>
             </div>
@@ -18,7 +18,7 @@
                 }
             </div>
 
-            <div class="confirm-footer btn-group">
+            <div class="btn-group">
                 <button class="btn danger" @onclick="Confirm" disabled="@_isProcessing">
                     @if (_isProcessing) { <span>Processing...</span> } else { @ConfirmText }
                 </button>

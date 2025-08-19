@@ -7,6 +7,10 @@
 		@apply text-base px-[0.6rem] py-[0.3rem];
 	}
 
+	.btn.xs {
+		@apply text-base px-[0.3rem] py-[0.1rem];
+	}
+
 	/* Base interactive states */
 	.btn:focus {
 		outline: none;
@@ -41,6 +45,7 @@
 	/* FLAT (clean, bordered) */
 	.btn.flat {
 		@apply text-[color:var(--audicius-blue)] shadow-none hover:text-white;
+		@apply border-[solid] border-[1px];
 		background: transparent;
 	}
 

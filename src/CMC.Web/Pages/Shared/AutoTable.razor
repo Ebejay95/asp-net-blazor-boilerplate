@@ -4,56 +4,74 @@
 @using System.Linq
 @attribute [Authorize]
 
-<table class="aud-table">
-	<thead>
-		<tr>
-			@foreach (var col in _cols) @* _cols wird hier benutzt *@
-			{
-				<th scope="col">@col.Header</th>
-			}
-			@if (AllowEdit)
-			{
-				<th scope="col" class="td-nowrap">Aktionen</th>
-			}
-		</tr>
-	</thead>
-	<tbody>
-		@if (Items is not null)
-		{
-			@foreach (var item in Items)
-			{
-				<tr>
-					@foreach (var col in _cols)
-					{
-						<td class="td-nowrap">@col.Render(item)</td>
-					}
-					@if (AllowEdit)
-					{
-						<td class="td-nowrap">
-							@if (EditTemplate is not null)
-							{
-								@EditTemplate(item)
-							}
-							else
-							{
-								<button type="button" class="btn sm flat" @onclick="() => RequestEdit(item)">
-									Bearbeiten
-								</button>
-							}
-						</td>
-					}
-				</tr>
-			}
-		}
-	</tbody>
-</table>
+<div class="relative">
+
+  <div class="btn-group aud-table-interface">
+    @if (AllowCreate)
+    {
+      <button type="button" class="btn xs flat" @onclick="RequestCreate">
+        @CreateLabel
+      </button>
+    }
+  </div>
+  <table class="aud-table">
+    <thead>
+      <tr>
+        @foreach (var col in _cols)
+        {
+          <th scope="col">@col.Header</th>
+        }
+        @if (AllowEdit)
+        {
+          <th scope="col" class="td-nowrap">Aktionen</th>
+        }
+      </tr>
+    </thead>
+    <tbody>
+      @if (Items is not null)
+      {
+        @foreach (var item in Items)
+        {
+          <tr>
+            @foreach (var col in _cols)
+            {
+              <td class="td-nowrap">@col.Render(item)</td>
+            }
+            @if (AllowEdit)
+            {
+              <td class="td-nowrap">
+                @if (EditTemplate is not null)
+                {
+                  @EditTemplate(item)
+                }
+                else
+                {
+                  <button type="button" class="btn sm flat" @onclick="() => RequestEdit(item)">
+                    Bearbeiten
+                  </button>
+                }
+              </td>
+            }
+          </tr>
+        }
+      }
+    </tbody>
+  </table>
+</div>
 
 @code {
 	[Parameter] public IEnumerable<TItem>? Items { get; set; }
 	[Parameter] public bool AutoGenerate { get; set; } = true;
+
+	// Edit
 	[Parameter] public bool AllowEdit { get; set; } = false;
 	[Parameter] public EventCallback<TItem> OnEdit { get; set; }
 	[Parameter] public RenderFragment<TItem>? EditTemplate { get; set; }
+
+	// Create (+)
+	[Parameter] public bool AllowCreate { get; set; } = false;
+	[Parameter] public EventCallback OnCreate { get; set; }
+	[Parameter] public string CreateLabel { get; set; } = "+";
 
 	private record Col(string Header, Func<TItem, object?> Getter, string? Format)
 	{
@@ -122,5 +140,11 @@
 	{
 		if (OnEdit.HasDelegate)
 			await OnEdit.InvokeAsync(item);
+	}
+
+	private async Task RequestCreate()
+	{
+		if (OnCreate.HasDelegate)
+			await OnCreate.InvokeAsync();
 	}
 }

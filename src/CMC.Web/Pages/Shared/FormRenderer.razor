@@ -1,4 +1,4 @@
-@* src/CMC.Web/Shared/FormRenderer.razor *@
+@* src/CMC.Web/Pages/Shared/FormRenderer.razor *@
 @using System.ComponentModel.DataAnnotations
 @using System.Reflection
 @inherits ComponentBase
@@ -16,10 +16,23 @@
 			}
 		</div>
 	}
+
+	@if (IsCreate)
+	{
+		<div class="form-group">
+			<label for="fld_Password">Passwort</label>
+			<input id="fld_Password"
+				   type="password"
+				   class="form-control"
+				   @bind="PasswordValue" />
+			<small>Mindestens 8 Zeichen</small>
+		</div>
+	}
 }
 
 @code {
 	[Parameter] public object? Model { get; set; }
+	[Parameter] public bool IsCreate { get; set; } = false;
 
 	private readonly List<FieldMeta> _fields = new();
 	private readonly Dictionary<string, object?> _changes = new(StringComparer.OrdinalIgnoreCase);
@@ -34,6 +47,13 @@
 		Type Type,
 		bool ReadOnly
 	);
+
+	// bind-Hilfseigenschaft fürs synthetische Password-Feld
+	private string PasswordValue
+	{
+		get => _changes.TryGetValue("Password", out var p) ? p?.ToString() ?? "" : "";
+		set => Write("Password", value);
+	}
 
 	protected override void OnParametersSet()
 	{
@@ -53,11 +73,24 @@
 		var props = t.GetProperties(BindingFlags.Public | BindingFlags.Instance)
 			.Where(p =>
 			{
+				// Indexer überspringen
+				if (p.GetIndexParameters().Length > 0) return false;
+
+				// nie bearbeiten
+				if (string.Equals(p.Name, "Id", StringComparison.OrdinalIgnoreCase)) return false;
+
+				// Create: Systemfelder ausblenden
+				if (IsCreate && (p.Name.Equals("CreatedAt", StringComparison.OrdinalIgnoreCase)
+					|| p.Name.Equals("LastLoginAt", StringComparison.OrdinalIgnoreCase)
+					|| p.Name.Equals("IsEmailConfirmed", StringComparison.OrdinalIgnoreCase)))
+					return false;
+
+				// ScaffoldColumn(false) respektieren
 				var scaffold = p.GetCustomAttributes(typeof(ScaffoldColumnAttribute), true)
 					.Cast<ScaffoldColumnAttribute>()
 					.FirstOrDefault();
 				if (scaffold?.Scaffold == false) return false;
-				if (string.Equals(p.Name, "Id", StringComparison.OrdinalIgnoreCase)) return false;
+
 				return true;
 			})
 			.Select(p =>
