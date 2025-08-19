@@ -3,6 +3,8 @@ using CMC.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using CMC.Contracts.Users;
 using CMC.Application.Services;
+using CMC.Web.Services;
+using CMC.Web.Shared;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -20,9 +22,7 @@ if (builder.Environment.IsDevelopment()) {
 
 // Add services
 builder.Services.AddRazorPages();
-builder.Services.AddServerSideBlazor(options => {
-  options.DetailedErrors = true;
-});
+builder.Services.AddServerSideBlazor(options => { options.DetailedErrors = true; });
 
 builder.Services.AddControllers();
 
@@ -42,6 +42,9 @@ builder.Services.AddHttpClient("default", client => {
   }
   return handler;
 });
+
+builder.Services.AddSingleton < CMC.Web.Services.DialogService > ();
+builder.Services.AddSingleton < CMC.Web.Services.EditDrawerService > ();
 
 // Authentication + Cookie Setup
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(options => {

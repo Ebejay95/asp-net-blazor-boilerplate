@@ -1,0 +1,295 @@
+@* src/CMC.Web/Pages/Shared/FormRenderer.razor *@
+@using System.ComponentModel.DataAnnotations
+@using System.Reflection
+@inherits ComponentBase
+
+@if (Model is not null)
+{
+	@foreach (var f in _fields)
+	{
+		<div class="form-group">
+			<label for="@f.Id">@f.Label</label>
+			@RenderInput(f)
+			@if (!string.IsNullOrWhiteSpace(f.Hint))
+			{
+				<small>@f.Hint</small>
+			}
+		</div>
+	}
+
+	@if (IsCreate)
+	{
+		<div class="form-group">
+			<label for="fld_Password">Passwort</label>
+			<input id="fld_Password"
+				   type="password"
+				   class="form-control"
+				   @bind="PasswordValue" />
+			<small>Mindestens 8 Zeichen</small>
+		</div>
+	}
+}
+
+@code {
+	[Parameter] public object? Model { get; set; }
+	[Parameter] public bool IsCreate { get; set; } = false;
+
+	private readonly List<FieldMeta> _fields = new();
+	private readonly Dictionary<string, object?> _changes = new(StringComparer.OrdinalIgnoreCase);
+
+	private record FieldMeta(
+		PropertyInfo Prop,
+		string Id,
+		string Label,
+		int Order,
+		string? Format,
+		string? Hint,
+		Type Type,
+		bool ReadOnly
+	);
+
+	// bind-Hilfseigenschaft fürs synthetische Password-Feld
+	private string PasswordValue
+	{
+		get => _changes.TryGetValue("Password", out var p) ? p?.ToString() ?? "" : "";
+		set => Write("Password", value);
+	}
+
+	protected override void OnParametersSet()
+	{
+		BuildFields();
+		_changes.Clear(); // neuer Model-Context → Reset
+	}
+
+	// Exponieren für den Drawer
+	public IReadOnlyDictionary<string, object?> GetChanges() => _changes;
+
+	private void BuildFields()
+	{
+		_fields.Clear();
+		if (Model is null) return;
+
+		var t = Model.GetType();
+		var props = t.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+			.Where(p =>
+			{
+				// Indexer überspringen
+				if (p.GetIndexParameters().Length > 0) return false;
+
+				// nie bearbeiten
+				if (string.Equals(p.Name, "Id", StringComparison.OrdinalIgnoreCase)) return false;
+
+				// Create: Systemfelder ausblenden
+				if (IsCreate && (p.Name.Equals("CreatedAt", StringComparison.OrdinalIgnoreCase)
+					|| p.Name.Equals("LastLoginAt", StringComparison.OrdinalIgnoreCase)
+					|| p.Name.Equals("IsEmailConfirmed", StringComparison.OrdinalIgnoreCase)))
+					return false;
+
+				// ScaffoldColumn(false) respektieren
+				var scaffold = p.GetCustomAttributes(typeof(ScaffoldColumnAttribute), true)
+					.Cast<ScaffoldColumnAttribute>()
+					.FirstOrDefault();
+				if (scaffold?.Scaffold == false) return false;
+
+				return true;
+			})
+			.Select(p =>
+			{
+				var display = p.GetCustomAttributes(typeof(DisplayAttribute), true).Cast<DisplayAttribute>().FirstOrDefault();
+				var fmt = p.GetCustomAttributes(typeof(DisplayFormatAttribute), true).Cast<DisplayFormatAttribute>().FirstOrDefault()?.DataFormatString;
+				var ro = p.SetMethod is null || p.GetSetMethod() is null;
+				return new FieldMeta(
+					Prop: p,
+					Id: $"fld_{p.Name}",
+					Label: display?.GetName() ?? SplitPascal(p.Name),
+					Order: display?.GetOrder() ?? int.MaxValue,
+					Format: fmt,
+					Hint: display?.GetDescription(),
+					Type: Nullable.GetUnderlyingType(p.PropertyType) ?? p.PropertyType,
+					ReadOnly: ro
+				);
+			})
+			.OrderBy(f => f.Order)
+			.ToList();
+
+		_fields.AddRange(props);
+	}
+
+	private static string SplitPascal(string s)
+	{
+		var sb = new System.Text.StringBuilder();
+		for (int i = 0; i < s.Length; i++)
+		{
+			if (i > 0 && char.IsUpper(s[i]) && !char.IsUpper(s[i - 1]))
+				sb.Append(' ');
+			sb.Append(s[i]);
+		}
+		return sb.ToString();
+	}
+
+	private object? Read(string name)
+	{
+		if (_changes.TryGetValue(name, out var v)) return v;
+		return Model?.GetType().GetProperty(name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase)
+			?.GetValue(Model);
+	}
+
+	private void Write(string name, object? value)
+	{
+		_changes[name] = value;
+		StateHasChanged();
+	}
+
+	private RenderFragment RenderInput(FieldMeta f) => builder =>
+	{
+		var seq = 0;
+		if (Model is null) return;
+
+		object? val = Read(f.Prop.Name);
+		var isNullable = Nullable.GetUnderlyingType(f.Prop.PropertyType) != null;
+
+		if (f.ReadOnly)
+		{
+			builder.OpenElement(seq++, "div");
+			builder.AddAttribute(seq++, "class", "form-control ed-readonly");
+			builder.AddAttribute(seq++, "id", f.Id);
+			builder.AddAttribute(seq++, "readonly", true);
+			builder.AddContent(seq++, val?.ToString());
+			builder.CloseElement();
+			return;
+		}
+
+		// bool → checkbox
+		if (f.Type == typeof(bool))
+		{
+			builder.OpenElement(seq++, "input");
+			builder.AddAttribute(seq++, "type", "checkbox");
+			builder.AddAttribute(seq++, "class", "ed-checkbox");
+			builder.AddAttribute(seq++, "id", f.Id);
+			builder.AddAttribute(seq++, "checked", (bool?)(val ?? false) == true);
+			builder.AddAttribute(seq++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, e =>
+			{
+				var b = e.Value is bool bb ? bb : (e.Value?.ToString()?.ToLower() == "true");
+				Write(f.Prop.Name, b);
+			}));
+			builder.CloseElement();
+			return;
+		}
+
+		// enum → select
+		if (f.Type.IsEnum)
+		{
+			builder.OpenElement(seq++, "select");
+			builder.AddAttribute(seq++, "class", "form-control");
+			builder.AddAttribute(seq++, "id", f.Id);
+			builder.AddAttribute(seq++, "value", val?.ToString());
+			builder.AddAttribute(seq++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, e =>
+			{
+				var s = e.Value?.ToString();
+				if (s is null) return;
+				var parsed = Enum.Parse(f.Type, s, true);
+				Write(f.Prop.Name, parsed);
+			}));
+			foreach (var name in Enum.GetNames(f.Type))
+			{
+				builder.OpenElement(seq++, "option");
+				builder.AddAttribute(seq++, "value", name);
+				builder.AddContent(seq++, name);
+				builder.CloseElement();
+			}
+			builder.CloseElement();
+			return;
+		}
+
+		// DateTime → datetime-local
+		if (f.Type == typeof(DateTime))
+		{
+			builder.OpenElement(seq++, "input");
+			builder.AddAttribute(seq++, "type", "datetime-local");
+			builder.AddAttribute(seq++, "class", "form-control");
+			builder.AddAttribute(seq++, "id", f.Id);
+			var dt = val as DateTime? ?? default;
+			var iso = dt == default ? "" : dt.ToLocalTime().ToString("yyyy-MM-ddTHH:mm");
+			builder.AddAttribute(seq++, "value", iso);
+			builder.AddAttribute(seq++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, e =>
+			{
+				if (DateTime.TryParse(e.Value?.ToString(), out var parsed))
+					Write(f.Prop.Name, parsed.ToUniversalTime());
+				else if (isNullable)
+					Write(f.Prop.Name, null);
+			}));
+			builder.CloseElement();
+			return;
+		}
+
+		// string mit DataType.MultilineText → textarea
+		var dataType = f.Prop.GetCustomAttributes(typeof(DataTypeAttribute), true).Cast<DataTypeAttribute>().FirstOrDefault();
+		if (f.Type == typeof(string) && dataType?.DataType == DataType.MultilineText)
+		{
+			builder.OpenElement(seq++, "textarea");
+			builder.AddAttribute(seq++, "class", "form-control");
+			builder.AddAttribute(seq++, "id", f.Id);
+			builder.AddAttribute(seq++, "rows", 4);
+			builder.AddAttribute(seq++, "value", val?.ToString());
+			builder.AddAttribute(seq++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, e =>
+			{
+				Write(f.Prop.Name, e.Value?.ToString());
+			}));
+			builder.AddContent(seq++, val?.ToString());
+			builder.CloseElement();
+			return;
+		}
+
+		// Zahl → number
+		if (f.Type == typeof(int) || f.Type == typeof(long) || f.Type == typeof(decimal) || f.Type == typeof(double) || f.Type == typeof(float))
+		{
+			builder.OpenElement(seq++, "input");
+			builder.AddAttribute(seq++, "type", "number");
+			builder.AddAttribute(seq++, "class", "form-control");
+			builder.AddAttribute(seq++, "id", f.Id);
+			builder.AddAttribute(seq++, "value", val?.ToString());
+			builder.AddAttribute(seq++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, e =>
+			{
+				var s = e.Value?.ToString();
+				if (string.IsNullOrWhiteSpace(s)) { Write(f.Prop.Name, isNullable ? null : val); return; }
+				try
+				{
+					object? num = f.Type == typeof(int) ? int.Parse(s) :
+						f.Type == typeof(long) ? long.Parse(s) :
+						f.Type == typeof(decimal) ? decimal.Parse(s) :
+						f.Type == typeof(double) ? double.Parse(s) :
+						f.Type == typeof(float) ? float.Parse(s) : null;
+					Write(f.Prop.Name, num);
+				}
+				catch { /* ignore */ }
+			}));
+			builder.CloseElement();
+			return;
+		}
+
+		// Guid → readonly text
+		if (f.Type == typeof(Guid))
+		{
+			builder.OpenElement(seq++, "input");
+			builder.AddAttribute(seq++, "type", "text");
+			builder.AddAttribute(seq++, "class", "form-control");
+			builder.AddAttribute(seq++, "id", f.Id);
+			builder.AddAttribute(seq++, "readonly", true);
+			builder.AddAttribute(seq++, "value", val?.ToString());
+			builder.CloseElement();
+			return;
+		}
+
+		// default → text
+		builder.OpenElement(seq++, "input");
+		builder.AddAttribute(seq++, "type", "text");
+		builder.AddAttribute(seq++, "class", "form-control");
+		builder.AddAttribute(seq++, "id", f.Id);
+		builder.AddAttribute(seq++, "value", val?.ToString());
+		builder.AddAttribute(seq++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, e =>
+		{
+			Write(f.Prop.Name, e.Value?.ToString());
+		}));
+		builder.CloseElement();
+	};
+}

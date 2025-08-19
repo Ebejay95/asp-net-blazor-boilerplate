@@ -1,0 +1,27 @@
+@* src/CMC.Web/Shared/EditHost.razor *@
+@using CMC.Web.Services
+@inject EditDrawerService DrawerService
+
+<EditDrawer @ref="_drawer" />
+
+@code {
+	private EditDrawer? _drawer;
+
+	protected override void OnInitialized()
+	{
+		DrawerService.OnOpen += HandleOpen;
+		DrawerService.OnClose += HandleClose;
+	}
+
+	private void HandleOpen(CMC.Web.Services.EditDrawerRequest req)
+		=> InvokeAsync(() => _drawer?.Open(req));
+
+	private void HandleClose()
+		=> InvokeAsync(() => _drawer?.Close());
+
+	public void Dispose()
+	{
+		DrawerService.OnOpen -= HandleOpen;
+		DrawerService.OnClose -= HandleClose;
+	}
+}

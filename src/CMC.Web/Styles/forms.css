@@ -1,17 +1,21 @@
 @layer components {
+
 	/* Labels & Helfer */
 	.form-label {
 		@apply block mb-1;
 		color: var(--audicius-text);
 	}
+
 	.form-hint {
 		@apply mt-1 text-sm;
 		color: color-mix(in srgb, var(--audicius-text) 70%, transparent);
 	}
+
 	.field-error {
 		@apply mt-1 text-sm;
 		color: var(--audicius-danger);
 	}
+
 	.field-success {
 		@apply mt-1 text-sm;
 		color: var(--audicius-success);
@@ -21,8 +25,7 @@
 	.form-control,
 	select.form-control,
 	textarea.form-control {
-		@apply w-full rounded-xl px-2 py-1 text-base transition
-			shadow-inner border outline-none;
+		@apply w-full rounded-xl px-2 py-1 text-base transition shadow-inner border outline-none;
 		border-color: #0000001a;
 		color: var(--audicius-text);
 	}
@@ -42,7 +45,7 @@
 		/* Tailwind arbitrary color token */
 		--tw-ring-color: var(--audicius-blue);
 		border-color: var(--audicius-blue);
-        outline: none;
+		outline: none;
 	}
 
 	/* Disabled / Readonly */
@@ -52,6 +55,7 @@
 		@apply opacity-60 cursor-not-allowed;
 		background: #f7f7f7;
 	}
+
 	.form-control[readonly] {
 		@apply cursor-default;
 		background: #fcfcfc;
@@ -65,12 +69,14 @@
 		--tw-ring-color: color-mix(in srgb, var(--audicius-danger) 75%, transparent);
 		box-shadow: 0 0 0 2px color-mix(in srgb, var(--audicius-danger) 25%, transparent), var(--audicius-shadow);
 	}
+
 	.form-control.is-valid,
 	.form-group.is-valid .form-control {
 		border-color: var(--audicius-success);
 		--tw-ring-color: color-mix(in srgb, var(--audicius-success) 75%, transparent);
 		box-shadow: 0 0 0 2px color-mix(in srgb, var(--audicius-success) 25%, transparent), var(--audicius-shadow);
 	}
+
 	.form-group.is-warning .form-control {
 		border-color: var(--audicius-orange);
 		--tw-ring-color: color-mix(in srgb, var(--audicius-orange) 75%, transparent);
@@ -111,25 +117,30 @@
 
 	/* Switch/Toggle (optional) – .switch + input[type=checkbox] */
 	.switch {
-		@apply inline-flex items-center gap-2 cursor-pointer select-none;
+		@apply inline-flex items-center gap-2 cursor-pointer;
 	}
+
 	.switch input[type="checkbox"] {
 		@apply sr-only;
 	}
+
 	.switch .track {
 		@apply w-10 h-6 rounded-full relative transition;
 		background: #e6e6e6;
 		box-shadow: var(--audicius-shadow);
 	}
+
 	.switch .thumb {
 		@apply absolute top-0.5 left-0.5 w-5 h-5 rounded-full transition;
 		background: #fff;
 		box-shadow: 0 1px 2px #0001;
 	}
-	.switch input:checked + .track {
+
+	.switch input:checked+.track {
 		background: var(--audicius-blue);
 	}
-	.switch input:checked + .track .thumb {
+
+	.switch input:checked+.track .thumb {
 		transform: translateX(1.0rem);
 	}
 
@@ -138,26 +149,36 @@
 		@apply w-full;
 		background: transparent;
 	}
+
 	input[type="range"].form-control::-webkit-slider-runnable-track {
 		height: 6px;
 		border-radius: 999px;
 		background: linear-gradient(90deg, var(--audicius-blue), var(--audicius-violett));
 	}
+
 	input[type="range"].form-control::-webkit-slider-thumb {
 		-webkit-appearance: none;
 		margin-top: -6px;
-		width: 18px; height: 18px; border-radius: 999px;
+		width: 18px;
+		height: 18px;
+		border-radius: 999px;
 		background: #fff;
 		border: 2px solid var(--audicius-blue);
 		box-shadow: var(--audicius-shadow);
 	}
+
 	input[type="range"].form-control::-moz-range-track {
-		height: 6px; border-radius: 999px;
+		height: 6px;
+		border-radius: 999px;
 		background: linear-gradient(90deg, var(--audicius-blue), var(--audicius-violett));
 	}
+
 	input[type="range"].form-control::-moz-range-thumb {
-		width: 18px; height: 18px; border-radius: 999px;
-		background: #fff; border: 2px solid var(--audicius-blue);
+		width: 18px;
+		height: 18px;
+		border-radius: 999px;
+		background: #fff;
+		border: 2px solid var(--audicius-blue);
 		box-shadow: var(--audicius-shadow);
 	}
 
@@ -172,37 +193,58 @@
 	progress.form-control {
 		@apply w-full h-3 rounded-xl overflow-hidden;
 	}
+
 	progress.form-control::-webkit-progress-bar {
 		background: #eee;
 		border-radius: 999px;
 	}
+
 	progress.form-control::-webkit-progress-value {
 		background: var(--audicius-blue);
 		border-radius: 999px;
 	}
+
 	meter.form-control {
 		@apply w-full h-3;
 	}
+
 	meter::-webkit-meter-bar {
 		background: #eee;
 		border-radius: 999px;
 	}
-	meter::-webkit-meter-optimum-value { background: var(--audicius-success); }
-	meter::-webkit-meter-suboptimum-value { background: var(--audicius-orange); }
-	meter::-webkit-meter-even-less-good-value { background: var(--audicius-danger); }
+
+	meter::-webkit-meter-optimum-value {
+		background: var(--audicius-success);
+	}
+
+	meter::-webkit-meter-suboptimum-value {
+		background: var(--audicius-orange);
+	}
+
+	meter::-webkit-meter-even-less-good-value {
+		background: var(--audicius-danger);
+	}
 
 	/* Input-Gruppen mit Icon links/rechts */
 	.input-group {
 		@apply relative;
 	}
+
 	.input-icon-left {
 		@apply absolute inset-y-0 left-3 inline-flex items-center;
 		color: color-mix(in srgb, var(--audicius-text) 65%, transparent);
 	}
+
 	.input-icon-right {
 		@apply absolute inset-y-0 right-3 inline-flex items-center;
 		color: color-mix(in srgb, var(--audicius-text) 65%, transparent);
 	}
-	.input-group .form-control.pl-icon { @apply pl-10; }
-	.input-group .form-control.pr-icon { @apply pr-10; }
+
+	.input-group .form-control.pl-icon {
+		@apply pl-10;
+	}
+
+	.input-group .form-control.pr-icon {
+		@apply pr-10;
+	}
 }

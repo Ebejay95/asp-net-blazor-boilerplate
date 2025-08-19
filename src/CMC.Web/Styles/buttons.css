@@ -1,148 +1,106 @@
-/* === Audicius Button Styles === */
-.btn {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	padding: 0.6rem 1.2rem;
-	font-size: 1rem;
-	font-weight: 600;
-	border-radius: 0.5rem;
-	cursor: pointer;
-	transition: all 0.2s ease-in-out;
-	border: none;
-	text-decoration: none;
-	color: var(--audicius-text);
-    box-shadow: var(--audicius-shadow);
-}
-.btn.sm {
-	padding: 0.3rem 0.6rem;
-	font-size: 1rem;
-}
+@layer components {
+	.btn {
+		@apply inline-flex items-center justify-center text-base font-semibold cursor-pointer transition-all duration-[0.2s] ease-[ease-in-out] no-underline text-[color:var(--audicius-text)] shadow-[var(--audicius-shadow)] px-[1.2rem] py-[0.6rem] rounded-lg border-[none] active:shadow-none active:scale-[0.96] focus:outline-offset-0 disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-none;
+	}
 
-/* Base interactive states */
-.btn:hover {
-}
+	.btn.sm {
+		@apply text-base px-[0.6rem] py-[0.3rem];
+	}
 
-.btn:active {
-    transform: scale(0.96);
-    box-shadow: none;
-}
+	.btn.xs {
+		@apply text-base px-[0.3rem] py-[0.1rem];
+	}
 
-.btn:focus {
-	outline: none;
-	outline-offset: 0px;
-}
+	/* Base interactive states */
+	.btn:focus {
+		outline: none;
+	}
 
-.btn:disabled {
-	opacity: 0.6;
-	cursor: not-allowed;
-	box-shadow: none;
-}
+	/* === Variants === */
 
-/* === Variants === */
+	/* PRIMARY */
+	.btn.primary {
+		@apply relative isolate text-white overflow-hidden before:opacity-100 after:opacity-0 hover:after:opacity-100 hover:before:opacity-0;
+		/* eigener stacking context */
+		background: transparent;
+		/* Hintergründe liegen in ::before/::after */
+	}
 
-/* PRIMARY */
-.btn.primary {
-    position: relative;
-    isolation: isolate; /* eigener stacking context */
-    background: transparent; /* Hintergründe liegen in ::before/::after */
-    color: #fff;
-    overflow: hidden;
-}
+	.btn.primary::before,
+	.btn.primary::after {
+		@apply content-[""] absolute pointer-events-none z-[-1] transition-opacity duration-[0.2s] ease-[ease-in-out] rounded-[inherit] inset-0;
+		/* hinter dem Text */
+	}
 
-.btn.primary::before,
-.btn.primary::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    pointer-events: none;
-    z-index: -1; /* hinter dem Text */
-    transition: opacity 0.2s ease-in-out;
-}
+	/* Basis-Verlauf */
+	.btn.primary::before {
+		background: var(--audicius-flare);
+	}
 
-/* Basis-Verlauf */
-.btn.primary::before {
-    background: var(--audicius-flare);
-    opacity: 1;
-}
+	/* Hover-Verlauf */
+	.btn.primary::after {
+		background: var(--audicius-flare-mod);
+	}
 
-/* Hover-Verlauf */
-.btn.primary::after {
-    background: var(--audicius-flare-mod);
-    opacity: 0;
-}
+	/* FLAT (clean, bordered) */
+	.btn.flat {
+		@apply text-[color:var(--audicius-blue)] shadow-none hover:text-white;
+		@apply border-[solid] border-[1px];
+		background: transparent;
+	}
 
-.btn.primary:hover::after {
-    opacity: 1;
-}
+	.btn.flat:hover {
+		background: var(--audicius-blue-light);
+	}
 
-.btn.primary:hover::before {
-    opacity: 0;
-}
+	/* DANGER */
+	.btn.danger {
+		@apply text-white;
+		background: var(--audicius-danger);
+	}
 
-/* FLAT (clean, bordered) */
-.btn.flat {
-	background: transparent;
-	color: var(--audicius-blue);
-	box-shadow: none;
-}
-.btn.flat:hover {
-	background: var(--audicius-blue-light);
-	color: #fff;
-}
-.btn.flat:active {
-}
+	.btn.danger:hover {
+		background: #8f1e00;
+	}
 
-/* DANGER */
-.btn.danger {
-	background: var(--audicius-danger);
-	color: #fff;
-}
-.btn.danger:hover {
-	background: #8f1e00;
-}
-.btn.danger:active {
-	background: #691700;
-}
+	.btn.danger:active {
+		background: #691700;
+	}
 
-/* SUCCESS */
-.btn.success {
-	background: var(--audicius-success);
-	color: #fff;
-}
-.btn.success:hover {
-	background: #00461d;
-}
-.btn.success:active {
-	background: #003816;
-}
+	/* SUCCESS */
+	.btn.success {
+		@apply text-white;
+		background: var(--audicius-success);
+	}
 
-/* ORANGE Accent */
-.btn.secondary {
-	background: var(--audicius-orange);
-	color: #fff;
-}
-.btn.secondary:hover {
-	background: #e99e00;
-}
-.btn.secondary:active {
-	background: #cc8b00;
-}
+	.btn.success:hover {
+		background: #00461d;
+	}
 
-/* GROUP (makes buttons stick together) */
-.btn-group {
-	display: inline-flex;
-	gap: 0;
-}
-.btn-group .btn {
-	border-radius: 0;
-}
-.btn-group .btn:first-child {
-	border-top-left-radius: 0.5rem;
-	border-bottom-left-radius: 0.5rem;
-}
-.btn-group .btn:last-child {
-	border-top-right-radius: 0.5rem;
-	border-bottom-right-radius: 0.5rem;
+	.btn.success:active {
+		background: #003816;
+	}
+
+	/* ORANGE Accent */
+	.btn.secondary {
+		@apply text-white;
+		background: var(--audicius-orange);
+	}
+
+	.btn.secondary:hover {
+		background: #e99e00;
+	}
+
+	.btn.secondary:active {
+		background: #cc8b00;
+	}
+
+	/* GROUP (makes buttons stick together) */
+	.btn-group {
+		@apply inline-flex gap-0;
+	}
+
+	.btn-group .btn {
+		@apply rounded-none first:rounded-tl-lg first:rounded-bl-lg last:rounded-tr-lg last:rounded-br-lg;
+	}
 }

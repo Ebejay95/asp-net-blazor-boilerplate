@@ -1,119 +1,68 @@
 @layer components {
-    main {
-        @apply min-h-[100vh] w-full box-border m-auto pt-[60px] py-0;
-    }
-    header.header-main {
-        @apply bg-white fixed w-full flex justify-between items-center pl-4 pr-4 h-[60px] z-[3];
-        box-shadow: var(--audicius-shadow)
-    }
-    header.header-main .profile-card{
-        @apply bg-[var(--audicius-blue)] rounded text-[white];
-    }
-    aside.aside-main {
-        @apply bg-[var(--audicius-blue)];
-    }
-    section {
-        @apply pt-2 pb-2 pl-4 pr-4 flex gap-4;
-    }
 
-    section.tiny {
-        @apply pt-0 pb-0;
-    }
+	html,
+	body {
+		@apply select-none;
+	}
 
-    section.slim {
-        @apply max-w-[1200px] m-auto;
-    }
+	main {
+		@apply min-h-[100vh] w-full box-border m-auto pt-[60px] py-0;
+	}
 
-    section.fill {
-        @apply pl-0 pr-0;
-    }
-    main > section:not(.tiny):first-of-type {
-        @apply pt-4;
-    }
-    main > section:not(.tiny):last-of-type {
-        @apply pb-4;
-    }
-    .card {
-        @apply bg-white rounded border border-solid border-[#ddd] p-4 w-full;
-        box-shadow: var(--audicius-shadow);
-    }
-    footer {
-        @apply sticky bottom-0 bg-white border-t border-t-[#ddd] m-auto;
-    }
-    footer nav ul {
-        @apply flex gap-4 items-center justify-center;
-    }
-.dashboard {
-	height: 100vh;
-	overflow: hidden;
-    @apply flex gap-4;
-}
+	header.header-main {
+		@apply shadow-[var(--audicius-shadow)];
+		@apply bg-white fixed w-full flex justify-between items-center pl-4 pr-4 h-[60px] z-[3];
+	}
 
-/* Sidebar */
-.aside-main {
-	background: var(--audicius-flare);
-	@apply text-white pt-4 pb-4;
-	min-width: 160px;
-	height: 100vh;          /* volle Höhe */
-	display: flex;
-	flex-direction: column; /* damit der Inhalt flexibler wird */
-}
+	header.header-main .profile-card {
+		@apply bg-[var(--audicius-blue)] rounded text-[white];
+	}
 
-.aside-main ul {
-	flex: 1;                /* füllt die Höhe aus */
-	overflow-y: auto;       /* scrollt, wenn overflow */
-	@apply space-y-2;
-}
+	aside.aside-main {
+		@apply bg-[var(--audicius-blue)];
+	}
 
-.aside-main a {
-	@apply block px-3 py-2 rounded-lg hover:bg-white/10 transition;
-}
+	section {
+		@apply pt-2 pb-2 pl-4 pr-4 flex gap-4;
+	}
 
-/* Board */
-.board {
-	@apply pt-4 pb-4;
-}
+	section.tiny {
+		@apply pt-0 pb-0;
+	}
+
+	section.slim {
+		@apply max-w-[1200px] m-auto;
+	}
+
+	section.fill {
+		@apply pl-0 pr-0;
+	}
+
+	main>section:not(.tiny):first-of-type {
+		@apply pt-4;
+	}
+
+	main>section:not(.tiny):last-of-type {
+		@apply pb-4;
+	}
+
+	.card {
+		@apply shadow-[var(--audicius-shadow)] relative overflow-hidden touch-none;
+		@apply bg-white rounded border border-solid border-[#ddd] p-4 w-full;
+	}
+
+	footer {
+		@apply px-6 py-2 flex justify-between items-center sticky bottom-0 bg-white border-t border-t-[#ddd] m-auto;
+	}
+
+	footer nav ul {
+		@apply flex gap-4 items-center justify-center;
+	}
 
 
-    /* Basis-Card (du hast .card schon – hier nur mögliche Ergänzungen) */
-    .card {
-        @apply bg-white rounded-xl shadow-md border border-black/5;
-        /* Grid-Positionen werden inline via JS gesetzt (gridColumn, gridRow) */
-        position: relative;
-        overflow: hidden;
-        touch-action: none; /* wichtig für PointerEvents */
-    }
+	/* Karten – Ergänzungen */
+	.card {
+		@apply bg-white rounded-xl shadow-md border border-black/5;
+	}
 
-    .card-header {
-        @apply px-4 py-2 font-semibold select-none cursor-grab;
-    }
-
-    .card.dragging .card-header {
-        cursor: grabbing;
-    }
-
-    .card-body {
-        @apply p-4;
-        min-height: calc(var(--grid-size) * 6);
-    }
-
-    /* Resize-Handle unten rechts */
-    .card .resize-handle {
-        position: absolute;
-        right: 4px;
-        bottom: 4px;
-        width: 14px;
-        height: 14px;
-        border-radius: 4px;
-        border: 1px solid rgba(0,0,0,.15);
-        background: rgba(0,0,0,.08);
-        cursor: nwse-resize;
-    }
-
-    /* Hilfs-Styles beim Drag/Resize */
-    .card.dragging,
-    .card.resizing {
-        box-shadow: 0 8px 24px rgba(0,0,0,.18);
-        transform: translateZ(0);
-    }
 }

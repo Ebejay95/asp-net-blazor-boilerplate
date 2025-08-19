@@ -1,0 +1,104 @@
+@using CMC.Contracts.Users
+@using CMC.Web.Shared
+@using CMC.Web.Services
+@using CMC.Web.Util
+@inject CMC.Application.Services.UserService UserService
+@inject EditDrawerService DrawerService
+@inject DialogService ConfirmService
+
+<div class="card">
+    <AutoTable TItem="UserDto"
+        Items="_users"
+        AllowEdit="true"
+        OnEdit="StartEdit"
+        AllowCreate="true"
+        OnCreate="StartCreate" />
+</div>
+
+@code {
+    private List<UserDto> _users = new();
+
+    protected override async Task OnInitializedAsync()
+        => _users = await UserService.GetAllAsync();
+
+    private void StartEdit(UserDto u)
+    {
+        DrawerService.Open(new EditDrawerRequest {
+            Title = "Benutzer bearbeiten",
+            Model = u,
+            ContractsAssembly = typeof(UserDto).Assembly,
+            // Action NICHT mehr nötig
+            OnSave = async ctx =>
+            {
+                var req = (UpdateUserRequest)ctx.Build("Update");
+                await UserService.UpdateAsync(req);
+                await Reload();
+            },
+            OnDelete = async ctx =>
+            {
+                ConfirmService.ConfirmDelete(u.Email, async () =>
+                {
+                    var del = (DeleteUserRequest)ctx.Build("Delete");
+                    await UserService.DeleteAsync(del.Id);
+                    await Reload();
+                }, "user");
+            }
+        });
+    }
+
+    private void StartCreate()
+	{
+		var empty = new UserDto(Guid.Empty, "", "", "", false, DateTime.UtcNow, null);
+
+		DrawerService.Open(new EditDrawerRequest {
+			Title = "Benutzer anlegen",
+			Model = empty,
+			ContractsAssembly = typeof(UserDto).Assembly,
+			IsCreate = true,
+			OnSave = async ctx =>
+			{
+				// DEBUGGING: Schauen wir uns an, was im Provider steht
+				var changes = ((CompositeValueProvider)ctx.Provider);
+
+				// Debug ausgabe - alle verfügbaren Werte anzeigen
+				Console.WriteLine("=== DEBUG: Provider Values ===");
+				if (ctx.Provider.TryGet("Email", out var emailVal))
+					Console.WriteLine($"Email from provider: '{emailVal}'");
+				if (ctx.Provider.TryGet("Password", out var passwordVal))
+					Console.WriteLine($"Password from provider: '{passwordVal}'");
+				if (ctx.Provider.TryGet("FirstName", out var firstNameVal))
+					Console.WriteLine($"FirstName from provider: '{firstNameVal}'");
+				if (ctx.Provider.TryGet("LastName", out var lastNameVal))
+					Console.WriteLine($"LastName from provider: '{lastNameVal}'");
+
+				var req = (RegisterUserRequest)ctx.Build("Register");
+
+				Console.WriteLine("=== DEBUG: Built Request ===");
+				Console.WriteLine($"Request Email: '{req.Email}'");
+				Console.WriteLine($"Request Password: '{req.Password}'");
+				Console.WriteLine($"Request FirstName: '{req.FirstName}'");
+				Console.WriteLine($"Request LastName: '{req.LastName}'");
+
+				if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Password))
+				{
+					ConfirmService.Open(new DialogRequest {
+						Title = "Fehlende Angaben",
+						Message = $"E-Mail ({req.Email ?? "NULL"}) und Passwort ({(string.IsNullOrWhiteSpace(req.Password) ? "LEER/NULL" : "VORHANDEN")}) sind Pflicht.",
+						ConfirmText = "Okay",
+						OnConfirm = () => Task.CompletedTask
+					});
+					return;
+				}
+
+				await UserService.RegisterAsync(req);
+				await Reload();
+			}
+		});
+	}
+
+    private async Task Reload()
+    {
+        _users = await UserService.GetAllAsync();
+        StateHasChanged();
+    }
+}

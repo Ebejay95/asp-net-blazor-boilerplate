@@ -1,0 +1,81 @@
+@* Host component for managing confirmation dialog state and lifecycle *@
+@using CMC.Web.Services
+@inject DialogService ConfirmService
+@implements IDisposable
+
+<Dialog
+    IsOpen="@_isOpen"
+    Title="@(_currentRequest?.Title ?? string.Empty)"
+    Message="@(_currentRequest?.Message ?? string.Empty)"
+    DetailMessage="@(_currentRequest?.DetailMessage)"
+    ConfirmText="@(_currentRequest?.ConfirmText ?? string.Empty)"
+    CancelText="@(_currentRequest?.CancelText ?? string.Empty)"
+    OnConfirm="HandleConfirm"
+    OnCancel="HandleCancel" />
+
+@code {
+    private bool _isOpen;
+    private DialogRequest? _currentRequest;
+
+    /// <summary>
+    /// Initializes event handlers for dialog service events.
+    /// </summary>
+    protected override void OnInitialized()
+    {
+        ConfirmService.OnOpen += HandleOpen;
+        ConfirmService.OnClose += HandleClose;
+    }
+
+    /// <summary>
+    /// Handles dialog open requests from the service.
+    /// </summary>
+    /// <param name="request">Dialog configuration</param>
+    private void HandleOpen(DialogRequest request)
+    {
+        _currentRequest = request;
+        _isOpen = true;
+        InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// Handles dialog close requests from the service.
+    /// </summary>
+    private void HandleClose()
+    {
+        _isOpen = false;
+        _currentRequest = null;
+        InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// Handles user confirmation and executes the callback.
+    /// </summary>
+    private async Task HandleConfirm()
+    {
+        if (_currentRequest?.OnConfirm != null)
+        {
+            await _currentRequest.OnConfirm();
+        }
+        HandleClose();
+    }
+
+    /// <summary>
+    /// Handles user cancellation and executes the callback.
+    /// </summary>
+    private async Task HandleCancel()
+    {
+        if (_currentRequest?.OnCancel != null)
+            await _currentRequest.OnCancel();
+
+        HandleClose();
+    }
+
+    /// <summary>
+    /// Cleans up event handlers to prevent memory leaks.
+    /// </summary>
+    public void Dispose()
+    {
+        ConfirmService.OnOpen -= HandleOpen;
+        ConfirmService.OnClose -= HandleClose;
+    }
+}

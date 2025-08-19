@@ -1,0 +1,30 @@
+@layer components {
+
+    /* Confirm/Dialog Overlay */
+    .confirm-backdrop {
+        @apply pointer-events-none fixed transition-opacity duration-[0.18s] ease-[ease] z-[90] inset-0;
+        background: var(--audicius-overlay-middle);
+    }
+
+    .confirm-dialog {
+        @apply fixed flex items-center justify-center opacity-0 pointer-events-none z-[100] transition-opacity duration-[0.18s] ease-[ease] p-4 inset-0;
+    }
+
+    .confirm-dialog--open {
+        @apply opacity-100 pointer-events-auto;
+    }
+
+    .confirm-dialog--open {
+        @apply translate-y-0 opacity-100;
+    }
+
+    /* Card sections */
+    .confirm-header {
+        @apply px-5 py-4 border-b-[#eee] border-b border-solid;
+    }
+
+    .confirm-body {
+        @apply px-5 py-4;
+    }
+
+}
