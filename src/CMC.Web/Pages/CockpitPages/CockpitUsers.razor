@@ -1,104 +1,221 @@
+
+@using System.Linq
 @using CMC.Contracts.Users
+@using CMC.Contracts.Customers
 @using CMC.Web.Shared
 @using CMC.Web.Services
-@using CMC.Web.Util
 @inject CMC.Application.Services.UserService UserService
+@inject CMC.Application.Services.CustomerService CustomerService
 @inject EditDrawerService DrawerService
 @inject DialogService ConfirmService
 
 <div class="card">
     <AutoTable TItem="UserDto"
-        Items="_users"
-        AllowEdit="true"
-        OnEdit="StartEdit"
-        AllowCreate="true"
-        OnCreate="StartCreate" />
+               Items="_users"
+               AllowEdit="true"
+               OnEdit="StartEdit"
+               AllowCreate="true"
+               OnCreate="StartCreate" />
 </div>
 
 @code {
     private List<UserDto> _users = new();
+    private List<CustomerDto> _customers = new();
 
     protected override async Task OnInitializedAsync()
-        => _users = await UserService.GetAllAsync();
-
-    private void StartEdit(UserDto u)
     {
-        DrawerService.Open(new EditDrawerRequest {
-            Title = "Benutzer bearbeiten",
-            Model = u,
-            ContractsAssembly = typeof(UserDto).Assembly,
-            // Action NICHT mehr nötig
+        _users = await UserService.GetAllAsync();
+        _customers = await CustomerService.GetAllAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        _users = await UserService.GetAllAsync();
+        _customers = await CustomerService.GetAllAsync();
+        StateHasChanged();
+    }
+
+    // ---------- Drawer Builder (einheitlich für Create/Edit) ----------
+    private async Task<EditDrawerRequest> BuildUserDrawer(UserDto model, bool isCreate)
+    {
+        if (_customers.Count == 0)
+            _customers = await CustomerService.GetAllAsync();
+
+        var req = new EditDrawerRequest
+        {
+            Title = isCreate ? "Benutzer anlegen" : "Benutzer bearbeiten",
+            Model = model,
+            ContractsAssembly = typeof(UserDto).Assembly, // CMC.Contracts.Users
+            IsCreate = isCreate,
             OnSave = async ctx =>
             {
-                var req = (UpdateUserRequest)ctx.Build("Update");
-                await UserService.UpdateAsync(req);
-                await Reload();
+                try
+                {
+                    if (isCreate)
+                    {
+                        // Register: Passwort-Feld existiert nur im Create-Flow
+                        var reg = (RegisterUserRequest)ctx.Build("Register");
+                        _ = await UserService.RegisterAsync(reg);
+                        await ReloadAsync();
+                    }
+                    else
+                    {
+                        var up = (UpdateUserRequest)ctx.Build("Update");
+                        await UserService.UpdateAsync(up);
+                        await ReloadAsync();
+                    }
+
+                    DrawerService.Close();
+                }
+                catch (Exception ex)
+                {
+                    ConfirmService.Open(new DialogRequest
+                    {
+                        Title = "Fehler",
+                        Message = ex.Message,
+                        ConfirmText = "Okay",
+                        OnConfirm = () => Task.CompletedTask
+                    });
+                }
             },
             OnDelete = async ctx =>
             {
-                ConfirmService.ConfirmDelete(u.Email, async () =>
+                var m = (UserDto)ctx.Model;
+                ConfirmService.Open(new DialogRequest
                 {
-                    var del = (DeleteUserRequest)ctx.Build("Delete");
-                    await UserService.DeleteAsync(del.Id);
-                    await Reload();
-                }, "user");
+                    Title = "Löschen bestätigen",
+                    Message = $"Benutzer „{m.FirstName} {m.LastName}“ wirklich löschen?",
+                    ConfirmText = "Löschen",
+                    OnConfirm = async () =>
+                    {
+                        try
+                        {
+                            await UserService.DeleteAsync(new DeleteUserRequest(m.Id));
+                            await ReloadAsync();
+                            DrawerService.Close();
+                        }
+                        catch (Exception ex)
+                        {
+                            ConfirmService.Open(new DialogRequest
+                            {
+                                Title = "Löschen fehlgeschlagen",
+                                Message = ex.Message,
+                                ConfirmText = "Okay",
+                                OnConfirm = () => Task.CompletedTask
+                            });
+                        }
+                    }
+                });
             }
-        });
+        };
+
+        // ----- Relation: Firma (1:1) -----
+        // Options füttern den Dropdown im FormRenderer; der liefert beim Speichern über
+        // CompositeValueProvider den Wert "CustomerId" zurück (Guid? als string -> Guid).
+		req.ExtraFields.Add(new ExtraField(
+			Name: "CustomerId",
+			Label: "Firma",
+			Type: typeof(Guid?),
+			ReadOnly: false,
+			Hint: "Firma suchen oder neu anlegen.",
+			DataType: "relation-single", // <-- wichtig: RelationPicker aktivieren
+			Value: model.CustomerId,
+			Options: _customers.Select(c => new KeyValuePair<string, string>(c.Name, c.Id.ToString())).ToList(),
+			OnCreateNew: CreateCustomerInline // "+"-Button einblenden
+		));
+
+        // ----- Passwort NUR bei Create zeigen -----
+        if (isCreate)
+        {
+            req.ExtraFields.Add(new ExtraField(
+                Name: "Password",
+                Label: "Passwort",
+                Type: typeof(string),
+                ReadOnly: false,
+                Hint: "Mindestens 8 Zeichen",
+                DataType: "password" // Wird aktuell wie Text gerendert; Maskierung kannst du im FormRenderer leicht ergänzen.
+            ));
+        }
+
+        return req;
     }
 
-    private void StartCreate()
-	{
-		var empty = new UserDto(Guid.Empty, "", "", "", false, DateTime.UtcNow, null);
+    private async Task StartEdit(UserDto u)
+        => DrawerService.Open(await BuildUserDrawer(u, isCreate: false));
 
-		DrawerService.Open(new EditDrawerRequest {
-			Title = "Benutzer anlegen",
-			Model = empty,
-			ContractsAssembly = typeof(UserDto).Assembly,
-			IsCreate = true,
-			OnSave = async ctx =>
-			{
-				// DEBUGGING: Schauen wir uns an, was im Provider steht
-				var changes = ((CompositeValueProvider)ctx.Provider);
-
-				// Debug ausgabe - alle verfügbaren Werte anzeigen
-				Console.WriteLine("=== DEBUG: Provider Values ===");
-				if (ctx.Provider.TryGet("Email", out var emailVal))
-					Console.WriteLine($"Email from provider: '{emailVal}'");
-				if (ctx.Provider.TryGet("Password", out var passwordVal))
-					Console.WriteLine($"Password from provider: '{passwordVal}'");
-				if (ctx.Provider.TryGet("FirstName", out var firstNameVal))
-					Console.WriteLine($"FirstName from provider: '{firstNameVal}'");
-				if (ctx.Provider.TryGet("LastName", out var lastNameVal))
-					Console.WriteLine($"LastName from provider: '{lastNameVal}'");
-
-				var req = (RegisterUserRequest)ctx.Build("Register");
-
-				Console.WriteLine("=== DEBUG: Built Request ===");
-				Console.WriteLine($"Request Email: '{req.Email}'");
-				Console.WriteLine($"Request Password: '{req.Password}'");
-				Console.WriteLine($"Request FirstName: '{req.FirstName}'");
-				Console.WriteLine($"Request LastName: '{req.LastName}'");
-
-				if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Password))
-				{
-					ConfirmService.Open(new DialogRequest {
-						Title = "Fehlende Angaben",
-						Message = $"E-Mail ({req.Email ?? "NULL"}) und Passwort ({(string.IsNullOrWhiteSpace(req.Password) ? "LEER/NULL" : "VORHANDEN")}) sind Pflicht.",
-						ConfirmText = "Okay",
-						OnConfirm = () => Task.CompletedTask
-					});
-					return;
-				}
-
-				await UserService.RegisterAsync(req);
-				await Reload();
-			}
-		});
-	}
-
-    private async Task Reload()
+    private async Task StartCreate()
     {
-        _users = await UserService.GetAllAsync();
-        StateHasChanged();
+        var empty = new UserDto(
+            Id: Guid.Empty,
+            Email: "",
+            FirstName: "",
+            LastName: "",
+            Role: "",
+            Department: "",
+            IsEmailConfirmed: false,
+            CreatedAt: DateTime.UtcNow,
+            LastLoginAt: null,
+            CustomerId: null,
+            CustomerName: null
+        );
+
+        DrawerService.Open(await BuildUserDrawer(empty, isCreate: true));
+    }
+
+    // ---------- Optional: Inline Create Firma (separater Drawer) ----------
+    // Diese Methode bleibt verfügbar – einen UI-Trigger (z.B. Button neben dem Dropdown)
+    // kannst du später ergänzen. Der FormRenderer selbst unterstützt aktuell keinen
+    // OnCreateNew-Hook.
+    private async Task<KeyValuePair<string, string>?> CreateCustomerInline()
+    {
+        var tcs = new TaskCompletionSource<KeyValuePair<string, string>?>();
+
+        var empty = new CustomerDto(
+            Id: Guid.Empty,
+            Name: "",
+            Industry: "",
+            EmployeeCount: 0,
+            RevenuePerYear: 0m,
+            IsActive: true,
+            CreatedAt: DateTime.UtcNow,
+            UpdatedAt: DateTime.UtcNow,
+            UserCount: 0
+        );
+
+        DrawerService.Open(new EditDrawerRequest
+        {
+            Title = "Firma anlegen",
+            Model = empty,
+            ContractsAssembly = typeof(CustomerDto).Assembly,
+            IsCreate = true,
+            OnSave = async ctx =>
+            {
+                try
+                {
+                    var req = (CreateCustomerRequest)ctx.Build("Create");
+                    var created = await CustomerService.CreateAsync(req);
+
+                    // Liste refreshen (für den Firmen-Dropdown)
+                    _customers = await CustomerService.GetAllAsync();
+
+                    tcs.TrySetResult(new KeyValuePair<string, string>(created.Name, created.Id.ToString()));
+                    DrawerService.Close();
+                }
+                catch (Exception ex)
+                {
+                    tcs.TrySetResult(null);
+                    ConfirmService.Open(new DialogRequest
+                    {
+                        Title = "Fehler beim Anlegen",
+                        Message = ex.Message,
+                        ConfirmText = "Okay",
+                        OnConfirm = () => Task.CompletedTask
+                    });
+                }
+            },
+            OnDelete = _ => Task.CompletedTask
+        });
+
+        return await tcs.Task;
     }
 }

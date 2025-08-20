@@ -1,0 +1,120 @@
+@* Relation-Picker mit Suchfeld, Liste/Select und optionalem Inline-Create („+“) *@
+
+<div class="relation-picker">
+    <div class="rp-row">
+        <input class="form-control"
+               placeholder="@Placeholder"
+               @bind="search"
+               @bind:event="oninput" />
+
+        @if (OnCreateNew is not null)
+        {
+            <button type="button" class="btn btn-icon" @onclick="CreateNewAsync" title="Neu anlegen">+</button>
+        }
+    </div>
+
+    @if (!IsMany)
+    {
+        <select class="form-control" @onchange="OnSingleChanged">
+            <option value="">– bitte wählen –</option>
+            @foreach (var opt in Filtered)
+            {
+                <option value="@opt.Value" selected="@(opt.Value == ValueSingle)">
+                    @opt.Key
+                </option>
+            }
+        </select>
+    }
+    else
+    {
+        <div class="rp-chips">
+            @foreach (var id in ValueMany)
+            {
+                var label = Options.FirstOrDefault(o => o.Value == id).Key ?? id;
+                <span class="chip">@label <button class="chip-x" type="button" @onclick="@(() => RemoveMany(id))">x</button></span>
+            }
+        </div>
+
+        <div class="rp-list">
+            @foreach (var opt in Filtered)
+            {
+                if (!ValueMany.Contains(opt.Value))
+                {
+                    <button type="button" class="rp-item" @onclick="@(() => AddMany(opt.Value))">@opt.Key</button>
+                }
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public bool IsMany { get; set; }
+    [Parameter] public List<KeyValuePair<string,string>> Options { get; set; } = new();
+
+    // Single
+    [Parameter] public string? ValueSingle { get; set; }
+    [Parameter] public EventCallback<string?> ValueSingleChanged { get; set; }
+
+    // Many
+    [Parameter] public List<string> ValueMany { get; set; } = new();
+    [Parameter] public EventCallback<List<string>> ValueManyChanged { get; set; }
+
+    // Inline-Create (optional)
+    [Parameter] public Func<Task<KeyValuePair<string,string>?>>? OnCreateNew { get; set; }
+
+    [Parameter] public string Placeholder { get; set; } = "Suchen…";
+
+    private string search = string.Empty;
+
+    private IEnumerable<KeyValuePair<string,string>> Filtered =>
+        string.IsNullOrWhiteSpace(search)
+            ? Options
+            : Options.Where(o => o.Key.Contains(search, StringComparison.OrdinalIgnoreCase));
+
+    private async Task CreateNewAsync()
+    {
+        if (OnCreateNew is null) return;
+
+        var created = await OnCreateNew.Invoke();
+        if (created is null) return;
+
+        if (!Options.Any(o => o.Value == created.Value.Value))
+            Options.Insert(0, created.Value);
+
+        if (!IsMany)
+        {
+            ValueSingle = created.Value.Value;
+            await ValueSingleChanged.InvokeAsync(ValueSingle);
+        }
+        else
+        {
+            if (!ValueMany.Contains(created.Value.Value))
+            {
+                ValueMany.Add(created.Value.Value);
+                await ValueManyChanged.InvokeAsync(ValueMany);
+            }
+        }
+    }
+
+    private async Task OnSingleChanged(ChangeEventArgs e)
+    {
+        var v = e.Value?.ToString();
+        ValueSingle = string.IsNullOrWhiteSpace(v) ? null : v;
+        await ValueSingleChanged.InvokeAsync(ValueSingle);
+    }
+
+    private async Task AddMany(string id)
+    {
+        if (!ValueMany.Contains(id))
+        {
+            ValueMany.Add(id);
+            await ValueManyChanged.InvokeAsync(ValueMany);
+        }
+    }
+
+    private async Task RemoveMany(string id)
+    {
+        if (ValueMany.Remove(id))
+            await ValueManyChanged.InvokeAsync(ValueMany);
+    }
+}

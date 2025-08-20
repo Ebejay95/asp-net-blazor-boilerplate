@@ -1,0 +1,3866 @@
+-rw-r--r--@ 1 jonathaneberle  staff  122 18 Aug 16:59 ./Util/IValueProvider.cs
+-rw-r--r--@ 1 jonathaneberle  staff  1968 19 Aug 09:06 ./Util/CompositeValueProvider.cs
+-rw-r--r--@ 1 jonathaneberle  staff  4476 19 Aug 14:17 ./Util/IRelationshipManager.cs
+-rw-r--r--@ 1 jonathaneberle  staff  731 19 Aug 10:22 ./Util/RequestConventions.cs
+-rw-r--r--@ 1 jonathaneberle  staff  5771 19 Aug 09:12 ./Util/RequestFactory.cs
+-rw-r--r--@ 1 jonathaneberle  staff  230 19 Aug 14:15 ./Util/EditSessionFactory.cs
+-rw-r--r--@ 1 jonathaneberle  staff  1240 20 Aug 14:23 ./Auth/CookieEvents.cs
+-rw-r--r--@ 1 jonathaneberle  staff  767 18 Aug 09:54 ./appsettings.json
+-rw-r--r--@ 1 jonathaneberle  staff  557 16 Aug 00:39 ./App.razor
+-rw-r--r--@ 1 jonathaneberle  staff  483 15 Aug 11:38 ./CMC.Web.csproj
+-rw-r--r--@ 1 jonathaneberle  staff  301 15 Aug 15:11 ./Properties/launchSettings.json
+-rw-r--r--@ 1 jonathaneberle  staff  559 18 Aug 20:41 ./_Imports.razor
+-rw-r--r--@ 1 jonathaneberle  staff  4642 19 Aug 14:24 ./Controllers/AuthController.cs
+-rw-r--r--@ 1 jonathaneberle  staff  13465 20 Aug 23:11 ./Pages/Shared/FormRenderer.razor
+-rw-r--r--@ 1 jonathaneberle  staff  4338 20 Aug 23:05 ./Pages/Shared/EditDrawer.razor
+-rw-r--r--@ 1 jonathaneberle  staff  1093 20 Aug 17:25 ./Pages/Shared/ExtraField.cs
+-rw-r--r--@ 1 jonathaneberle  staff  172 20 Aug 22:48 ./Pages/Shared/MainLayout.razor
+-rw-r--r--@ 1 jonathaneberle  staff  624 19 Aug 08:23 ./Pages/Shared/RequestBuildContext.cs
+-rw-r--r--@ 1 jonathaneberle  staff  1850 18 Aug 09:54 ./Pages/Shared/ProfileMenu.razor
+-rw-r--r--@ 1 jonathaneberle  staff  3425 18 Aug 21:57 ./Pages/Shared/Dialog.razor
+-rw-r--r--@ 1 jonathaneberle  staff  138 18 Aug 12:35 ./Pages/Shared/RedirectToCockpit.razor
+-rw-r--r--@ 1 jonathaneberle  staff  587 18 Aug 12:33 ./Pages/Shared/NavMenu.razor
+-rw-r--r--@ 1 jonathaneberle  staff  3724 20 Aug 17:25 ./Pages/Shared/RelationPicker.razor
+-rw-r--r--@ 1 jonathaneberle  staff  1067 20 Aug 22:58 ./Pages/Shared/EditHost.razor
+-rw-r--r--@ 1 jonathaneberle  staff  4238 19 Aug 09:23 ./Pages/Shared/AutoTable.razor
+-rw-r--r--@ 1 jonathaneberle  staff  700 18 Aug 22:08 ./Pages/Shared/MainFooter.razor
+-rw-r--r--@ 1 jonathaneberle  staff  198 14 Aug 14:48 ./Pages/Shared/RedirectToLogin.razor
+-rw-r--r--@ 1 jonathaneberle  staff  2200 18 Aug 21:08 ./Pages/Shared/DialogHost.razor
+-rw-r--r--@ 1 jonathaneberle  staff  716 14 Aug 14:48 ./Pages/Debug.razor
+-rw-r--r--@ 1 jonathaneberle  staff  12522 18 Aug 12:33 ./Pages/Index.razor
+-rw-r--r--@ 1 jonathaneberle  staff  229 15 Aug 15:11 ./Pages/Logout.razor
+-rw-r--r--@ 1 jonathaneberle  staff  3451 18 Aug 09:54 ./Pages/Login.razor
+-rw-r--r--@ 1 jonathaneberle  staff  2130 18 Aug 09:54 ./Pages/ForgotPassword.razor
+-rw-r--r--@ 1 jonathaneberle  staff  91 18 Aug 13:34 ./Pages/CockpitPages/CockpitOverview.razor
+-rw-r--r--@ 1 jonathaneberle  staff  91 18 Aug 13:34 ./Pages/CockpitPages/CockpitScenarios.razor
+-rw-r--r--@ 1 jonathaneberle  staff  4317 20 Aug 23:07 ./Pages/CockpitPages/CockpitCustomers.razor
+-rw-r--r--@ 1 jonathaneberle  staff  7753 20 Aug 23:12 ./Pages/CockpitPages/CockpitUsers.razor
+-rw-r--r--@ 1 jonathaneberle  staff  1600 18 Aug 12:33 ./Pages/_Host.cshtml
+-rw-r--r--@ 1 jonathaneberle  staff  1684 18 Aug 09:54 ./Pages/Profile.razor
+-rw-r--r--@ 1 jonathaneberle  staff  4136 18 Aug 09:54 ./Pages/ResetPassword.razor
+-rw-r--r--@ 1 jonathaneberle  staff  4427 18 Aug 09:54 ./Pages/Register.razor
+-rw-r--r--@ 1 jonathaneberle  staff  6420 20 Aug 21:55 ./Pages/Cockpit.razor
+-rw-r--r--@ 1 jonathaneberle  staff  883 18 Aug 09:54 ./appsettings.Production.json
+-rw-r--r--@ 1 jonathaneberle  staff  994 19 Aug 14:01 ./Services/Relations.cs
+-rw-r--r--@ 1 jonathaneberle  staff  1629 20 Aug 22:59 ./Services/EditDrawerService.cs
+-rw-r--r--@ 1 jonathaneberle  staff  1072 19 Aug 14:15 ./Services/EditSession.cs
+-rw-r--r--@ 1 jonathaneberle  staff  2915 18 Aug 17:29 ./Services/DialogService.cs
+-rw-r--r--@ 1 jonathaneberle  staff  4483 20 Aug 22:23 ./Program.cs
+=== FILE CONTENTS ===
+=== ./Util/IValueProvider.cs ===
+using System;
+
+namespace CMC.Web.Util;
+
+public interface IValueProvider
+{
+	bool TryGet(string name, out object? value);
+}
+=== ./Util/CompositeValueProvider.cs ===
+using System;
+using System.Collections.Generic;
+using System.Reflection;
+
+namespace CMC.Web.Util;
+
+public sealed class CompositeValueProvider : IValueProvider
+{
+	private readonly object _model;
+	private readonly IReadOnlyDictionary<string, object?> _changes;
+
+	public CompositeValueProvider(object model, IReadOnlyDictionary<string, object?> changes)
+	{
+		_model = model;
+		_changes = changes;
+	}
+
+	public bool TryGet(string name, out object? value)
+	{
+		// Debug-Ausgabe hinzufügen
+		Console.WriteLine($"CompositeValueProvider.TryGet: Searching for '{name}'");
+
+		// Erst in Changes schauen (höhere Priorität)
+		if (_changes.TryGetValue(name, out value))
+		{
+			Console.WriteLine($"Found '{name}' in changes: '{value}'");
+			return true;
+		}
+
+		// Dann im Model schauen (mit case-insensitive Suche)
+		var prop = _model.GetType().GetProperty(name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+		if (prop != null)
+		{
+			value = prop.GetValue(_model);
+			Console.WriteLine($"Found '{name}' in model: '{value}'");
+			return true;
+		}
+
+		// Debug: Alle verfügbaren Keys ausgeben
+		Console.WriteLine($"Available changes keys: {string.Join(", ", _changes.Keys)}");
+		Console.WriteLine($"Available model properties: {string.Join(", ", _model.GetType().GetProperties().Select(p => p.Name))}");
+
+		value = null;
+		Console.WriteLine($"'{name}' not found anywhere");
+		return false;
+	}
+
+	// Hilfsmethode für Debugging
+	public void DebugPrint()
+	{
+		Console.WriteLine("=== CompositeValueProvider Debug ===");
+		Console.WriteLine("Changes:");
+		foreach (var kvp in _changes)
+		{
+			Console.WriteLine($"  {kvp.Key} = {kvp.Value}");
+		}
+
+		Console.WriteLine("Model properties:");
+		foreach (var prop in _model.GetType().GetProperties())
+		{
+			try
+			{
+				var val = prop.GetValue(_model);
+				Console.WriteLine($"  {prop.Name} = {val}");
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine($"  {prop.Name} = ERROR: {ex.Message}");
+			}
+		}
+	}
+}
+=== ./Util/IRelationshipManager.cs ===
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using CMC.Web.Shared;
+
+namespace CMC.Web.Util;
+
+/// <summary>
+/// Verwaltet Beziehungen zwischen Entities und deren Side-Effects beim Bearbeiten
+/// </summary>
+public interface IRelationshipManager
+{
+    /// <summary>
+    /// Registriert eine Beziehung zwischen zwei Entity-Typen
+    /// </summary>
+    void RegisterRelationship<TSource, TTarget>(
+        string relationshipName,
+        Func<TSource, Task<IEnumerable<TTarget>>> getRelatedEntities,
+        Func<TSource, TTarget, Task>? updateRelation = null,
+        Func<TSource, TTarget, Task>? removeRelation = null
+    );
+
+    /// <summary>
+    /// Führt alle Beziehungs-Updates für eine Entity durch
+    /// </summary>
+    Task ProcessRelationshipUpdates<T>(T entity, RequestBuildContext context);
+
+    /// <summary>
+    /// Holt alle verwandten Entities für eine gegebene Entity
+    /// </summary>
+    Task<IEnumerable<object>> GetRelatedEntities<T>(T entity, string relationshipName);
+}
+
+public class RelationshipManager : IRelationshipManager
+{
+    private readonly Dictionary<(Type, string), IRelationshipDefinition> _relationships = new();
+
+    public void RegisterRelationship<TSource, TTarget>(
+        string relationshipName,
+        Func<TSource, Task<IEnumerable<TTarget>>> getRelatedEntities,
+        Func<TSource, TTarget, Task>? updateRelation = null,
+        Func<TSource, TTarget, Task>? removeRelation = null)
+    {
+        var key = (typeof(TSource), relationshipName);
+        _relationships[key] = new RelationshipDefinition<TSource, TTarget>
+        {
+            GetRelatedEntities = getRelatedEntities,
+            UpdateRelation = updateRelation,
+            RemoveRelation = removeRelation
+        };
+    }
+
+    public async Task ProcessRelationshipUpdates<T>(T entity, RequestBuildContext context)
+    {
+        var entityType = typeof(T);
+
+        // Finde alle registrierten Beziehungen für diesen Entity-Typ
+        foreach (var kvp in _relationships)
+        {
+            if (kvp.Key.Item1 == entityType)
+            {
+                var relationship = kvp.Value;
+                await relationship.ProcessUpdate(entity, context);
+            }
+        }
+    }
+
+    public async Task<IEnumerable<object>> GetRelatedEntities<T>(T entity, string relationshipName)
+    {
+        var key = (typeof(T), relationshipName);
+        if (_relationships.TryGetValue(key, out var relationship))
+        {
+            return await relationship.GetRelated(entity);
+        }
+        return Enumerable.Empty<object>();
+    }
+
+    private interface IRelationshipDefinition
+    {
+        Task ProcessUpdate(object source, RequestBuildContext context);
+        Task<IEnumerable<object>> GetRelated(object source);
+    }
+
+    private class RelationshipDefinition<TSource, TTarget> : IRelationshipDefinition
+    {
+        public Func<TSource, Task<IEnumerable<TTarget>>> GetRelatedEntities { get; set; } = default!;
+        public Func<TSource, TTarget, Task>? UpdateRelation { get; set; }
+        public Func<TSource, TTarget, Task>? RemoveRelation { get; set; }
+
+        public async Task ProcessUpdate(object source, RequestBuildContext context)
+        {
+            if (source is TSource typedSource)
+            {
+                var relatedEntities = await GetRelatedEntities(typedSource);
+
+                foreach (var relatedEntity in relatedEntities)
+                {
+                    // Prüfe ob die Änderungen diese Beziehung betreffen
+                    if (ShouldUpdateRelation(context, relatedEntity))
+                    {
+                        if (UpdateRelation != null)
+                            await UpdateRelation(typedSource, relatedEntity);
+                    }
+                }
+            }
+        }
+
+        public async Task<IEnumerable<object>> GetRelated(object source)
+        {
+            if (source is TSource typedSource)
+            {
+                var related = await GetRelatedEntities(typedSource);
+                return related.Cast<object>();
+            }
+            return Enumerable.Empty<object>();
+        }
+
+        private bool ShouldUpdateRelation(RequestBuildContext context, TTarget relatedEntity)
+        {
+            // Implementiere Logic um zu entscheiden ob eine Relation aktualisiert werden soll
+            // Basierend auf den Änderungen im Context
+            return true; // Vereinfacht - könnte komplexere Logic enthalten
+        }
+    }
+}
+=== ./Util/RequestConventions.cs ===
+using System;
+using System.Linq;
+using System.Reflection;
+
+namespace CMC.Web.Util;
+
+public static class RequestConventions
+{
+	public static Type? FindRequestType(object model, string action, Assembly contractsAssembly)
+	{
+		var modelName = model.GetType().Name;
+		if (modelName.StartsWith("Edit", StringComparison.OrdinalIgnoreCase))
+			modelName = modelName[4..];
+		if (modelName.EndsWith("Model", StringComparison.OrdinalIgnoreCase))
+			modelName = modelName[..^5];
+		if (modelName.EndsWith("Dto", StringComparison.OrdinalIgnoreCase))
+			modelName = modelName[..^3];
+
+		var reqName = $"{action}{modelName}Request";
+		return contractsAssembly.GetTypes().FirstOrDefault(x => x.Name.Equals(reqName, StringComparison.Ordinal));
+	}
+}
+=== ./Util/RequestFactory.cs ===
+using System;
+using System.Globalization;
+using System.Linq;
+using System.Reflection;
+
+namespace CMC.Web.Util;
+
+public static class RequestFactory
+{
+	public static object MapByProvider(object model, IValueProvider provider, string action, Assembly contractsAssembly)
+	{
+		Console.WriteLine($"=== RequestFactory.MapByProvider ===");
+		Console.WriteLine($"Action: {action}");
+		Console.WriteLine($"Model: {model.GetType().Name}");
+
+		var requestType = RequestConventions.FindRequestType(model, action, contractsAssembly)
+			?? throw new InvalidOperationException($"Request-Typ für '{action}' nicht gefunden.");
+
+		Console.WriteLine($"Found request type: {requestType.Name}");
+
+		return MapToRequest(model, provider, requestType);
+	}
+
+	private static object MapToRequest(object model, IValueProvider provider, Type requestType)
+	{
+		Console.WriteLine($"=== MapToRequest for {requestType.Name} ===");
+
+		var ctors = requestType.GetConstructors(BindingFlags.Public | BindingFlags.Instance)
+			.OrderByDescending(c => c.GetParameters().Length)
+			.ToList();
+
+		Console.WriteLine($"Found {ctors.Count} constructors");
+
+		// Versuche erst Konstruktoren mit Parametern
+		foreach (var ctor in ctors.Where(c => c.GetParameters().Length > 0))
+		{
+			var ps = ctor.GetParameters();
+			var args = new object?[ps.Length];
+			var ok = true;
+
+			Console.WriteLine($"Trying constructor with {ps.Length} parameters:");
+
+			for (int i = 0; i < ps.Length; i++)
+			{
+				var p = ps[i];
+				Console.WriteLine($"  Parameter {i}: {p.Name} ({p.ParameterType.Name})");
+
+				if (string.IsNullOrEmpty(p.Name) || !TryGet(provider, model, p.Name, out var val))
+				{
+					if (p.HasDefaultValue)
+					{
+						args[i] = p.DefaultValue;
+						Console.WriteLine($"    -> Using default value: {p.DefaultValue}");
+						continue;
+					}
+					if (IsNullable(p.ParameterType))
+					{
+						args[i] = null;
+						Console.WriteLine($"    -> Using null (nullable)");
+						continue;
+					}
+					Console.WriteLine($"    -> FAILED: No value found and not nullable/no default");
+					ok = false;
+					break;
+				}
+
+				Console.WriteLine($"    -> Found value: '{val}' (type: {val?.GetType().Name ?? "null"})");
+
+				if (!TryConvert(val, p.ParameterType, out var conv))
+				{
+					Console.WriteLine($"    -> FAILED: Could not convert to {p.ParameterType.Name}");
+					ok = false;
+					break;
+				}
+
+				Console.WriteLine($"    -> Converted to: '{conv}' (type: {conv?.GetType().Name ?? "null"})");
+				args[i] = conv;
+			}
+
+			if (ok)
+			{
+				Console.WriteLine($"Constructor with parameters succeeded! Creating instance...");
+				var instance = ctor.Invoke(args);
+				Console.WriteLine($"Created: {instance}");
+				return instance;
+			}
+			else
+			{
+				Console.WriteLine($"Constructor failed, trying next...");
+			}
+		}
+
+		Console.WriteLine("All parameterized constructors failed, using parameterless + property setting...");
+
+		// Fallback: parameterlos + setzbare Properties
+		var inst = Activator.CreateInstance(requestType) ?? throw new InvalidOperationException($"Cannot create {requestType.Name}");
+		var props = requestType.GetProperties(BindingFlags.Public | BindingFlags.Instance).Where(p => p.CanWrite);
+
+		Console.WriteLine($"Found {props.Count()} writable properties");
+
+		foreach (var rp in props)
+		{
+			Console.WriteLine($"Setting property: {rp.Name}");
+			if (string.IsNullOrEmpty(rp.Name) || !TryGet(provider, model, rp.Name, out var val))
+			{
+				Console.WriteLine($"  -> No value found");
+				continue;
+			}
+			Console.WriteLine($"  -> Found value: '{val}'");
+
+			if (!TryConvert(val, rp.PropertyType, out var conv))
+			{
+				Console.WriteLine($"  -> Could not convert");
+				continue;
+			}
+			Console.WriteLine($"  -> Setting to: '{conv}'");
+
+			rp.SetValue(inst, conv);
+		}
+
+		Console.WriteLine($"Final instance after property setting: {inst}");
+		return inst;
+	}
+
+	private static bool TryGet(IValueProvider provider, object model, string name, out object? value)
+	{
+		Console.WriteLine($"    TryGet: Looking for '{name}'");
+
+		if (provider.TryGet(name, out value))
+		{
+			Console.WriteLine($"    TryGet: Found in provider: '{value}'");
+			return true;
+		}
+
+		// Letzter Versuch: Id o.ä. über Case-Insensitive
+		var prop = model.GetType().GetProperty(name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+		if (prop != null)
+		{
+			value = prop.GetValue(model);
+			Console.WriteLine($"    TryGet: Found in model: '{value}'");
+			return true;
+		}
+
+		Console.WriteLine($"    TryGet: Not found");
+		value = null;
+		return false;
+	}
+
+	private static bool IsNullable(Type t) => !t.IsValueType || Nullable.GetUnderlyingType(t) != null;
+
+	private static bool TryConvert(object? value, Type targetType, out object? result)
+	{
+		var nn = Nullable.GetUnderlyingType(targetType) ?? targetType;
+		if (value == null) { result = null; return true; }
+		if (nn.IsInstanceOfType(value)) { result = value; return true; }
+
+		try
+		{
+			if (nn.IsEnum)
+			{
+				if (value is string s) { result = Enum.Parse(nn, s, true); return true; }
+				result = Enum.ToObject(nn, Convert.ChangeType(value, Enum.GetUnderlyingType(nn), CultureInfo.InvariantCulture)!);
+				return true;
+			}
+			if (nn == typeof(Guid))
+			{
+				if (value is Guid g) { result = g; return true; }
+				if (value is string sg && Guid.TryParse(sg, out var pg)) { result = pg; return true; }
+				result = null; return false;
+			}
+			if (nn == typeof(DateTime))
+			{
+				if (value is DateTime dt) { result = dt; return true; }
+				if (value is string sd && DateTime.TryParse(sd, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var pdt)) { result = pdt; return true; }
+			}
+			result = Convert.ChangeType(value, nn, CultureInfo.InvariantCulture);
+			return true;
+		}
+		catch { result = null; return false; }
+	}
+}
+
+=== ./Util/EditSessionFactory.cs ===
+using System.Reflection;
+
+namespace CMC.Web.Services;
+
+public sealed class EditSessionFactory
+{
+    public EditSession Create(object model, Assembly asm, string action = "Update")
+        => new EditSession(model, asm, action);
+}
+=== ./Auth/CookieEvents.cs ===
+// src/CMC.Web/Auth/CookieEvents.cs
+using System;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authentication.Cookies;
+
+namespace CMC.Web.Auth;
+
+public sealed class CookieEvents : CookieAuthenticationEvents
+{
+    public override Task SigningIn(CookieSigningInContext context)
+    {
+        context.Properties.IsPersistent = true;
+        context.Properties.ExpiresUtc = DateTimeOffset.UtcNow.AddDays(30);
+        Console.WriteLine("🔐 User signing in: " + context.Principal?.Identity?.Name);
+        return Task.CompletedTask;
+    }
+
+    public override Task SignedIn(CookieSignedInContext context)
+    {
+        Console.WriteLine("✅ User signed in: " + context.Principal?.Identity?.Name);
+        return Task.CompletedTask;
+    }
+
+    public override Task ValidatePrincipal(CookieValidatePrincipalContext context)
+    {
+        Console.WriteLine("🔍 Validate principal: " + context.Principal?.Identity?.Name);
+        if (context.Principal?.Identity?.IsAuthenticated != true)
+        {
+            Console.WriteLine("❌ Principal invalid");
+            context.RejectPrincipal();
+        }
+        else
+        {
+            Console.WriteLine("✅ Principal valid");
+        }
+        return Task.CompletedTask;
+    }
+}
+=== ./appsettings.json ===
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Host=localhost;Database=cmc_dev;Username=postgres;Password=password;Port=5432"
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning",
+      "Microsoft.EntityFrameworkCore.Database.Command": "Information"
+    },
+    "Console": {
+      "IncludeScopes": false,
+      "LogLevel": {
+        "Default": "Information"
+      }
+    }
+  },
+  "AllowedHosts": "*",
+  "DetailedErrors": true,
+  "Kestrel": {
+    "Endpoints": {
+      "Http": {
+        "Url": "http://localhost:5000"
+      },
+      "Https": {
+        "Url": "https://localhost:5001"
+      }
+    }
+  },
+  "Security": {
+    "RequireHttpsMetadata": false,
+    "CookieSecure": false,
+    "UseHsts": false
+  }
+}
+=== ./App.razor ===
+<CascadingAuthenticationState>
+    <Router AppAssembly="@typeof(App).Assembly">
+        <Found Context="routeData">
+            <RouteView RouteData="@routeData" DefaultLayout="@typeof(Pages.Shared.MainLayout)" />
+        </Found>
+        <NotFound>
+            <PageTitle>Not found</PageTitle>
+            <LayoutView Layout="@typeof(Pages.Shared.MainLayout)">
+                <h1>Page Not Found</h1>
+                <p>Sorry, there's nothing at this address.</p>
+            </LayoutView>
+        </NotFound>
+    </Router>
+</CascadingAuthenticationState>
+=== ./CMC.Web.csproj ===
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CMC.Application\CMC.Application.csproj"/>
+    <ProjectReference Include="..\CMC.Infrastructure\CMC.Infrastructure.csproj"/>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.10"/>
+  </ItemGroup>
+</Project>
+=== ./Properties/launchSettings.json ===
+{
+  "profiles": {
+    "CMC.Web": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "applicationUrl": "http://localhost:5000;https://localhost:5001",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
+=== ./_Imports.razor ===
+@using System.Net.Http
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components.Routing
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Components.Web.Virtualization
+@using Microsoft.JSInterop
+@using CMC.Web
+@using CMC.Web.Pages.Shared
+@using CMC.Application.Services
+@using CMC.Contracts.Users
+@using CMC.Domain.Common
+@using System.ComponentModel.DataAnnotations
+@using System.Reflection
+@using CMC.Web.Services
+=== ./Controllers/AuthController.cs ===
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
+using CMC.Application.Services;
+using CMC.Contracts.Users;
+
+namespace CMC.Web.Controllers
+{
+    [ApiController]
+    [Route("api/[controller]")]
+    public class AuthController : ControllerBase
+    {
+        private readonly UserService _userService;
+        private readonly ILogger<AuthController> _logger;
+
+        public AuthController(UserService userService, ILogger<AuthController> logger)
+        {
+            _userService = userService;
+            _logger = logger;
+        }
+
+        [HttpPost("login")]
+        public async Task<IActionResult> Login([FromBody] LoginRequest request)
+        {
+            try
+            {
+                _logger.LogInformation("🔐 API Login attempt for: {Email}", request.Email);
+
+                var user = await _userService.LoginAsync(request);
+                if (user is null)
+                {
+                    _logger.LogWarning("❌ API Login failed for: {Email}", request.Email);
+                    return Unauthorized(new { message = "Invalid email or password" });
+                }
+
+                await SetAuthenticationCookie(user);
+
+                _logger.LogInformation("✅ API Login successful for: {Email}", request.Email);
+                return Ok(new { message = "Login successful", user });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ API Login error for: {Email}", request.Email);
+                return StatusCode(500, new { message = "An error occurred during login" });
+            }
+        }
+
+        [HttpPost("logout")]
+        [HttpGet("logout")]
+        public async Task<IActionResult> Logout()
+        {
+            try
+            {
+                await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                _logger.LogInformation("✅ API Logout successful");
+                return Redirect("/login");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ API Logout error");
+                return StatusCode(500, new { message = "Logout failed" });
+            }
+        }
+
+        [HttpGet("user")]
+        [Authorize]
+        public async Task<IActionResult> GetCurrentUser()
+        {
+            try
+            {
+                if (HttpContext.User.Identity?.IsAuthenticated == true)
+                {
+                    var userIdClaim = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                    if (Guid.TryParse(userIdClaim, out var userId))
+                    {
+                        var user = await _userService.GetByIdAsync(userId);
+                        if (user is null) return NotFound();
+                        return Ok(user); // user ist bereits ein UserDto in deinem Service-Design
+                    }
+                }
+                return Unauthorized();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting current user");
+                return StatusCode(500);
+            }
+        }
+
+        private async Task SetAuthenticationCookie(UserDto user)
+        {
+            try
+            {
+                var claims = new List<Claim>
+                {
+                    new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                    new(ClaimTypes.Name, user.Email),
+                    new(ClaimTypes.Email, user.Email),
+                    new(ClaimTypes.GivenName, user.FirstName ?? string.Empty),
+                    new(ClaimTypes.Surname, user.LastName ?? string.Empty)
+                };
+
+                var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+                var authProps = new AuthenticationProperties
+                {
+                    IsPersistent = true,
+                    ExpiresUtc = DateTimeOffset.UtcNow.AddDays(30),
+                    AllowRefresh = true
+                };
+
+                await HttpContext.SignInAsync(
+                    CookieAuthenticationDefaults.AuthenticationScheme,
+                    new ClaimsPrincipal(identity),
+                    authProps
+                );
+
+                _logger.LogInformation("✅ Authentication cookie set for: {Email}", user.Email);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error setting authentication cookie");
+                throw;
+            }
+        }
+    }
+}
+=== ./Pages/Shared/FormRenderer.razor ===
+@using System.ComponentModel.DataAnnotations
+@using System.Reflection
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Web
+@using CMC.Web.Shared
+@using CMC.Web.Pages.Shared
+
+<div class="form-grid">
+    @if (Model is not null)
+    {
+        @foreach (var prop in VisibleProps)
+        {
+            var pType = EffectiveType(prop.PropertyType);
+            var label = GetDisplayName(prop) ?? prop.Name;
+            var current = prop.GetValue(Model);
+
+            <div class="form-row">
+                <label class="form-label">@label</label>
+
+                @switch (TypeCodeOf(pType))
+                {
+                    case TypeCode.Boolean:
+                        {
+                            var chk = current as bool? ?? false;
+                            <input type="checkbox"
+                                   checked="@chk"
+                                   @onchange="e => OnBooleanChanged(prop.Name, e)" />
+                            break;
+                        }
+                    case TypeCode.DateTime:
+                        {
+                            var dt = current as DateTime? ?? default;
+                            var val = dt == default ? "" : ToDateTimeLocalValue(dt);
+                            <input class="form-control" type="datetime-local"
+                                   value="@val"
+                                   @onchange="e => OnChanged(prop.Name, ParseDateTimeLocal(e.Value?.ToString()))" />
+                            break;
+                        }
+                    case TypeCode.Decimal:
+                        {
+                            var dec = current as decimal? ?? 0m;
+                            <input class="form-control" type="number"
+                                   step="any"
+                                   value="@dec"
+                                   @onchange="e => OnChanged(prop.Name, ParseDecimal(e.Value?.ToString()))" />
+                            break;
+                        }
+                    case TypeCode.Double:
+                    case TypeCode.Single:
+                        {
+                            var dbl = current is double d ? d : current is float f ? (double)f : 0d;
+                            <input class="form-control" type="number"
+                                   step="any"
+                                   value="@dbl"
+                                   @onchange="e => OnChanged(prop.Name, ParseDouble(e.Value?.ToString()))" />
+                            break;
+                        }
+                    case TypeCode.Int16:
+                    case TypeCode.Int32:
+                    case TypeCode.Int64:
+                    case TypeCode.UInt16:
+                    case TypeCode.UInt32:
+                    case TypeCode.UInt64:
+                        {
+                            var num = current?.ToString() ?? "0";
+                            <input class="form-control" type="number"
+                                   step="1"
+                                   value="@num"
+                                   @onchange="e => OnChanged(prop.Name, ParseLongOrInt(pType, e.Value?.ToString()))" />
+                            break;
+                        }
+                    case TypeCode.String:
+                        {
+                            var txt = current?.ToString() ?? string.Empty;
+                            // Falls ein Property "Password" heißt, maskieren
+                            var isPw = prop.Name.Contains("Password", StringComparison.OrdinalIgnoreCase);
+                            <input class="form-control"
+                                   type="@(isPw ? "password" : "text")"
+                                   autocomplete="@(isPw ? "new-password" : null)"
+                                   value="@txt"
+                                   @onchange="e => OnChanged(prop.Name, e.Value?.ToString())" />
+                            break;
+                        }
+                    default:
+                        {
+                            if (pType == typeof(Guid))
+                            {
+                                var gtxt = current?.ToString() ?? string.Empty;
+                                <input class="form-control" type="text" value="@gtxt" disabled />
+                            }
+                            else
+                            {
+                                var raw = current?.ToString() ?? string.Empty;
+                                <input class="form-control" type="text" value="@raw"
+                                       @onchange="e => OnChanged(prop.Name, e.Value?.ToString())" />
+                            }
+                            break;
+                        }
+                }
+            </div>
+        }
+    }
+
+    @if (ExtraFields?.Count > 0)
+    {
+        @foreach (var ef in ExtraFields)
+        {
+            var label = string.IsNullOrWhiteSpace(ef.Label) ? ef.Name : ef.Label;
+            var hint  = ef.Hint;
+
+            <div class="form-row">
+                <label class="form-label">@label</label>
+
+                @* ---- Relation (Single) via RelationPicker ---- *@
+                @if (string.Equals(ef.DataType, "relation-single", StringComparison.OrdinalIgnoreCase))
+                {
+                    @InitRelationSingleState(ef)
+
+                    <RelationPicker IsMany="false"
+                                    Options="@(ef.Options ?? new())"
+                                    ValueSingle="@_relSingle[ef.Name]"
+                                    ValueSingleChanged="@(v => SetRelationSingle(ef.Name, v))"
+                                    OnCreateNew="ef.OnCreateNew"
+                                    Placeholder="Suchen…" />
+                }
+                else if (string.Equals(ef.DataType, "relation-many", StringComparison.OrdinalIgnoreCase))
+                {
+                    @InitRelationManyState(ef)
+
+                    <RelationPicker IsMany="true"
+                                    Options="@(ef.Options ?? new())"
+                                    ValueMany="@_relMany[ef.Name]"
+                                    ValueManyChanged="@(vals => SetRelationMany(ef.Name, vals))"
+                                    OnCreateNew="ef.OnCreateNew"
+                                    Placeholder="Suchen…" />
+                }
+                else if (string.Equals(ef.DataType, "password", StringComparison.OrdinalIgnoreCase))
+                {
+                    var txt = ef.Value?.ToString() ?? string.Empty;
+                    <input class="form-control" type="password"
+                           autocomplete="new-password"
+                           value="@txt"
+                           @onchange="e => OnChanged(ef.Name, e.Value?.ToString())" />
+                }
+                else if (ef.Options != null && ef.Options.Any())
+                {
+                    // Einfaches Dropdown
+                    var current = ef.Value?.ToString() ?? string.Empty;
+                    var isDisabled = ef.ReadOnly;
+
+                    <select class="form-control" disabled="@isDisabled" @onchange="e => OnChanged(ef.Name, e.Value?.ToString())">
+                        <option value="">-- bitte wählen --</option>
+                        @foreach (var opt in ef.Options)
+                        {
+                            var selected = string.Equals(opt.Value, current, StringComparison.OrdinalIgnoreCase);
+                            <option value="@opt.Value" selected="@selected">@opt.Key</option>
+                        }
+                    </select>
+                }
+                else
+                {
+                    // Textfeld (oder read-only)
+                    var txt = ef.Value?.ToString() ?? string.Empty;
+                    if (ef.ReadOnly)
+                    {
+                        <input class="form-control" type="text" value="@txt" disabled />
+                    }
+                    else
+                    {
+                        <input class="form-control" type="text" value="@txt" @onchange="e => OnChanged(ef.Name, e.Value?.ToString())" />
+                    }
+                }
+
+                @if (!string.IsNullOrWhiteSpace(hint))
+                {
+                    <div class="form-hint">@hint</div>
+                }
+            </div>
+        }
+    }
+</div>
+
+@code {
+    // ===================== Parameters & Cascade ================================
+    [Parameter, EditorRequired] public object Model { get; set; } = default!;
+    [Parameter] public List<ExtraField> ExtraFields { get; set; } = new();
+    [Parameter] public EventCallback<(string Name, object? Value)> OnFieldChanged { get; set; }
+
+    [CascadingParameter] public RequestBuildContext? Ctx { get; set; }
+
+    // ===================== RelationPicker interner State ======================
+    private readonly Dictionary<string, string?> _relSingle = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, List<string>> _relMany = new(StringComparer.OrdinalIgnoreCase);
+
+    private RenderFragment InitRelationSingleState(ExtraField ef) => builder =>
+    {
+        if (!_relSingle.ContainsKey(ef.Name))
+            _relSingle[ef.Name] = ef.Value?.ToString();
+    };
+
+    private RenderFragment InitRelationManyState(ExtraField ef) => builder =>
+    {
+        if (!_relMany.ContainsKey(ef.Name))
+        {
+            // ef.Value kann CSV, IEnumerable<string> oder null sein – wir normalisieren auf List<string>
+            var lst = new List<string>();
+            if (ef.Value is IEnumerable<string> es) lst = es.ToList();
+            else if (ef.Value is string s && !string.IsNullOrWhiteSpace(s)) lst = s.Split(',').Select(x => x.Trim()).Where(x => x.Length > 0).ToList();
+            _relMany[ef.Name] = lst;
+        }
+    };
+
+    private async Task SetRelationSingle(string name, string? value)
+    {
+        _relSingle[name] = value;
+        await OnChanged(name, value);
+    }
+
+    private async Task SetRelationMany(string name, List<string> values)
+    {
+        _relMany[name] = values;
+        // ⚠️ Falls du hier echte IEnumerable<Guid> im Request brauchst, musst du die Map-Logik im RequestFactory erweitern.
+        await OnChanged(name, values);
+    }
+
+    // ===================== Reflection Helpers =================================
+    private IEnumerable<PropertyInfo> VisibleProps => GetVisibleProps();
+
+    private IEnumerable<PropertyInfo> GetVisibleProps()
+    {
+        if (Model is null) yield break;
+
+        var type = Model.GetType();
+        foreach (var p in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+        {
+            if (!p.CanRead) continue;
+
+            var scaffold = p.GetCustomAttribute<ScaffoldColumnAttribute>();
+            if (scaffold is { Scaffold: false }) continue;
+
+            var disp = p.GetCustomAttribute<DisplayAttribute>();
+            if (disp?.GetAutoGenerateField() == false) continue;
+
+            yield return p;
+        }
+    }
+
+    private static string? GetDisplayName(PropertyInfo p)
+        => p.GetCustomAttribute<DisplayAttribute>()?.GetName();
+
+    // ===================== Typing Helpers =====================================
+    private static Type EffectiveType(Type t) => Nullable.GetUnderlyingType(t) ?? t;
+
+    private static TypeCode TypeCodeOf(Type t)
+    {
+        var et = EffectiveType(t);
+        return Type.GetTypeCode(et);
+    }
+
+    // ===================== Conversions / Format ===============================
+    private static string ToDateTimeLocalValue(DateTime dt)
+    {
+        var local = dt.Kind == DateTimeKind.Utc ? dt.ToLocalTime() : dt;
+        return local.ToString("yyyy-MM-ddTHH:mm");
+    }
+
+    private static DateTime? ParseDateTimeLocal(string? s)
+        => DateTime.TryParse(s, out var dt) ? dt : null;
+
+    private static decimal? ParseDecimal(string? s)
+        => decimal.TryParse(s, System.Globalization.NumberStyles.Any,
+                            System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : null;
+
+    private static double? ParseDouble(string? s)
+        => double.TryParse(s, System.Globalization.NumberStyles.Any,
+                           System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : null;
+
+    private static object? ParseLongOrInt(Type numberType, string? s)
+    {
+        if (!long.TryParse(s, out var l)) return null;
+
+        var et = EffectiveType(numberType);
+        if (et == typeof(int))   return (int) l;
+        if (et == typeof(long))  return l;
+        if (et == typeof(short)) return (short) l;
+        if (et == typeof(uint))  return (uint) Math.Max(0, l);
+        if (et == typeof(ulong)) return (ulong) Math.Max(0, l);
+        if (et == typeof(ushort))return (ushort) Math.Max(0, l);
+
+        return l;
+    }
+
+    // ===================== Change Propagation =================================
+    private async Task OnChanged(string name, object? value)
+    {
+        if (OnFieldChanged.HasDelegate)
+            await OnFieldChanged.InvokeAsync((name, value));
+    }
+
+    private async Task OnBooleanChanged(string name, ChangeEventArgs e)
+    {
+        bool? value = null;
+
+        if (e.Value is bool boolValue) value = boolValue;
+        else if (e.Value?.ToString() == "on") value = true;
+        else if (bool.TryParse(e.Value?.ToString(), out var parsedBool)) value = parsedBool;
+
+        await OnChanged(name, value);
+    }
+}
+=== ./Pages/Shared/EditDrawer.razor ===
+@using System.Reflection
+@using Microsoft.AspNetCore.Components
+@using CMC.Web.Services
+@using CMC.Web.Shared
+@using CMC.Web.Util
+@implements IDisposable
+
+@inject EditDrawerService EditDrawerService
+
+@if (_isOpen && _request is not null)
+{
+    <!-- Backdrop -->
+    <div class="ed-backdrop ed-backdrop--open" @onclick="Close" aria-hidden="true"></div>
+
+    <!-- Panel -->
+    <aside class="ed-wrap ed-wrap--open"
+           role="dialog"
+           aria-modal="true"
+           aria-labelledby="ed-title"
+           @onclick:stopPropagation>
+        <header class="ed-header">
+            <h3 id="ed-title">@_request.Title</h3>
+            <button class="btn flat" @onclick="Close" aria-label="Schließen">×</button>
+        </header>
+
+        <section class="ed-body">
+            <CascadingValue Value="_ctx">
+                <FormRenderer @ref="_form"
+                              Model="_request.Model"
+                              ExtraFields="_request.ExtraFields"
+                              OnFieldChanged="OnFieldChanged" />
+            </CascadingValue>
+        </section>
+
+        <footer class="ed-body" style="border-top:1px solid #eee; padding-top:.5rem;">
+            <div class="btn-group">
+                <button class="btn primary" @onclick="SaveAsync">Speichern</button>
+                @if (_request.OnDelete is not null && !_request.IsCreate)
+                {
+                    <button class="btn danger" @onclick="DeleteAsync">Löschen</button>
+                }
+                <button class="btn flat" @onclick="Close">Abbrechen</button>
+            </div>
+        </footer>
+    </aside>
+}
+
+@code {
+    // ---- Optionaler Parameter-Modus (falls du <EditDrawer Request="..."/> jemals nutzt) ----
+    [Parameter] public EditDrawerRequest? Request { get; set; }
+    private bool _openedByParameter;
+
+    protected override void OnParametersSet()
+    {
+        if (Request is not null) HandleOpen(Request);
+        else if (_openedByParameter) HandleClose();
+
+        _openedByParameter = Request is not null;
+    }
+
+    // ---- Service-Modus --------------------------------------------------------
+    protected override void OnInitialized()
+    {
+        EditDrawerService.OpenRequested += HandleOpen;
+        EditDrawerService.CloseRequested += HandleClose;
+    }
+
+    // ---- State ----------------------------------------------------------------
+    private bool _isOpen;
+    private EditDrawerRequest? _request;
+
+    private FormRenderer? _form;
+    private RequestBuildContext? _ctx;
+
+    private readonly Dictionary<string, object?> _changes =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    private void HandleOpen(EditDrawerRequest req)
+    {
+        Console.WriteLine($"EditDrawer: OPEN -> {req.Title}");
+        _request = req;
+        _changes.Clear();
+
+        var provider = new CompositeValueProvider(req.Model, _changes);
+        _ctx = new RequestBuildContext(
+            req.Model,
+            req.ContractsAssembly,
+            provider,
+            req.IsCreate ? "Create" : "Update"
+        );
+
+        _isOpen = true;
+        StateHasChanged();
+    }
+
+    private void HandleClose()
+    {
+        Console.WriteLine("EditDrawer: CLOSE");
+        _isOpen = false;
+        _request = null;
+        _ctx = null;
+        _changes.Clear();
+        StateHasChanged();
+    }
+
+    private void OnFieldChanged((string Name, object? Value) change)
+        => _changes[change.Name] = change.Value;
+
+    private async Task SaveAsync()
+    {
+        if (_request is null) return;
+
+        var provider = new CompositeValueProvider(_request.Model, _changes);
+        var action = _request.IsCreate ? "Create" : "Update";
+
+        _ctx = new RequestBuildContext(
+            _request.Model,
+            _request.ContractsAssembly,
+            provider,
+            action
+        );
+
+        if (_request.OnSave is not null && _ctx is not null)
+            await _request.OnSave.Invoke(_ctx);
+
+        Close();
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (_request?.OnDelete is not null && _ctx is not null)
+            await _request.OnDelete.Invoke(_ctx);
+
+        Close();
+    }
+
+    private void Close() => HandleClose();
+
+    public void Dispose()
+    {
+        EditDrawerService.OpenRequested -= HandleOpen;
+        EditDrawerService.CloseRequested -= HandleClose;
+    }
+}
+=== ./Pages/Shared/ExtraField.cs ===
+namespace CMC.Web.Shared;
+
+/// <summary>
+/// Beschreibt ein zusätzliches Formularfeld (z.B. Relation-Picker oder Passwort),
+/// das nicht direkt aus dem DTO gerendert wird.
+/// </summary>
+public record ExtraField(
+    string Name,                                     // Property/Request-Feldname (z.B. "CustomerId")
+    string Label,                                    // Label im Formular
+    System.Type Type,                                // Datentyp (z.B. typeof(Guid?))
+    bool ReadOnly = false,                           // read-only?
+    string? Hint = null,                             // Hilfetext
+    // Spezielle Renderer: "relation-single", "relation-many", "password"
+    string? DataType = null,
+    object? Value = null,                            // Vorbelegung
+    System.Collections.Generic.List<System.Collections.Generic.KeyValuePair<string, string>>? Options = null, // (Text, Value)
+    // Callback für "+" im RelationPicker (Inline-Create)
+    System.Func<System.Threading.Tasks.Task<System.Collections.Generic.KeyValuePair<string, string>?>>? OnCreateNew = null
+);
+=== ./Pages/Shared/MainLayout.razor ===
+@inherits LayoutComponentBase
+
+<NavMenu />
+<main>
+    @Body
+    <!-- Drawer direkt hosten (statt EditHost) -->
+    <EditDrawer />
+    <DialogHost />
+</main>
+<MainFooter />
+=== ./Pages/Shared/RequestBuildContext.cs ===
+using System.Reflection;
+using CMC.Web.Util;
+
+namespace CMC.Web.Shared;
+
+public sealed class RequestBuildContext
+{
+	public object Model { get; }
+	public Assembly ContractsAssembly { get; }
+	public IValueProvider Provider { get; }
+	public string Action { get; }
+
+	public RequestBuildContext(object model, Assembly asm, IValueProvider provider, string action = "Update")
+	{
+		Model = model;
+		ContractsAssembly = asm;
+		Provider = provider;
+		Action = action;
+	}
+
+	public object Build(string? action = null)
+	{
+		var act = action ?? Action;
+		return RequestFactory.MapByProvider(Model, Provider, act, ContractsAssembly);
+	}
+}
+=== ./Pages/Shared/ProfileMenu.razor ===
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Web
+@inject NavigationManager Navigation
+
+<AuthorizeView>
+	<Authorized>
+		<div class="relative inline-block text-left">
+			<button class="profile-card flex items-center gap-2 px-3 py-2"
+					@onclick="ToggleMenu"
+					aria-haspopup="true"
+					aria-expanded="@showMenu">
+				@GetFullName(context)
+				<span class="text-xs">▾</span>
+			</button>
+
+			@if (showMenu)
+			{
+				<div class="absolute right-0 mt-2 w-44 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black/5 z-50"
+					 @onfocusout="HideMenu"
+					 tabindex="-1">
+					<ul class="py-1">
+						<li>
+							<NavLink href="profile" class="block px-4 py-2 text-sm hover:bg-gray-100">
+								Profile
+							</NavLink>
+						</li>
+						<li>
+							<NavLink href="logout" class="block px-4 py-2 text-sm hover:bg-gray-100">
+								Logout
+							</NavLink>
+						</li>
+					</ul>
+				</div>
+			}
+		</div>
+	</Authorized>
+	<NotAuthorized>
+		<nav class="profile-nav">
+			<ul>
+				<NavLink href="login" Match="NavLinkMatch.All">
+					<span aria-hidden="true"></span> Login
+				</NavLink>
+				<NavLink href="register">
+					<span aria-hidden="true"></span> Register
+				</NavLink>
+			</ul>
+		</nav>
+	</NotAuthorized>
+</AuthorizeView>
+
+@code {
+	private bool showMenu;
+
+	private string GetFullName(AuthenticationState authState)
+	{
+		var firstName = GetClaim(authState, ClaimTypes.GivenName);
+		var lastName = GetClaim(authState, ClaimTypes.Surname);
+		return $"{firstName} {lastName}".Trim();
+	}
+
+	private string GetClaim(AuthenticationState authState, string claimType)
+	{
+		return authState.User.FindFirst(claimType)?.Value ?? "N/A";
+	}
+
+	private void ToggleMenu()
+	{
+		showMenu = !showMenu;
+	}
+
+	private void HideMenu(FocusEventArgs _)
+	{
+		showMenu = false;
+	}
+}
+=== ./Pages/Shared/Dialog.razor ===
+@* Reusable confirmation dialog for delete operations and other critical actions *@
+@* src/CMC.Web/Pages/Shared/Dialog.razor *@
+@if (IsOpen)
+{
+    <div class="confirm-backdrop" @onclick="HandleBackdropClick"></div>
+
+    <div class="confirm-dialog confirm-dialog--open">
+        <div class="card" @onclick:stopPropagation>
+            <div class="confirm-header">
+                <h3 id="confirm-title">@Title</h3>
+            </div>
+
+            <div class="confirm-body">
+                <p>@Message</p>
+                @if (!string.IsNullOrWhiteSpace(DetailMessage))
+                {
+                    <small class="text-muted">@DetailMessage</small>
+                }
+            </div>
+
+            <div class="btn-group">
+                <button class="btn danger" @onclick="Confirm" disabled="@_isProcessing">
+                    @if (_isProcessing) { <span>Processing...</span> } else { @ConfirmText }
+                </button>
+                <button class="btn flat" @onclick="Cancel" disabled="@_isProcessing">
+                    @CancelText
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+
+@code {
+    /// <summary>
+    /// Controls the visibility of the confirmation dialog.
+    /// </summary>
+    [Parameter] public bool IsOpen { get; set; }
+
+    /// <summary>
+    /// Title displayed in the dialog header.
+    /// </summary>
+    [Parameter] public string Title { get; set; } = "Confirm Action";
+
+    /// <summary>
+    /// Main confirmation message to display.
+    /// </summary>
+    [Parameter] public string Message { get; set; } = "Are you sure you want to proceed?";
+
+    /// <summary>
+    /// Optional detailed message for additional context.
+    /// </summary>
+    [Parameter] public string? DetailMessage { get; set; }
+
+    /// <summary>
+    /// Text for the confirmation button (default: "Confirm").
+    /// </summary>
+    [Parameter] public string ConfirmText { get; set; } = "Confirm";
+
+    /// <summary>
+    /// Text for the cancel button (default: "Cancel").
+    /// </summary>
+    [Parameter] public string CancelText { get; set; } = "Cancel";
+
+    /// <summary>
+    /// Callback invoked when user confirms the action.
+    /// </summary>
+    [Parameter] public EventCallback OnConfirm { get; set; }
+
+    /// <summary>
+    /// Callback invoked when user cancels the action.
+    /// </summary>
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    /// <summary>
+    /// Controls whether clicking the backdrop should close the dialog.
+    /// </summary>
+    [Parameter] public bool CloseOnBackdropClick { get; set; } = true;
+
+    private bool _isProcessing = false;
+
+    /// <summary>
+    /// Handles the confirmation action with async processing state.
+    /// </summary>
+    private async Task Confirm()
+    {
+        _isProcessing = true;
+        StateHasChanged();
+
+        try
+        {
+            await OnConfirm.InvokeAsync();
+        }
+        finally
+        {
+            _isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// Handles the cancel action.
+    /// </summary>
+    private async Task Cancel()
+    {
+        await OnCancel.InvokeAsync();
+    }
+
+    /// <summary>
+    /// Handles backdrop clicks based on configuration.
+    /// </summary>
+    private async Task HandleBackdropClick()
+    {
+        if (CloseOnBackdropClick && !_isProcessing)
+        {
+            await Cancel();
+        }
+    }
+}
+=== ./Pages/Shared/RedirectToCockpit.razor ===
+@inject NavigationManager Navigation
+
+@code {
+	protected override void OnInitialized()
+	{
+		Navigation.NavigateTo("/cockpit", true);
+	}
+}
+=== ./Pages/Shared/NavMenu.razor ===
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@inject NavigationManager Navigation
+
+<header class="header-main">
+    <AuthorizeView>
+        <Authorized>
+            <div>
+            <a href="cockpit"><span class="audicius like-h1">CMC</span><span class="audicius">by Audicius</span></a></div>
+        </Authorized>
+        <NotAuthorized>
+            <div>
+            <a href=""><span class="audicius like-h1">CMC</span><span class="audicius">by Audicius</span></a></div>
+        </NotAuthorized>
+    </AuthorizeView>
+    <ProfileMenu/>
+</header>
+=== ./Pages/Shared/RelationPicker.razor ===
+@* Relation-Picker mit Suchfeld, Liste/Select und optionalem Inline-Create („+“) *@
+
+<div class="relation-picker">
+    <div class="rp-row">
+        <input class="form-control"
+               placeholder="@Placeholder"
+               @bind="search"
+               @bind:event="oninput" />
+
+        @if (OnCreateNew is not null)
+        {
+            <button type="button" class="btn btn-icon" @onclick="CreateNewAsync" title="Neu anlegen">+</button>
+        }
+    </div>
+
+    @if (!IsMany)
+    {
+        <select class="form-control" @onchange="OnSingleChanged">
+            <option value="">– bitte wählen –</option>
+            @foreach (var opt in Filtered)
+            {
+                <option value="@opt.Value" selected="@(opt.Value == ValueSingle)">
+                    @opt.Key
+                </option>
+            }
+        </select>
+    }
+    else
+    {
+        <div class="rp-chips">
+            @foreach (var id in ValueMany)
+            {
+                var label = Options.FirstOrDefault(o => o.Value == id).Key ?? id;
+                <span class="chip">@label <button class="chip-x" type="button" @onclick="@(() => RemoveMany(id))">x</button></span>
+            }
+        </div>
+
+        <div class="rp-list">
+            @foreach (var opt in Filtered)
+            {
+                if (!ValueMany.Contains(opt.Value))
+                {
+                    <button type="button" class="rp-item" @onclick="@(() => AddMany(opt.Value))">@opt.Key</button>
+                }
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public bool IsMany { get; set; }
+    [Parameter] public List<KeyValuePair<string,string>> Options { get; set; } = new();
+
+    // Single
+    [Parameter] public string? ValueSingle { get; set; }
+    [Parameter] public EventCallback<string?> ValueSingleChanged { get; set; }
+
+    // Many
+    [Parameter] public List<string> ValueMany { get; set; } = new();
+    [Parameter] public EventCallback<List<string>> ValueManyChanged { get; set; }
+
+    // Inline-Create (optional)
+    [Parameter] public Func<Task<KeyValuePair<string,string>?>>? OnCreateNew { get; set; }
+
+    [Parameter] public string Placeholder { get; set; } = "Suchen…";
+
+    private string search = string.Empty;
+
+    private IEnumerable<KeyValuePair<string,string>> Filtered =>
+        string.IsNullOrWhiteSpace(search)
+            ? Options
+            : Options.Where(o => o.Key.Contains(search, StringComparison.OrdinalIgnoreCase));
+
+    private async Task CreateNewAsync()
+    {
+        if (OnCreateNew is null) return;
+
+        var created = await OnCreateNew.Invoke();
+        if (created is null) return;
+
+        if (!Options.Any(o => o.Value == created.Value.Value))
+            Options.Insert(0, created.Value);
+
+        if (!IsMany)
+        {
+            ValueSingle = created.Value.Value;
+            await ValueSingleChanged.InvokeAsync(ValueSingle);
+        }
+        else
+        {
+            if (!ValueMany.Contains(created.Value.Value))
+            {
+                ValueMany.Add(created.Value.Value);
+                await ValueManyChanged.InvokeAsync(ValueMany);
+            }
+        }
+    }
+
+    private async Task OnSingleChanged(ChangeEventArgs e)
+    {
+        var v = e.Value?.ToString();
+        ValueSingle = string.IsNullOrWhiteSpace(v) ? null : v;
+        await ValueSingleChanged.InvokeAsync(ValueSingle);
+    }
+
+    private async Task AddMany(string id)
+    {
+        if (!ValueMany.Contains(id))
+        {
+            ValueMany.Add(id);
+            await ValueManyChanged.InvokeAsync(ValueMany);
+        }
+    }
+
+    private async Task RemoveMany(string id)
+    {
+        if (ValueMany.Remove(id))
+            await ValueManyChanged.InvokeAsync(ValueMany);
+    }
+}
+=== ./Pages/Shared/EditHost.razor ===
+@using CMC.Web.Services
+@inherits Microsoft.AspNetCore.Components.ComponentBase
+@inject EditDrawerService DrawerService
+@implements IDisposable
+
+<!-- Wir geben den Request als Parameter an EditDrawer weiter -->
+<EditDrawer Request="@_currentRequest" />
+
+@code {
+    private EditDrawerRequest? _currentRequest;
+
+    protected override void OnInitialized()
+    {
+        DrawerService.OpenRequested += OnOpenRequested;
+        DrawerService.CloseRequested += OnCloseRequested;
+    }
+
+    private void OnOpenRequested(EditDrawerRequest req)
+    {
+        // direkte Parameterversorgung -> Drawer rendert sofort auf
+        _currentRequest = req;
+        InvokeAsync(StateHasChanged);
+        Console.WriteLine($"EditHost: Open '{req.Title}'");
+    }
+
+    private void OnCloseRequested()
+    {
+        _currentRequest = null;
+        InvokeAsync(StateHasChanged);
+        Console.WriteLine("EditHost: Close");
+    }
+
+    public void Dispose()
+    {
+        DrawerService.OpenRequested -= OnOpenRequested;
+        DrawerService.CloseRequested -= OnCloseRequested;
+    }
+}
+=== ./Pages/Shared/AutoTable.razor ===
+@typeparam TItem
+@using System.ComponentModel.DataAnnotations
+@using System.Reflection
+@using System.Linq
+@attribute [Authorize]
+
+<div class="relative">
+
+  <div class="btn-group aud-table-interface">
+    @if (AllowCreate)
+    {
+      <button type="button" class="btn xs flat" @onclick="RequestCreate">
+        @CreateLabel
+      </button>
+    }
+  </div>
+  <table class="aud-table">
+    <thead>
+      <tr>
+        @foreach (var col in _cols)
+        {
+          <th scope="col">@col.Header</th>
+        }
+        @if (AllowEdit)
+        {
+          <th scope="col" class="td-nowrap">Aktionen</th>
+        }
+      </tr>
+    </thead>
+    <tbody>
+      @if (Items is not null)
+      {
+        @foreach (var item in Items)
+        {
+          <tr>
+            @foreach (var col in _cols)
+            {
+              <td class="td-nowrap">@col.Render(item)</td>
+            }
+            @if (AllowEdit)
+            {
+              <td class="td-nowrap">
+                @if (EditTemplate is not null)
+                {
+                  @EditTemplate(item)
+                }
+                else
+                {
+                  <button type="button" class="btn sm flat" @onclick="() => RequestEdit(item)">
+                    Bearbeiten
+                  </button>
+                }
+              </td>
+            }
+          </tr>
+        }
+      }
+    </tbody>
+  </table>
+</div>
+
+@code {
+	[Parameter] public IEnumerable<TItem>? Items { get; set; }
+	[Parameter] public bool AutoGenerate { get; set; } = true;
+
+	// Edit
+	[Parameter] public bool AllowEdit { get; set; } = false;
+	[Parameter] public EventCallback<TItem> OnEdit { get; set; }
+	[Parameter] public RenderFragment<TItem>? EditTemplate { get; set; }
+
+	// Create (+)
+	[Parameter] public bool AllowCreate { get; set; } = false;
+	[Parameter] public EventCallback OnCreate { get; set; }
+	[Parameter] public string CreateLabel { get; set; } = "+";
+
+	private record Col(string Header, Func<TItem, object?> Getter, string? Format)
+	{
+		public RenderFragment Render(TItem item) => builder =>
+		{
+			var val = Getter(item);
+			if (val is null) { builder.AddContent(0, string.Empty); return; }
+			if (!string.IsNullOrWhiteSpace(Format) && val is IFormattable f)
+				builder.AddContent(0, f.ToString(Format, null));
+			else
+				builder.AddContent(0, val.ToString());
+		};
+	}
+
+	private List<Col> _cols = new();
+
+	protected override void OnParametersSet()
+	{
+		if (!AutoGenerate || typeof(TItem).IsPrimitive) return;
+
+		var props = typeof(TItem).GetProperties(BindingFlags.Public | BindingFlags.Instance)
+			.Where(p => p.GetIndexParameters().Length == 0)
+			.Where(p =>
+			{
+				var scaffoldAttr = p.GetCustomAttributes(true).OfType<ScaffoldColumnAttribute>().FirstOrDefault();
+				if (scaffoldAttr is not null && scaffoldAttr.Scaffold == false) return false;
+				var displayAttr = p.GetCustomAttributes(true).OfType<DisplayAttribute>().FirstOrDefault();
+				if (displayAttr is not null && displayAttr.GetAutoGenerateField() == false) return false;
+				return true;
+			})
+			.Select(p =>
+			{
+				var display = p.GetCustomAttributes(true).OfType<DisplayAttribute>().FirstOrDefault();
+				var fmtAttr = p.GetCustomAttributes(true).OfType<DisplayFormatAttribute>().FirstOrDefault();
+
+				var header = display?.GetName() ?? SplitPascal(p.Name);
+				var order = display?.GetOrder() ?? int.MaxValue;
+
+				string? cleanFmt = null;
+				var fmt = fmtAttr?.DataFormatString;
+				if (!string.IsNullOrWhiteSpace(fmt))
+					cleanFmt = fmt.Contains(':') ? fmt[(fmt.IndexOf(':') + 1)..].TrimEnd('}') : fmt;
+
+				Func<TItem, object?> getter = (TItem it) => p.GetValue(it);
+				return (order, col: new Col(header, getter, cleanFmt));
+			})
+			.OrderBy(t => t.order)
+			.Select(t => t.col)
+			.ToList();
+
+		_cols = props;
+	}
+
+	private static string SplitPascal(string s)
+	{
+		var sb = new System.Text.StringBuilder();
+		for (int i = 0; i < s.Length; i++)
+		{
+			if (i > 0 && char.IsUpper(s[i]) && !char.IsUpper(s[i - 1])) sb.Append(' ');
+			sb.Append(s[i]);
+		}
+		return sb.ToString();
+	}
+
+	private async Task RequestEdit(TItem item)
+	{
+		if (OnEdit.HasDelegate)
+			await OnEdit.InvokeAsync(item);
+	}
+
+	private async Task RequestCreate()
+	{
+		if (OnCreate.HasDelegate)
+			await OnCreate.InvokeAsync();
+	}
+}
+=== ./Pages/Shared/MainFooter.razor ===
+@using System.Security.Claims
+@inject NavigationManager Navigation
+
+<footer>
+    <nav>
+        <ul>
+            <li class="subtle">
+                <NavLink target="_blank" href="https://www.audicius.de/imprint">
+                    <span aria-hidden="true"></span> Impressum
+                </NavLink>
+            </li>
+            <li class="subtle">
+                <NavLink target="_blank" href="https://www.audicius.de/privacy">
+                    <span aria-hidden="true"></span> Datenschutz
+                </NavLink>
+            </li>
+        </ul>
+    </nav>
+    <span class="subtle center"><span>© </span><span class="audicius">@DateTime.Now.Year Made by Audicius</span></span>
+</footer>
+=== ./Pages/Shared/RedirectToLogin.razor ===
+@using Microsoft.AspNetCore.Components.Authorization
+@inject NavigationManager Navigation
+
+@code {
+    protected override void OnInitialized()
+    {
+        Navigation.NavigateTo("/login");
+    }
+}
+=== ./Pages/Shared/DialogHost.razor ===
+@* Host component for managing confirmation dialog state and lifecycle *@
+@using CMC.Web.Services
+@inject DialogService ConfirmService
+@implements IDisposable
+
+<Dialog
+    IsOpen="@_isOpen"
+    Title="@(_currentRequest?.Title ?? string.Empty)"
+    Message="@(_currentRequest?.Message ?? string.Empty)"
+    DetailMessage="@(_currentRequest?.DetailMessage)"
+    ConfirmText="@(_currentRequest?.ConfirmText ?? string.Empty)"
+    CancelText="@(_currentRequest?.CancelText ?? string.Empty)"
+    OnConfirm="HandleConfirm"
+    OnCancel="HandleCancel" />
+
+@code {
+    private bool _isOpen;
+    private DialogRequest? _currentRequest;
+
+    /// <summary>
+    /// Initializes event handlers for dialog service events.
+    /// </summary>
+    protected override void OnInitialized()
+    {
+        ConfirmService.OnOpen += HandleOpen;
+        ConfirmService.OnClose += HandleClose;
+    }
+
+    /// <summary>
+    /// Handles dialog open requests from the service.
+    /// </summary>
+    /// <param name="request">Dialog configuration</param>
+    private void HandleOpen(DialogRequest request)
+    {
+        _currentRequest = request;
+        _isOpen = true;
+        InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// Handles dialog close requests from the service.
+    /// </summary>
+    private void HandleClose()
+    {
+        _isOpen = false;
+        _currentRequest = null;
+        InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// Handles user confirmation and executes the callback.
+    /// </summary>
+    private async Task HandleConfirm()
+    {
+        if (_currentRequest?.OnConfirm != null)
+        {
+            await _currentRequest.OnConfirm();
+        }
+        HandleClose();
+    }
+
+    /// <summary>
+    /// Handles user cancellation and executes the callback.
+    /// </summary>
+    private async Task HandleCancel()
+    {
+        if (_currentRequest?.OnCancel != null)
+            await _currentRequest.OnCancel();
+
+        HandleClose();
+    }
+
+    /// <summary>
+    /// Cleans up event handlers to prevent memory leaks.
+    /// </summary>
+    public void Dispose()
+    {
+        ConfirmService.OnOpen -= HandleOpen;
+        ConfirmService.OnClose -= HandleClose;
+    }
+}
+=== ./Pages/Debug.razor ===
+@page "/debug"
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Page</title>
+</head>
+<body style="padding: 20px; font-family: Arial;">
+    <h1>Debug Page</h1>
+    <p>Time: @DateTime.Now</p>
+
+    <button @onclick="ClickMe" style="padding: 10px; font-size: 16px;">
+        Click Me (@clickCount)
+    </button>
+
+    @if (clickCount > 0)
+    {
+        <p style="color: green;">Clicked @clickCount times!</p>
+    }
+</body>
+</html>
+
+@code {
+    private int clickCount = 0;
+
+    protected override void OnInitialized()
+    {
+        Console.WriteLine("🚀 Debug page initialized!");
+    }
+
+    private void ClickMe()
+    {
+        clickCount++;
+        Console.WriteLine($"🔥 Button clicked {clickCount} times");
+    }
+}
+=== ./Pages/Index.razor ===
+@page "/"
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Authorization
+@attribute [AllowAnonymous]
+@inject IJSRuntime JS
+
+<PageTitle>CMC - Home</PageTitle>
+
+<section class="slim">
+    <div class="card">
+        <h1>
+            Welcome to Cybersecurity Management Cockpit
+        </h1>
+    </div>
+</section>
+<section class="slim">
+	<div class="card">
+		<h2>Button Variants (ungrouped)</h2>
+
+		<!-- primary -->
+		<p><strong>primary</strong></p>
+		<a class="btn primary" href="#">Link </a>
+		<NavLink class="btn primary" href="#">NavLink</NavLink>
+		<button class="btn primary" @onclick='() => Alert("Primary clicked!")'>Button</button>
+
+		<!-- secondary -->
+		<p><strong>secondary</strong></p>
+		<a class="btn secondary" href="#">Link </a>
+		<NavLink class="btn secondary" href="#">NavLink</NavLink>
+		<button class="btn secondary" @onclick='() => Alert("Sekundär clicked!")'>Button</button>
+
+		<!-- flat -->
+		<p><strong>flat</strong></p>
+		<a class="btn flat" href="#">Link </a>
+		<NavLink class="btn flat" href="#">NavLink</NavLink>
+		<button class="btn flat" @onclick='() => Alert("Flat clicked!")'>Button</button>
+
+		<!-- danger -->
+		<p><strong>danger</strong></p>
+		<a class="btn danger" href="#">Link </a>
+		<NavLink class="btn danger" href="#">NavLink</NavLink>
+		<button class="btn danger" @onclick='() => Alert("Danger clicked!")'>Button</button>
+
+		<!-- primary -->
+		<p><strong>primary</strong></p>
+		<a class="btn sm primary" href="#">Link </a>
+		<NavLink class="btn sm primary" href="#">NavLink</NavLink>
+		<button class="btn sm primary" @onclick='() => Alert("Primary clicked!")'>Button</button>
+
+		<!-- secondary -->
+		<p><strong>secondary</strong></p>
+		<a class="btn sm secondary" href="#">Link </a>
+		<NavLink class="btn sm secondary" href="#">NavLink</NavLink>
+		<button class="btn sm secondary" @onclick='() => Alert("Sekundär clicked!")'>Button</button>
+
+		<!-- flat -->
+		<p><strong>flat</strong></p>
+		<a class="btn sm flat" href="#">Link </a>
+		<NavLink class="btn sm flat" href="#">NavLink</NavLink>
+		<button class="btn sm flat" @onclick='() => Alert("Flat clicked!")'>Button</button>
+
+		<!-- danger -->
+		<p><strong>danger</strong></p>
+		<a class="btn sm danger" href="#">Link </a>
+		<NavLink class="btn sm danger" href="#">NavLink</NavLink>
+		<button class="btn sm danger" @onclick='() => Alert("Danger clicked!")'>Button</button>
+	</div>
+
+	<div class="card">
+		<h2>Button Variants (grouped)</h2>
+
+		<p><strong>primary</strong></p>
+		<div class="btn-group">
+			<a class="btn primary" href="#">Link </a>
+			<NavLink class="btn primary" href="#">NavLink</NavLink>
+			<button class="btn primary" @onclick='() => Alert("Primary in group!")'>Button</button>
+		</div>
+
+		<p><strong>secondary</strong></p>
+		<div class="btn-group">
+			<a class="btn secondary" href="#">Link </a>
+			<NavLink class="btn secondary" href="#">NavLink</NavLink>
+			<button class="btn secondary" @onclick='() => Alert("Secondary in group!")'>Button</button>
+		</div>
+
+		<p><strong>flat</strong></p>
+		<div class="btn-group">
+			<a class="btn flat" href="#">Link </a>
+			<NavLink class="btn flat" href="#">NavLink</NavLink>
+			<button class="btn flat" @onclick='() => Alert("Flat in group!")'>Button</button>
+		</div>
+
+		<p><strong>danger</strong></p>
+		<div class="btn-group">
+			<a class="btn danger" href="#">Link </a>
+			<NavLink class="btn danger" href="#">NavLink</NavLink>
+			<button class="btn danger" @onclick='() => Alert("Danger in group!")'>Button</button>
+		</div>
+
+		<p><strong>primary</strong></p>
+		<div class="btn-group">
+			<a class="btn sm primary" href="#">Link </a>
+			<NavLink class="btn sm primary" href="#">NavLink</NavLink>
+			<button class="btn sm primary" @onclick='() => Alert("Primary in group!")'>Button</button>
+		</div>
+
+		<p><strong>secondary</strong></p>
+		<div class="btn-group">
+			<a class="btn sm secondary" href="#">Link </a>
+			<NavLink class="btn sm secondary" href="#">NavLink</NavLink>
+			<button class="btn sm secondary" @onclick='() => Alert("Secondary in group!")'>Button</button>
+		</div>
+
+		<p><strong>flat</strong></p>
+		<div class="btn-group">
+			<a class="btn sm flat" href="#">Link </a>
+			<NavLink class="btn sm flat" href="#">NavLink</NavLink>
+			<button class="btn sm flat" @onclick='() => Alert("Flat in group!")'>Button</button>
+		</div>
+
+		<p><strong>danger</strong></p>
+		<div class="btn-group">
+			<a class="btn sm danger" href="#">Link </a>
+			<NavLink class="btn sm danger" href="#">NavLink</NavLink>
+			<button class="btn sm danger" @onclick='() => Alert("Danger in group!")'>Button</button>
+		</div>
+	</div>
+</section>
+<section class="slim">
+    <div class="card">
+        <h1>
+            Form
+        </h1>
+
+		<form action="#" method="post" autocomplete="on">
+
+			<fieldset>
+				<legend>Profil</legend>
+
+				<div class="form-group">
+					<label for="name">Vollständiger Name</label>
+					<input id="name" name="name" type="text" class="form-control"
+						autocomplete="name" required />
+				</div>
+
+				<div class="form-group">
+					<label for="email">E-Mail</label>
+					<input id="email" name="email" type="email" class="form-control"
+						autocomplete="email" inputmode="email" required />
+					<small id="email-help">Wir teilen deine E-Mail nicht.</small>
+				</div>
+
+				<div class="form-group">
+					<label for="password">Passwort</label>
+					<input id="password" name="password" type="password" class="form-control"
+						autocomplete="new-password" minlength="8" required aria-describedby="pw-help" />
+					<small id="pw-help">Mind. 8 Zeichen.</small>
+				</div>
+
+				<div class="form-group">
+					<label for="tel">Telefon</label>
+					<input id="tel" name="tel" type="tel" class="form-control"
+						autocomplete="tel" inputmode="tel" placeholder="+49 123 456789" />
+				</div>
+			</fieldset>
+
+			<fieldset>
+				<legend>Eingaben</legend>
+
+				<div class="form-group">
+					<label for="username">Username (mit Vorschlägen)</label>
+					<input id="username" name="username" type="text" class="form-control" list="user-suggestions" />
+					<datalist id="user-suggestions">
+						<option value="jonathan42"></option>
+						<option value="jkjeberle"></option>
+						<option value="dev-jon"></option>
+					</datalist>
+				</div>
+
+				<div class="form-group">
+					<label for="search">Suche</label>
+					<input id="search" name="search" type="search" class="form-control" inputmode="search" />
+				</div>
+
+				<div class="form-group">
+					<label for="url">Website</label>
+					<input id="url" name="url" type="url" class="form-control" placeholder="https://example.com" />
+				</div>
+
+				<div class="form-group">
+					<label for="number">Zahl (0–100)</label>
+					<input id="number" name="number" type="number" class="form-control" min="0" max="100" step="1" />
+				</div>
+
+				<div class="form-group">
+					<label for="range">Range (Live-Ausgabe)</label>
+					<input id="range" name="range" type="range" min="0" max="10" value="5"
+						oninput="range_out.value=this.value" />
+					<output id="range_out" for="range">5</output>
+				</div>
+
+				<div class="form-group">
+					<label for="color">Farbe</label>
+					<input id="color" name="color" type="color" value="#4f46e5" />
+				</div>
+
+				<div class="form-group">
+					<label for="file">Datei(en)</label>
+					<input id="file" name="file" type="file" multiple accept=".png,.jpg,.jpeg,.pdf" />
+				</div>
+
+				<div class="form-group">
+					<label for="bio">Kurzbio</label>
+					<textarea id="bio" name="bio" class="form-control" rows="4" maxlength="500" spellcheck="true"></textarea>
+				</div>
+
+				<div class="form-group">
+					<label for="select">Auswahl</label>
+					<select id="select" name="select" class="form-control" required>
+						<option value="" disabled selected>Bitte wählen…</option>
+						<optgroup label="Gruppe A">
+							<option value="a1">A1</option>
+							<option value="a2">A2</option>
+						</optgroup>
+						<optgroup label="Gruppe B">
+							<option value="b1">B1</option>
+							<option value="b2">B2</option>
+						</optgroup>
+					</select>
+				</div>
+			</fieldset>
+
+			<!-- Zeit & Datum -->
+			<fieldset>
+				<legend>Zeit & Datum</legend>
+
+				<div class="form-group">
+					<label for="date">Datum</label>
+					<input id="date" name="date" type="date" />
+				</div>
+
+				<div class="form-group">
+					<label for="time">Uhrzeit</label>
+					<input id="time" name="time" type="time" />
+				</div>
+
+				<div class="form-group">
+					<label for="datetime">Lokal (Datum & Zeit)</label>
+					<input id="datetime" name="datetime" type="datetime-local" />
+				</div>
+
+				<div class="form-group">
+					<label for="month">Monat</label>
+					<input id="month" name="month" type="month" />
+				</div>
+
+				<div class="form-group">
+					<label for="week">Kalenderwoche</label>
+					<input id="week" name="week" type="week" />
+				</div>
+			</fieldset>
+
+			<fieldset>
+				<legend>Optionen</legend>
+
+				<div class="form-group">
+					<span id="rad-legend">Radio</span><br />
+					<input id="r1" name="radio" type="radio" value="1" aria-labelledby="rad-legend" />
+					<label for="r1">Option 1</label>
+					<input id="r2" name="radio" type="radio" value="2" />
+					<label for="r2">Option 2</label>
+				</div>
+
+				<div class="form-group">
+					<span id="chk-legend">Checkboxen</span><br />
+					<input id="c1" name="features" type="checkbox" value="f1" aria-labelledby="chk-legend" />
+					<label for="c1">Feature 1</label>
+					<input id="c2" name="features" type="checkbox" value="f2" />
+					<label for="c2">Feature 2</label>
+				</div>
+			</fieldset>
+
+			<fieldset>
+				<legend>Extras</legend>
+
+				<div class="form-group">
+					<label for="meter">Fortschritt (Meter)</label>
+					<meter id="meter" min="0" max="100" low="30" high="70" optimum="85" value="60">60</meter>
+				</div>
+
+				<div class="form-group">
+					<label for="progress">Upload (Progress)</label>
+					<progress id="progress" value="0" max="100">0%</progress>
+				</div>
+
+				<input type="hidden" name="hidden_token" value="abc123" />
+			</fieldset>
+
+			<div class="form-group">
+				<button type="submit" class="btn primary">Absenden</button>
+				<button type="reset" class="btn flat">Zurücksetzen</button>
+			</div>
+		</form>
+    </div>
+</section>
+<section class="slim">
+    <div class="card">
+        <h1>
+            Test
+        </h1><div class="table-wrap table-sm" style="--col-1-w: 22ch; --col-2-w: 16ch; --col-3-w: 34ch; --col-4-w: 12ch; --col-5-w: 12ch;">
+    <table class="aud-table">
+        <colgroup>
+            <col />
+            <col />
+            <col />
+            <col />
+            <col />
+        </colgroup>
+        <thead>
+            <tr>
+                <th scope="col">Order #</th>
+                <th scope="col">Date</th>
+                <th scope="col">Customer</th>
+                <th scope="col">Total</th>
+                <th scope="col">Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td data-label="Order #" class="td-nowrap">ORD-2025-0001</td>
+                <td data-label="Date" class="td-nowrap">2025-08-01</td>
+                <td data-label="Customer" class="td-truncate">Acme Industries GmbH, Procurement Team South-West</td>
+                <td data-label="Total" class="td-num">1 249,00 €</td>
+                <td data-label="Status"><span class="td-badge success">Paid</span></td>
+            </tr>
+            <tr>
+                <td data-label="Order #" class="td-nowrap">ORD-2025-0002</td>
+                <td data-label="Date" class="td-nowrap">2025-08-03</td>
+                <td data-label="Customer" class="td-truncate">Müller & Söhne KG</td>
+                <td data-label="Total" class="td-num">219,90 €</td>
+                <td data-label="Status"><span class="td-badge warn">Pending</span></td>
+            </tr>
+            <tr>
+                <td data-label="Order #" class="td-nowrap">ORD-2025-0003</td>
+                <td data-label="Date" class="td-nowrap">2025-08-05</td>
+                <td data-label="Customer" class="td-truncate">Globex Europe AG</td>
+                <td data-label="Total" class="td-num">9 870,00 €</td>
+                <td data-label="Status"><span class="td-badge danger">Overdue</span></td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+    </div>
+</section>
+
+<AuthorizeView>
+    <Authorized>
+        <RedirectToCockpit />
+    </Authorized>
+    <NotAuthorized>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+	private async Task Alert(string message)
+	{
+		await JS.InvokeVoidAsync("alert", message);
+	}
+}
+=== ./Pages/Logout.razor ===
+@page "/logout"
+@inject NavigationManager Navigation
+
+@code {
+    protected override void OnInitialized()
+    {
+        // Einfache Weiterleitung zu AuthController
+        Navigation.NavigateTo("/api/auth/logout", true);
+    }
+}
+=== ./Pages/Login.razor ===
+@page "/login"
+@using CMC.Contracts.Users
+@inject NavigationManager Navigation
+@inject ILogger<Login> Logger
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Login</PageTitle>
+
+<section class="slim">
+    <div class="card">
+        <h2>Login</h2>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger">@errorMessage</div>
+        }
+
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <div class="alert alert-success">@successMessage</div>
+        }
+
+        <EditForm Model="@loginRequest" OnValidSubmit="@HandleLogin">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <InputText id="email" class="form-control" @bind-Value="loginRequest.Email" />
+                <ValidationMessage For="@(() => loginRequest.Email)" />
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <InputText id="password" type="password" class="form-control" @bind-Value="loginRequest.Password" />
+                <ValidationMessage For="@(() => loginRequest.Password)" />
+            </div>
+
+            <button type="submit" class="btn primary" disabled="@isLoading">
+                @if (isLoading)
+                {
+                    <span class="spinner-border spinner-border-sm" role="status"></span>
+                    <span> Logging in...</span>
+                }
+                else
+                {
+                    <span>Login</span>
+                }
+            </button>
+        </EditForm>
+
+        <p>
+            Don't have an account? <a href="/register">Register here</a>
+        </p>
+        <p>
+            <a href="/forgot-password">Forgot Password?</a>
+        </p>
+
+    </div>
+</section>
+@code {
+    private LoginRequest loginRequest = new()
+    {
+        Email = string.Empty,
+        Password = string.Empty
+    };
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+    private bool isLoading = false;
+
+    private async Task HandleLogin()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = string.Empty;
+            successMessage = string.Empty;
+
+            Logger.LogInformation("🔐 Login attempt for: {Email}", loginRequest.Email);
+
+            // Sende Login-Request an API Controller
+            var response = await JSRuntime.InvokeAsync<bool>("submitLoginForm", loginRequest);
+
+            if (response)
+            {
+                Logger.LogInformation("✅ Login successful for: {Email}", loginRequest.Email);
+                successMessage = "Login successful! Redirecting...";
+                StateHasChanged();
+
+                // Warte kurz und lade die Seite neu für Auth-State Update
+                await Task.Delay(1000);
+                Navigation.NavigateTo("/", forceLoad: true);
+            }
+            else
+            {
+                Logger.LogWarning("❌ Login failed for: {Email}", loginRequest.Email);
+                errorMessage = "Invalid email or password";
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Login error for: {Email}", loginRequest.Email);
+            errorMessage = "An unexpected error occurred.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+}
+=== ./Pages/ForgotPassword.razor ===
+@page "/forgot-password"
+@using CMC.Application.Services
+@inject UserService UserService
+
+<PageTitle>Forgot Password</PageTitle>
+
+<div class="row justify-content-center">
+    <div class="col-md-4">
+        <h2>Forgot Password</h2>
+
+        @if (!string.IsNullOrEmpty(message))
+        {
+            <div class="alert alert-info">@message</div>
+        }
+
+        <EditForm Model="@emailModel" OnValidSubmit="@HandleForgotPassword">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <InputText id="email" class="form-control" @bind-Value="emailModel.Email" />
+                <ValidationMessage For="@(() => emailModel.Email)" />
+            </div>
+
+            <button type="submit" class="btn primary" disabled="@isLoading">
+                @if (isLoading)
+                {
+                    <span class="spinner-border spinner-border-sm" role="status"></span>
+                    <span> Sending...</span>
+                }
+                else
+                {
+                    <span>Send Reset Link</span>
+                }
+            </button>
+        </EditForm>
+
+        <hr />
+        <p>
+            <a href="/login">Back to Login</a>
+        </p>
+    </div>
+</div>
+
+@code {
+    public class EmailModel
+    {
+        [Required, EmailAddress]
+        public string Email { get; set; } = string.Empty;
+    }
+
+    private EmailModel emailModel = new();
+    private string message = string.Empty;
+    private bool isLoading = false;
+
+    private async Task HandleForgotPassword()
+    {
+        try
+        {
+            isLoading = true;
+            message = string.Empty;
+
+            await UserService.RequestPasswordResetAsync(emailModel.Email);
+            message = "If an account with that email exists, a password reset link has been sent.";
+
+            emailModel.Email = string.Empty;
+        }
+        catch (Exception)
+        {
+            message = "An error occurred. Please try again.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}
+=== ./Pages/CockpitPages/CockpitOverview.razor ===
+@* CockpitPages/CockpitOverview.razor *@
+<div class="card">
+    <h2>Übersicht</h2>
+</div>
+=== ./Pages/CockpitPages/CockpitScenarios.razor ===
+@* CockpitPages/CockpitScenarios.razor *@
+<div class="card">
+    <h2>Szenarien</h2>
+</div>
+=== ./Pages/CockpitPages/CockpitCustomers.razor ===
+@using System.Linq
+@using CMC.Contracts.Customers
+@using CMC.Web.Services
+@inject CMC.Application.Services.CustomerService CustomerService
+@inject EditDrawerService DrawerService
+@inject DialogService ConfirmService
+
+<div class="card">
+    <AutoTable TItem="CustomerDto"
+               Items="_customers"
+               AllowEdit="true"
+               OnEdit="StartEdit"
+               AllowCreate="true"
+               OnCreate="StartCreate" />
+</div>
+
+@code {
+    private List<CustomerDto> _customers = new();
+
+    protected override async Task OnInitializedAsync()
+        => _customers = await CustomerService.GetAllAsync();
+
+    private async Task Reload()
+    {
+        _customers = await CustomerService.GetAllAsync();
+        StateHasChanged();
+    }
+
+    private void StartEdit(CustomerDto c)
+    {
+        var req = new EditDrawerRequest
+        {
+            Title = "Kunde bearbeiten",
+            Model = c,
+            ContractsAssembly = typeof(CustomerDto).Assembly, // <-- WICHTIG
+            IsCreate = false,
+            OnSave = async ctx =>
+            {
+                try
+                {
+                    var up = (UpdateCustomerRequest)ctx.Build("Update");
+                    _ = await CustomerService.UpdateAsync(up);
+                    await Reload();
+                    DrawerService.Close();
+                }
+                catch (Exception ex)
+                {
+                    ConfirmService.Open(new DialogRequest
+                    {
+                        Title = "Fehler beim Speichern",
+                        Message = ex.Message,
+                        ConfirmText = "Okay",
+                        OnConfirm = () => Task.CompletedTask
+                    });
+                }
+            },
+            OnDelete = async ctx =>
+            {
+                var model = (CustomerDto)ctx.Model;
+
+                ConfirmService.Open(new DialogRequest
+                {
+                    Title = "Löschen bestätigen",
+                    Message = $"Firma „{model.Name}“ wirklich löschen?",
+                    ConfirmText = "Löschen",
+                    OnConfirm = async () =>
+                    {
+                        try
+                        {
+                            await CustomerService.DeleteAsync(model.Id);
+                            await Reload();
+                            DrawerService.Close();
+                        }
+                        catch (Exception ex)
+                        {
+                            ConfirmService.Open(new DialogRequest
+                            {
+                                Title = "Löschen fehlgeschlagen",
+                                Message = ex.Message,
+                                ConfirmText = "Okay",
+                                OnConfirm = () => Task.CompletedTask
+                            });
+                        }
+                    }
+                });
+            }
+        };
+
+        DrawerService.Open(req);
+    }
+
+    private void StartCreate()
+    {
+        var empty = new CustomerDto(
+            Id: Guid.Empty,
+            Name: "",
+            Industry: "",
+            EmployeeCount: 0,
+            RevenuePerYear: 0m,
+            IsActive: true,
+            CreatedAt: DateTime.UtcNow,
+            UpdatedAt: DateTime.UtcNow,
+            UserCount: 0
+        );
+
+        DrawerService.Open(new EditDrawerRequest
+        {
+            Title = "Firma anlegen",
+            Model = empty,
+            ContractsAssembly = typeof(CustomerDto).Assembly, // <-- WICHTIG
+            IsCreate = true,
+            OnSave = async ctx =>
+            {
+                try
+                {
+                    var req = (CreateCustomerRequest)ctx.Build("Create");
+                    _ = await CustomerService.CreateAsync(req);
+                    await Reload();
+                    DrawerService.Close();
+                }
+                catch (Exception ex)
+                {
+                    ConfirmService.Open(new DialogRequest
+                    {
+                        Title = "Fehler beim Anlegen",
+                        Message = ex.Message,
+                        ConfirmText = "Okay",
+                        OnConfirm = () => Task.CompletedTask
+                    });
+                }
+            }
+        });
+    }
+}
+=== ./Pages/CockpitPages/CockpitUsers.razor ===
+
+@using System.Linq
+@using CMC.Contracts.Users
+@using CMC.Contracts.Customers
+@using CMC.Web.Shared
+@using CMC.Web.Services
+@inject CMC.Application.Services.UserService UserService
+@inject CMC.Application.Services.CustomerService CustomerService
+@inject EditDrawerService DrawerService
+@inject DialogService ConfirmService
+
+<div class="card">
+    <AutoTable TItem="UserDto"
+               Items="_users"
+               AllowEdit="true"
+               OnEdit="StartEdit"
+               AllowCreate="true"
+               OnCreate="StartCreate" />
+</div>
+
+@code {
+    private List<UserDto> _users = new();
+    private List<CustomerDto> _customers = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _users = await UserService.GetAllAsync();
+        _customers = await CustomerService.GetAllAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        _users = await UserService.GetAllAsync();
+        _customers = await CustomerService.GetAllAsync();
+        StateHasChanged();
+    }
+
+    // ---------- Drawer Builder (einheitlich für Create/Edit) ----------
+    private async Task<EditDrawerRequest> BuildUserDrawer(UserDto model, bool isCreate)
+    {
+        if (_customers.Count == 0)
+            _customers = await CustomerService.GetAllAsync();
+
+        var req = new EditDrawerRequest
+        {
+            Title = isCreate ? "Benutzer anlegen" : "Benutzer bearbeiten",
+            Model = model,
+            ContractsAssembly = typeof(UserDto).Assembly, // CMC.Contracts.Users
+            IsCreate = isCreate,
+            OnSave = async ctx =>
+            {
+                try
+                {
+                    if (isCreate)
+                    {
+                        // Register: Passwort-Feld existiert nur im Create-Flow
+                        var reg = (RegisterUserRequest)ctx.Build("Register");
+                        _ = await UserService.RegisterAsync(reg);
+                        await ReloadAsync();
+                    }
+                    else
+                    {
+                        var up = (UpdateUserRequest)ctx.Build("Update");
+                        await UserService.UpdateAsync(up);
+                        await ReloadAsync();
+                    }
+
+                    DrawerService.Close();
+                }
+                catch (Exception ex)
+                {
+                    ConfirmService.Open(new DialogRequest
+                    {
+                        Title = "Fehler",
+                        Message = ex.Message,
+                        ConfirmText = "Okay",
+                        OnConfirm = () => Task.CompletedTask
+                    });
+                }
+            },
+            OnDelete = async ctx =>
+            {
+                var m = (UserDto)ctx.Model;
+                ConfirmService.Open(new DialogRequest
+                {
+                    Title = "Löschen bestätigen",
+                    Message = $"Benutzer „{m.FirstName} {m.LastName}“ wirklich löschen?",
+                    ConfirmText = "Löschen",
+                    OnConfirm = async () =>
+                    {
+                        try
+                        {
+                            await UserService.DeleteAsync(new DeleteUserRequest(m.Id));
+                            await ReloadAsync();
+                            DrawerService.Close();
+                        }
+                        catch (Exception ex)
+                        {
+                            ConfirmService.Open(new DialogRequest
+                            {
+                                Title = "Löschen fehlgeschlagen",
+                                Message = ex.Message,
+                                ConfirmText = "Okay",
+                                OnConfirm = () => Task.CompletedTask
+                            });
+                        }
+                    }
+                });
+            }
+        };
+
+        // ----- Relation: Firma (1:1) -----
+        // Options füttern den Dropdown im FormRenderer; der liefert beim Speichern über
+        // CompositeValueProvider den Wert "CustomerId" zurück (Guid? als string -> Guid).
+		req.ExtraFields.Add(new ExtraField(
+			Name: "CustomerId",
+			Label: "Firma",
+			Type: typeof(Guid?),
+			ReadOnly: false,
+			Hint: "Firma suchen oder neu anlegen.",
+			DataType: "relation-single", // <-- wichtig: RelationPicker aktivieren
+			Value: model.CustomerId,
+			Options: _customers.Select(c => new KeyValuePair<string, string>(c.Name, c.Id.ToString())).ToList(),
+			OnCreateNew: CreateCustomerInline // "+"-Button einblenden
+		));
+
+        // ----- Passwort NUR bei Create zeigen -----
+        if (isCreate)
+        {
+            req.ExtraFields.Add(new ExtraField(
+                Name: "Password",
+                Label: "Passwort",
+                Type: typeof(string),
+                ReadOnly: false,
+                Hint: "Mindestens 8 Zeichen",
+                DataType: "password" // Wird aktuell wie Text gerendert; Maskierung kannst du im FormRenderer leicht ergänzen.
+            ));
+        }
+
+        return req;
+    }
+
+    private async Task StartEdit(UserDto u)
+        => DrawerService.Open(await BuildUserDrawer(u, isCreate: false));
+
+    private async Task StartCreate()
+    {
+        var empty = new UserDto(
+            Id: Guid.Empty,
+            Email: "",
+            FirstName: "",
+            LastName: "",
+            Role: "",
+            Department: "",
+            IsEmailConfirmed: false,
+            CreatedAt: DateTime.UtcNow,
+            LastLoginAt: null,
+            CustomerId: null,
+            CustomerName: null
+        );
+
+        DrawerService.Open(await BuildUserDrawer(empty, isCreate: true));
+    }
+
+    // ---------- Optional: Inline Create Firma (separater Drawer) ----------
+    // Diese Methode bleibt verfügbar – einen UI-Trigger (z.B. Button neben dem Dropdown)
+    // kannst du später ergänzen. Der FormRenderer selbst unterstützt aktuell keinen
+    // OnCreateNew-Hook.
+    private async Task<KeyValuePair<string, string>?> CreateCustomerInline()
+    {
+        var tcs = new TaskCompletionSource<KeyValuePair<string, string>?>();
+
+        var empty = new CustomerDto(
+            Id: Guid.Empty,
+            Name: "",
+            Industry: "",
+            EmployeeCount: 0,
+            RevenuePerYear: 0m,
+            IsActive: true,
+            CreatedAt: DateTime.UtcNow,
+            UpdatedAt: DateTime.UtcNow,
+            UserCount: 0
+        );
+
+        DrawerService.Open(new EditDrawerRequest
+        {
+            Title = "Firma anlegen",
+            Model = empty,
+            ContractsAssembly = typeof(CustomerDto).Assembly,
+            IsCreate = true,
+            OnSave = async ctx =>
+            {
+                try
+                {
+                    var req = (CreateCustomerRequest)ctx.Build("Create");
+                    var created = await CustomerService.CreateAsync(req);
+
+                    // Liste refreshen (für den Firmen-Dropdown)
+                    _customers = await CustomerService.GetAllAsync();
+
+                    tcs.TrySetResult(new KeyValuePair<string, string>(created.Name, created.Id.ToString()));
+                    DrawerService.Close();
+                }
+                catch (Exception ex)
+                {
+                    tcs.TrySetResult(null);
+                    ConfirmService.Open(new DialogRequest
+                    {
+                        Title = "Fehler beim Anlegen",
+                        Message = ex.Message,
+                        ConfirmText = "Okay",
+                        OnConfirm = () => Task.CompletedTask
+                    });
+                }
+            },
+            OnDelete = _ => Task.CompletedTask
+        });
+
+        return await tcs.Task;
+    }
+}
+=== ./Pages/_Host.cshtml ===
+@page "/"
+@namespace CMC.Web.Pages
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CMC</title>
+    <base href="~/" />
+    <link rel="stylesheet" href="~/style.css" asp-append-version="true" />
+    <script src="js/cockpit.js"></script>
+</head>
+<body>
+    <component type="typeof(App)" render-mode="Server" />
+    <script src="_framework/blazor.server.js"></script>
+    <script>
+        // 🔧 Login Form Submit Helper
+        window.submitLoginForm = async function(loginRequest) {
+            try {
+                console.log('🔐 Submitting login form...', loginRequest);
+
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(loginRequest),
+                    credentials: 'include'
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    console.log('✅ Login successful');
+                    return true;
+                } else {
+                    console.log('❌ Login failed:', result.message);
+                    return false;
+                }
+            } catch (error) {
+                console.error('❌ Login error:', error);
+                return false;
+            }
+        };
+    </script>
+</body>
+</html>
+=== ./Pages/Profile.razor ===
+@page "/profile"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@attribute [Authorize]
+
+<PageTitle>Profile</PageTitle>
+
+<section class="slim">
+    <div class="card">
+        <h1>User Profile</h1>
+        <AuthorizeView>
+            <Authorized>
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">@GetFullName(context)</h5>
+                        <p class="card-text">
+                            <strong>Email:</strong> @context.User.Identity?.Name<br />
+                            <strong>User ID:</strong> @GetUserId(context)<br />
+                            <strong>First Name:</strong> @GetClaim(context, System.Security.Claims.ClaimTypes.GivenName)<br />
+                            <strong>Last Name:</strong> @GetClaim(context, System.Security.Claims.ClaimTypes.Surname)
+                        </p>
+                    </div>
+                </div>
+            </Authorized>
+        </AuthorizeView>
+    </div>
+</section>
+
+@code {
+    private string GetFullName(AuthenticationState authState)
+    {
+        var firstName = GetClaim(authState, System.Security.Claims.ClaimTypes.GivenName);
+        var lastName = GetClaim(authState, System.Security.Claims.ClaimTypes.Surname);
+        return $"{firstName} {lastName}".Trim();
+    }
+
+    private string GetUserId(AuthenticationState authState)
+    {
+        return GetClaim(authState, System.Security.Claims.ClaimTypes.NameIdentifier);
+    }
+
+    private string GetClaim(AuthenticationState authState, string claimType)
+    {
+        return authState.User.FindFirst(claimType)?.Value ?? "N/A";
+    }
+}
+=== ./Pages/ResetPassword.razor ===
+@page "/reset-password"
+@using CMC.Application.Services
+@using CMC.Contracts.Users
+@inject UserService UserService
+@inject NavigationManager Navigation
+
+<PageTitle>Reset Password</PageTitle>
+
+<div class="row justify-content-center">
+    <div class="col-md-4">
+        <h2>Reset Password</h2>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger">@errorMessage</div>
+        }
+
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <div class="alert alert-success">@successMessage</div>
+        }
+
+        <EditForm Model="@resetRequest" OnValidSubmit="@HandleResetPassword">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="form-group">
+                <label for="token">Reset Token:</label>
+                <InputText id="token" class="form-control" @bind-Value="resetRequest.Token" />
+                <ValidationMessage For="@(() => resetRequest.Token)" />
+            </div>
+
+            <div class="form-group">
+                <label for="newPassword">New Password:</label>
+                <InputText id="newPassword" type="password" class="form-control" @bind-Value="resetRequest.NewPassword" />
+                <ValidationMessage For="@(() => resetRequest.NewPassword)" />
+            </div>
+
+            <div class="form-group">
+                <label for="confirmPassword">Confirm New Password:</label>
+                <InputText id="confirmPassword" type="password" class="form-control" @bind-Value="confirmPassword" />
+                @if (!string.IsNullOrEmpty(confirmPassword) && resetRequest.NewPassword != confirmPassword)
+                {
+                    <div class="text-danger">Passwords do not match.</div>
+                }
+            </div>
+
+            <button type="submit" class="btn primary" disabled="@isLoading">
+                @if (isLoading)
+                {
+                    <span class="spinner-border spinner-border-sm" role="status"></span>
+                    <span> Resetting...</span>
+                }
+                else
+                {
+                    <span>Reset Password</span>
+                }
+            </button>
+        </EditForm>
+
+        <hr />
+        <p>
+            <a href="/login">Back to Login</a>
+        </p>
+    </div>
+</div>
+
+@code {
+    private ResetPasswordRequest resetRequest = new()
+    {
+        Token = string.Empty,
+        NewPassword = string.Empty
+    };
+    private string confirmPassword = string.Empty;
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+    private bool isLoading = false;
+
+    protected override void OnInitialized()
+    {
+        // Get token from query string if provided
+        var uri = new Uri(Navigation.Uri);
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+        if (query.TryGetValue("token", out var token))
+        {
+            resetRequest.Token = token.ToString();
+        }
+    }
+
+    private async Task HandleResetPassword()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = string.Empty;
+            successMessage = string.Empty;
+
+            if (resetRequest.NewPassword != confirmPassword)
+            {
+                errorMessage = "Passwords do not match.";
+                return;
+            }
+
+            var success = await UserService.ResetPasswordAsync(resetRequest);
+            if (success)
+            {
+                successMessage = "Password reset successful! You can now login with your new password.";
+                resetRequest = new()
+                {
+                    Token = string.Empty,
+                    NewPassword = string.Empty
+                };
+                confirmPassword = string.Empty;
+            }
+            else
+            {
+                errorMessage = "Invalid or expired reset token.";
+            }
+        }
+        catch (Exception)
+        {
+            errorMessage = "An error occurred. Please try again.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}
+=== ./Pages/Register.razor ===
+@page "/register"
+@using CMC.Application.Services
+@using CMC.Contracts.Users
+@using CMC.Domain.Common
+@inject UserService UserService
+@inject NavigationManager Navigation
+
+<PageTitle>Register</PageTitle>
+
+<section class="slim">
+    <div class="card">
+        <h1>
+            Register
+        </h1>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger">@errorMessage</div>
+        }
+
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <div class="alert alert-success">@successMessage</div>
+        }
+
+        <EditForm Model="@registerRequest" OnValidSubmit="@HandleRegister">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="form-group">
+                <label for="firstName">First Name:</label>
+                <InputText id="firstName" class="form-control" @bind-Value="registerRequest.FirstName" />
+                <ValidationMessage For="@(() => registerRequest.FirstName)" />
+            </div>
+
+            <div class="form-group">
+                <label for="lastName">Last Name:</label>
+                <InputText id="lastName" class="form-control" @bind-Value="registerRequest.LastName" />
+                <ValidationMessage For="@(() => registerRequest.LastName)" />
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <InputText id="email" class="form-control" @bind-Value="registerRequest.Email" />
+                <ValidationMessage For="@(() => registerRequest.Email)" />
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <InputText id="password" type="password" class="form-control" @bind-Value="registerRequest.Password" />
+                <ValidationMessage For="@(() => registerRequest.Password)" />
+            </div>
+
+            <div class="form-group">
+                <label for="confirmPassword">Confirm Password:</label>
+                <InputText id="confirmPassword" type="password" class="form-control" @bind-Value="confirmPassword" />
+                @if (!string.IsNullOrEmpty(confirmPassword) && registerRequest.Password != confirmPassword)
+                {
+                    <div class="text-danger">Passwords do not match.</div>
+                }
+            </div>
+
+            <button type="submit" class="btn primary" disabled="@isLoading">
+                @if (isLoading)
+                {
+                    <span class="spinner-border spinner-border-sm" role="status"></span>
+                    <span> Registering...</span>
+                }
+                else
+                {
+                    <span>Register</span>
+                }
+            </button>
+        </EditForm>
+
+        <p>
+            Already have an account? <a href="/login">Login here</a>
+        </p>
+    </div>
+</section>
+
+@code {
+    private RegisterUserRequest registerRequest = new()
+    {
+        FirstName = string.Empty,
+        LastName = string.Empty,
+        Email = string.Empty,
+        Password = string.Empty
+    };
+    private string confirmPassword = string.Empty;
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+    private bool isLoading = false;
+
+    private async Task HandleRegister()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = string.Empty;
+            successMessage = string.Empty;
+
+            if (registerRequest.Password != confirmPassword)
+            {
+                errorMessage = "Passwords do not match.";
+                return;
+            }
+
+            var user = await UserService.RegisterAsync(registerRequest);
+            successMessage = "Registration successful! You can now login.";
+
+            // Clear form
+            registerRequest = new()
+            {
+                FirstName = string.Empty,
+                LastName = string.Empty,
+                Email = string.Empty,
+                Password = string.Empty
+            };
+            confirmPassword = string.Empty;
+        }
+        catch (DomainException domainEx)
+        {
+            errorMessage = domainEx.Message;
+        }
+        catch
+        {
+            errorMessage = "An error occurred during registration. Please try again.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}
+=== ./Pages/Cockpit.razor ===
+@* Pages/Cockpit.razor *@
+@attribute [Authorize]
+@page "/cockpit"
+@page "/cockpit/{*Section}"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Routing
+@using Microsoft.AspNetCore.Components.Web
+@using CMC.Web.Pages.CockpitPages
+@inject NavigationManager Navigation
+
+<PageTitle>CMC - Cockpit</PageTitle>
+
+<div class="cockpit">
+	<aside class="aside-main">
+		<ul class="menu-root">
+			@RenderNodes(Nodes)
+		</ul>
+	</aside>
+
+	<div class="board">
+		@RenderContent()
+	</div>
+</div>
+
+@code {
+	[Parameter] public string? Section { get; set; }
+
+	private readonly HashSet<string> _open = new();
+
+	private List<MenuNode> Nodes = new()
+	{
+		new MenuNode
+		{
+			Id = "customers",
+			Text = "Firmenkunden",
+			Href = "/cockpit/customers",
+			Match = NavLinkMatch.All,
+			Component = typeof(CockpitCustomers)
+		},
+		new MenuNode
+		{
+			Id = "users",
+			Text = "Benutzer",
+			Href = "/cockpit/users",
+			Match = NavLinkMatch.All,
+			Component = typeof(CockpitUsers)
+		},
+	};
+
+	protected override void OnInitialized()
+	{
+		Navigation.LocationChanged += HandleLocationChanged;
+		UpdateSectionFromUri();
+		ExpandAncestorsForCurrentPath();
+	}
+
+	protected override void OnParametersSet()
+	{
+		UpdateSectionFromUri();
+		ExpandAncestorsForCurrentPath();
+	}
+
+	private void HandleLocationChanged(object? sender, LocationChangedEventArgs e)
+	{
+		UpdateSectionFromUri();
+		ExpandAncestorsForCurrentPath();
+		InvokeAsync(StateHasChanged);
+	}
+
+	private void UpdateSectionFromUri()
+	{
+		var path = Navigation.ToBaseRelativePath(Navigation.Uri);
+
+		if (path.StartsWith("cockpit/"))
+		{
+			Section = path.Substring("cockpit/".Length);
+		}
+		else if (path == "cockpit" || path == "cockpit/")
+		{
+			Section = "overview";
+		}
+	}
+
+	// ---------- MENU RENDER ----------
+	private RenderFragment RenderNodes(IEnumerable<MenuNode> nodes) => builder =>
+	{
+		var seq = 0;
+		foreach (var node in nodes)
+		{
+			var isOpen = _open.Contains(node.Id);
+			var hasChildren = node.Children?.Any() == true;
+
+			builder.OpenElement(seq++, "li");
+			builder.AddAttribute(seq++, "class", $"menu-node {(hasChildren ? "has-children" : "")} {(isOpen ? "open" : "")}");
+
+			builder.OpenElement(seq++, "div");
+			builder.AddAttribute(seq++, "class", "menu-row");
+			builder.AddAttribute(seq++, "role", hasChildren ? "button" : null);
+			builder.AddAttribute(seq++, "aria-expanded", hasChildren ? isOpen.ToString().ToLower() : null);
+			builder.AddAttribute(seq++, "aria-controls", hasChildren ? $"sub-{node.Id}" : null);
+
+			if (!string.IsNullOrWhiteSpace(node.Href))
+			{
+				builder.OpenComponent<NavLink>(seq++);
+				builder.AddAttribute(seq++, "href", node.Href);
+				if (node.Match.HasValue) builder.AddAttribute(seq++, "Match", node.Match.Value);
+				builder.AddAttribute(seq++, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, () => OnNodeClicked(node)));
+				builder.AddAttribute(seq++, "ChildContent", (RenderFragment)(b => b.AddContent(seq++, node.Text)));
+				builder.CloseComponent();
+			}
+			else
+			{
+				builder.OpenElement(seq++, "span");
+				builder.AddAttribute(seq++, "class", "menu-label");
+				if (hasChildren)
+				{
+					builder.AddAttribute(seq++, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, () => OnNodeClicked(node)));
+					builder.AddAttribute(seq++, "tabindex", "0");
+				}
+				builder.AddContent(seq++, node.Text);
+				builder.CloseElement();
+			}
+
+			builder.CloseElement(); // .menu-row
+
+			if (hasChildren)
+			{
+				builder.OpenElement(seq++, "ul");
+				builder.AddAttribute(seq++, "id", $"sub-{node.Id}");
+				builder.AddAttribute(seq++, "class", "submenu");
+				if (!isOpen) builder.AddAttribute(seq++, "hidden", "hidden");
+				builder.AddContent(seq++, RenderNodes(node.Children!));
+				builder.CloseElement();
+			}
+
+			builder.CloseElement(); // li
+		}
+	};
+
+	// ---------- CONTENT RENDER (einzige Version!) ----------
+	private RenderFragment RenderContent() => builder =>
+	{
+		var currentPath = "/" + Navigation.ToBaseRelativePath(Navigation.Uri).TrimEnd('/');
+		if (string.IsNullOrWhiteSpace(currentPath) || currentPath == "/cockpit")
+			currentPath = "/cockpit";
+
+		var activeNode = FindNodeByHref(Nodes, currentPath);
+		var componentType = activeNode?.Component ?? typeof(CockpitOverview);
+
+		builder.OpenComponent(0, componentType);
+		builder.CloseComponent();
+	};
+
+	// ---------- HELPERS ----------
+	private MenuNode? FindNodeByHref(IEnumerable<MenuNode> nodes, string path)
+	{
+		foreach (var node in nodes)
+		{
+			if (!string.IsNullOrWhiteSpace(node.Href) &&
+				string.Equals(node.Href.TrimEnd('/'), path.TrimEnd('/'), StringComparison.OrdinalIgnoreCase))
+			{
+				return node;
+			}
+
+			if (node.Children?.Any() == true)
+			{
+				var child = FindNodeByHref(node.Children, path);
+				if (child != null) return child;
+			}
+		}
+		return null;
+	}
+
+	private void OnNodeClicked(MenuNode node)
+	{
+		if (node.Children?.Any() == true)
+			Toggle(node.Id);
+	}
+
+	private void Toggle(string id)
+	{
+		if (_open.Contains(id)) _open.Remove(id);
+		else _open.Add(id);
+	}
+
+	private void ExpandAncestorsForCurrentPath()
+	{
+		var currentPath = "/" + Navigation.ToBaseRelativePath(Navigation.Uri);
+		var active = FindPathByHref(Nodes, currentPath);
+		if (active is null || active.Count == 0) return;
+
+		foreach (var ancestor in active)
+			_open.Add(ancestor.Id);
+	}
+
+	private List<MenuNode>? FindPathByHref(IEnumerable<MenuNode> nodes, string currentPath)
+	{
+		foreach (var n in nodes)
+		{
+			var isMatch = !string.IsNullOrWhiteSpace(n.Href) &&
+				(string.Equals(n.Href!.TrimEnd('/'), currentPath.TrimEnd('/'), StringComparison.OrdinalIgnoreCase)
+					|| (currentPath.StartsWith(n.Href!.TrimEnd('/') + "/", StringComparison.OrdinalIgnoreCase)));
+
+			if (isMatch) return new List<MenuNode> { n };
+
+			if (n.Children?.Any() == true)
+			{
+				var childPath = FindPathByHref(n.Children!, currentPath);
+				if (childPath != null)
+				{
+					childPath.Insert(0, n);
+					return childPath;
+				}
+			}
+		}
+		return null;
+	}
+
+	public void Dispose()
+	{
+		Navigation.LocationChanged -= HandleLocationChanged;
+	}
+
+	private class MenuNode
+	{
+		public string Id { get; set; } = Guid.NewGuid().ToString("N");
+		public string Text { get; set; } = "";
+		public string? Href { get; set; }
+		public NavLinkMatch? Match { get; set; } = NavLinkMatch.Prefix;
+		public List<MenuNode>? Children { get; set; }
+		public Type? Component { get; set; } // <-- neu
+	}
+}
+=== ./appsettings.Production.json ===
+{
+  "ConnectionStrings": {
+    "DefaultConnection": ""
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning",
+      "Microsoft.EntityFrameworkCore.Database.Command": "Warning",
+      "Microsoft.AspNetCore.Hosting.Diagnostics": "Warning",
+      "Microsoft.AspNetCore.DataProtection": "Warning",
+      "Microsoft.AspNetCore.Authentication": "Information"
+    },
+  "Console": {
+      "IncludeScopes": false,
+      "LogLevel": { "Default": "Information" }
+    },
+    "File": {
+      "Path": "/var/log/cmc-app/cmc-app-.txt",
+      "LogLevel": { "Default": "Information" }
+    }
+  },
+  "AllowedHosts": "*",
+  "DetailedErrors": false,
+  "Kestrel": {
+    "Endpoints": {
+      "Http": { "Url": "http://localhost:5000" }
+    }
+  },
+  "Security": {
+    "RequireHttpsMetadata": false,
+    "CookieSecure": false,
+    "UseHsts": false
+  }
+}
+=== ./Services/Relations.cs ===
+// src/CMC.Web/Services/Relations.cs
+namespace CMC.Web.Services;
+
+public enum RelationKind
+{
+    Reference,   // n:1 oder 1:1 -> Single Select
+    OneToMany,   // 1:n -> meist read-only Liste (ableitbar)
+    ManyToMany   // n:m -> Multi Select
+}
+
+public sealed record RelationOption(string Label, string Value);
+
+public sealed class RelationDescriptor
+{
+    public required string Name { get; init; }
+    public required RelationKind Kind { get; init; }
+    public required string FieldKey { get; init; }
+
+    public required Func<Task<IEnumerable<RelationOption>>> LoadOptions { get; init; }
+    public required Func<object, Task<object?>> LoadCurrentSelection { get; init; }
+
+    // Reference
+    public Func<object, string?, Task>? SetReference { get; init; }
+
+    // ManyToMany
+    public Func<object, IEnumerable<string>, Task>? AddMany { get; init; }
+    public Func<object, IEnumerable<string>, Task>? RemoveMany { get; init; }
+
+    public Func<object, Task>? OnChanged { get; init; }
+}
+=== ./Services/EditDrawerService.cs ===
+using System;
+using System.Collections.Generic;
+using System.Reflection;
+using System.Threading.Tasks;
+using CMC.Web.Shared;
+
+namespace CMC.Web.Services;
+
+public sealed class EditDrawerRequest
+{
+    /// <summary>Titel im Drawer.</summary>
+    public string Title { get; set; } = string.Empty;
+
+    /// <summary>Das anzuzeigende/zu bearbeitende Modell (typisch DTO).</summary>
+    public object Model { get; set; } = default!;
+
+    /// <summary>Assembly, in der die Request-Typen liegen (für ctx.Build("Create"/"Update")).</summary>
+    public Assembly ContractsAssembly { get; set; } = typeof(string).Assembly;
+
+    /// <summary>Erstellmodus (steuert Felder wie Passwort etc.).</summary>
+    public bool IsCreate { get; set; }
+
+    /// <summary>Zusätzliche, nicht aus dem DTO abgeleitete Felder (Relationen, Passwort, ...).</summary>
+    public List<ExtraField> ExtraFields { get; } = new();
+
+    /// <summary>Speichern-Callback (wird von EditDrawer aufgerufen).</summary>
+    public Func<RequestBuildContext, Task>? OnSave { get; set; }
+
+    /// <summary>Löschen-Callback (wird von EditDrawer aufgerufen).</summary>
+    public Func<RequestBuildContext, Task>? OnDelete { get; set; }
+}
+
+public sealed class EditDrawerService
+{
+    public event Action<EditDrawerRequest>? OpenRequested;
+    public event Action? CloseRequested;
+
+    public void Open(EditDrawerRequest request)
+    {
+        Console.WriteLine($"EditDrawerService.Open: {request.Title}");
+        OpenRequested?.Invoke(request);
+    }
+
+    public void Close()
+    {
+        Console.WriteLine("EditDrawerService.Close");
+        CloseRequested?.Invoke();
+    }
+}
+=== ./Services/EditSession.cs ===
+using CMC.Web.Shared;
+using CMC.Web.Util;
+using System.Reflection;
+
+namespace CMC.Web.Services;
+
+public sealed class EditSession
+{
+    public object Model { get; }
+    public Assembly ContractsAssembly { get; }
+    public string Action { get; }
+    public List<RelationDescriptor> Relations { get; } = new();
+    public List<ExtraField> ExtraFields { get; } = new();
+    private readonly Dictionary<string, object?> _accumulatedChanges = new(StringComparer.OrdinalIgnoreCase);
+
+    public EditSession(object model, Assembly contracts, string action = "Update")
+    {
+        Model = model;
+        ContractsAssembly = contracts;
+        Action = action;
+    }
+
+    public void ApplyLocalChanges(IReadOnlyDictionary<string, object?> changes)
+    {
+        foreach (var kv in changes) _accumulatedChanges[kv.Key] = kv.Value;
+    }
+
+    public IValueProvider BuildProvider()
+        => new CompositeValueProvider(Model, _accumulatedChanges);
+
+    public RequestBuildContext BuildCtx()
+        => new RequestBuildContext(Model, ContractsAssembly, BuildProvider(), Action);
+
+}
+=== ./Services/DialogService.cs ===
+namespace CMC.Web.Services;
+/// <summary>
+/// Service for managing confirmation dialogs throughout the application.
+/// Provides a centralized way to show confirmation prompts for critical actions.
+/// </summary>
+public class DialogService
+{
+    /// <summary>
+    /// Event triggered when a confirmation dialog should be opened.
+    /// </summary>
+    public event Action<DialogRequest>? OnOpen;
+
+    /// <summary>
+    /// Event triggered when the confirmation dialog should be closed.
+    /// </summary>
+    public event Action? OnClose;
+
+    /// <summary>
+    /// Opens a confirmation dialog with the specified request parameters.
+    /// </summary>
+    /// <param name="request">Dialog configuration and callbacks</param>
+    public void Open(DialogRequest request) => OnOpen?.Invoke(request);
+
+    /// <summary>
+    /// Closes the currently open confirmation dialog.
+    /// </summary>
+    public void Close() => OnClose?.Invoke();
+
+    /// <summary>
+    /// Convenience method for delete confirmations with standard messaging.
+    /// </summary>
+    /// <param name="itemName">Name of the item being deleted</param>
+    /// <param name="onConfirm">Action to execute when deletion is confirmed</param>
+    /// <param name="itemType">Type of item (default: "item")</param>
+    public void ConfirmDelete(string itemName, Func<Task> onConfirm, string itemType = "item")
+    {
+        Open(new DialogRequest
+        {
+            Title = $"Delete {itemType}",
+            Message = $"Are you sure you want to delete '{itemName}'?",
+            DetailMessage = "This action cannot be undone.",
+            ConfirmText = "Delete",
+            OnConfirm = onConfirm,
+            OnCancel  = () =>
+            {
+                Close();
+                return Task.CompletedTask; // einfache No-Op-Task
+            }
+        });
+    }
+}
+
+/// <summary>
+/// Request object for configuring confirmation dialogs.
+/// </summary>
+public class DialogRequest
+{
+    /// <summary>
+    /// Dialog title displayed in the header.
+    /// </summary>
+    public string Title { get; init; } = "Confirm Action";
+
+    /// <summary>
+    /// Main confirmation message.
+    /// </summary>
+    public string Message { get; init; } = "Are you sure you want to proceed?";
+
+    /// <summary>
+    /// Optional detailed message for additional context.
+    /// </summary>
+    public string? DetailMessage { get; init; }
+
+    /// <summary>
+    /// Text for the confirmation button.
+    /// </summary>
+    public string ConfirmText { get; init; } = "Confirm";
+
+    /// <summary>
+    /// Text for the cancel button.
+    /// </summary>
+    public string CancelText { get; init; } = "Cancel";
+
+    /// <summary>
+    /// Action to execute when user confirms.
+    /// </summary>
+	public Func<Task>? OnConfirm { get; init; }
+
+    /// <summary>
+    /// Action to execute when user cancels.
+    /// </summary>
+	public Func<Task>? OnCancel  { get; init; }
+}
+=== ./Program.cs ===
+// src/CMC.Web/Program.cs
+using CMC.Infrastructure;
+using CMC.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+using CMC.Application.Services;
+using CMC.Web.Services;
+using CMC.Web.Shared;
+using CMC.Web.Util;
+using CMC.Web.Auth; // CookieEvents
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.HttpOverrides;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// 🔧 SSL Development Fix – nur im Development
+if (builder.Environment.IsDevelopment())
+{
+    builder.WebHost.ConfigureKestrel(options =>
+    {
+        options.ConfigureHttpsDefaults(httpsOptions => { httpsOptions.ServerCertificate = null; });
+    });
+}
+
+// Add services
+builder.Services.AddRazorPages();
+builder.Services.AddServerSideBlazor(options => { options.DetailedErrors = true; });
+builder.Services.AddControllers();
+builder.Services.AddSignalR(options =>
+{
+    options.EnableDetailedErrors = true;
+    options.ClientTimeoutInterval = TimeSpan.FromSeconds(60);
+    options.HandshakeTimeout = TimeSpan.FromSeconds(30);
+});
+
+// HttpClient mit SSL-Bypass nur im Development
+builder.Services.AddHttpClient("default", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+})
+.ConfigurePrimaryHttpMessageHandler(() =>
+{
+    var handler = new HttpClientHandler();
+    if (builder.Environment.IsDevelopment())
+        handler.ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true;
+    return handler;
+});
+
+// App-Services (DI)
+builder.Services.AddSingleton<DialogService>();
+builder.Services.AddSingleton<IRelationshipManager, RelationshipManager>();
+builder.Services.AddScoped<EditDrawerService>();
+builder.Services.AddScoped<EditSessionFactory>();
+
+// Authentication + Cookie Setup (Events ausgelagert)
+builder.Services.AddScoped<CookieEvents>();
+builder.Services
+    .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.Cookie.Name = "CMC_Auth";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+
+        options.ExpireTimeSpan = TimeSpan.FromDays(30);
+        options.SlidingExpiration = true;
+        options.Cookie.MaxAge = TimeSpan.FromDays(30);
+        options.Cookie.Path = "/";
+        options.Cookie.IsEssential = true;
+
+        options.LoginPath = "/login";
+        options.LogoutPath = "/api/auth/logout";
+        options.AccessDeniedPath = "/login";
+
+        // Keine Inline-Lambdas -> verhindert MissingMethodException bei Hot Reload
+        options.EventsType = typeof(CookieEvents);
+    });
+
+builder.Services.AddAuthorization();
+builder.Services.AddCascadingAuthenticationState();
+builder.Services.AddHttpContextAccessor();
+
+// Infrastruktur (ConnectionString via Config/Env)
+builder.Services.AddInfrastructure(builder.Configuration);
+
+var app = builder.Build();
+
+// Forwarded Headers (wichtig hinter Nginx für HTTPS/Cookies)
+var fwdOptions = new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+};
+// klarer & compilierbar: explizit listen leeren
+fwdOptions.KnownNetworks.Clear();
+fwdOptions.KnownProxies.Clear();
+app.UseForwardedHeaders(fwdOptions);
+
+// Pipeline
+if (!app.Environment.IsDevelopment())
+{
+    app.UseExceptionHandler("/Error");
+    app.UseHsts();
+}
+else
+{
+    app.UseDeveloperExceptionPage();
+    Console.WriteLine("🔧 Development SSL Info:");
+    Console.WriteLine("   dotnet dev-certs https --trust");
+    Console.WriteLine("   oder nutze http://localhost:5000");
+}
+
+app.UseStaticFiles();
+app.UseRouting();
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapControllers();
+app.MapBlazorHub();
+app.MapRazorPages();
+app.MapFallbackToPage("/_Host");
+
+// Datenbank-Migration
+using (var scope = app.Services.CreateScope())
+{
+    try
+    {
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await context.Database.MigrateAsync();
+        Console.WriteLine("✅ Database migrations completed");
+    }
+    catch (Exception ex)
+    {
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "❌ Database setup failed");
+    }
+}
+
+Console.WriteLine("🚀 Starting CMC application...");
+Console.WriteLine("   📡 URLs kommen aus ASPNETCORE_URLS oder appsettings.json");
+
+app.Run();
+
+public partial class Program { }

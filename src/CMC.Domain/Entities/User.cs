@@ -6,7 +6,7 @@ namespace CMC.Domain.Entities;
 /// <summary>
 /// Domain entity representing a user in the CMC system.
 /// Implements domain-driven design principles with encapsulated state and behavior.
-/// Handles user authentication, email verification, and password reset functionality.
+/// Handles user authentication, email verification, password reset functionality, and customer association.
 /// </summary>
 public class User
 {
@@ -42,6 +42,34 @@ public class User
     /// User's last name for personalization and display purposes.
     /// </summary>
     public string LastName { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// User's role within their organization (e.g., "Manager", "Developer", "Admin").
+    /// Not scaffolded in UI forms.
+    /// </summary>
+    public string Role { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Department the user belongs to (e.g., "IT", "Sales", "Marketing").
+    /// Not scaffolded in UI forms.
+    /// </summary>
+    public string Department { get; private set; } = string.Empty;
+
+    #endregion
+
+    #region Properties - Customer Relationship
+
+    /// <summary>
+    /// Foreign key to the customer this user belongs to.
+    /// Null if user is not associated with any customer.
+    /// </summary>
+    public Guid? CustomerId { get; private set; }
+
+    /// <summary>
+    /// Navigation property to the customer this user belongs to.
+    /// Represents the company/organization the user works for.
+    /// </summary>
+    public virtual Customer? Customer { get; private set; }
 
     #endregion
 
@@ -99,8 +127,10 @@ public class User
     /// <param name="passwordHash">BCrypt hashed password</param>
     /// <param name="firstName">User's first name</param>
     /// <param name="lastName">User's last name</param>
-    /// <exception cref="ArgumentException">Thrown when any parameter is null or empty</exception>
-    public User(string email, string passwordHash, string firstName, string lastName)
+    /// <param name="role">User's role (optional)</param>
+    /// <param name="department">User's department (optional)</param>
+    /// <exception cref="ArgumentException">Thrown when any required parameter is null or empty</exception>
+    public User(string email, string passwordHash, string firstName, string lastName, string role = "", string department = "")
     {
         if (string.IsNullOrWhiteSpace(email)) throw new ArgumentException("Email cannot be null or empty", nameof(email));
         if (string.IsNullOrWhiteSpace(passwordHash)) throw new ArgumentException("Password hash cannot be null or empty", nameof(passwordHash));
@@ -112,6 +142,8 @@ public class User
         PasswordHash = passwordHash;
         FirstName = firstName;
         LastName = lastName;
+        Role = role ?? string.Empty;
+        Department = department ?? string.Empty;
         IsEmailConfirmed = false;
         CreatedAt = DateTime.UtcNow;
     }
@@ -144,15 +176,61 @@ public class User
 
     #endregion
 
-    #region Domain Methods - Helpers
+    #region Domain Methods - Personal Information
 
-    public void UpdatePersonalInfo(string firstName, string lastName)
+    /// <summary>
+    /// Updates the user's personal information.
+    /// </summary>
+    /// <param name="firstName">Updated first name</param>
+    /// <param name="lastName">Updated last name</param>
+    /// <param name="role">Updated role (optional)</param>
+    /// <param name="department">Updated department (optional)</param>
+    public void UpdatePersonalInfo(string firstName, string lastName, string? role = null, string? department = null)
     {
-      if (string.IsNullOrWhiteSpace(firstName)) throw new ArgumentException("First name cannot be null or empty", nameof(firstName));
-      if (string.IsNullOrWhiteSpace(lastName)) throw new ArgumentException("Last name cannot be null or empty", nameof(lastName));
+        if (string.IsNullOrWhiteSpace(firstName)) throw new ArgumentException("First name cannot be null or empty", nameof(firstName));
+        if (string.IsNullOrWhiteSpace(lastName)) throw new ArgumentException("Last name cannot be null or empty", nameof(lastName));
 
-      FirstName = firstName;
-      LastName = lastName;
+        FirstName = firstName;
+        LastName = lastName;
+
+        if (role != null) Role = role;
+        if (department != null) Department = department;
+    }
+
+    #endregion
+
+#region Domain Methods - Customer Association
+
+    /// <summary>
+    /// Assigns the user to a customer (company).
+    /// </summary>
+    /// <param name="customer">The customer to assign to</param>
+    public void AssignToCustomer(Customer customer)
+    {
+        if (customer == null) throw new ArgumentNullException(nameof(customer));
+
+        // Remove from current customer if any
+        if (Customer != null)
+        {
+            Customer.RemoveUser(this);
+        }
+
+        CustomerId = customer.Id;
+        Customer = customer;
+        customer.AddUser(this);
+    }
+
+    /// <summary>
+    /// Removes the user from their current customer.
+    /// </summary>
+    public void RemoveFromCustomer()
+    {
+        if (Customer != null)
+        {
+            Customer.RemoveUser(this);
+            Customer = null;
+        }
+        CustomerId = null;
     }
 
     #endregion

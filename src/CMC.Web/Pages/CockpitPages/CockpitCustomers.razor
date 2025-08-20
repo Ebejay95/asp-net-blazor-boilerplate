@@ -1,4 +1,134 @@
-@* CockpitPages/CockpitCustomers.razor *@
+@using System.Linq
+@using CMC.Contracts.Customers
+@using CMC.Web.Services
+@inject CMC.Application.Services.CustomerService CustomerService
+@inject EditDrawerService DrawerService
+@inject DialogService ConfirmService
+
 <div class="card">
-    <h2>Kunden</h2>
+    <AutoTable TItem="CustomerDto"
+               Items="_customers"
+               AllowEdit="true"
+               OnEdit="StartEdit"
+               AllowCreate="true"
+               OnCreate="StartCreate" />
 </div>
+
+@code {
+    private List<CustomerDto> _customers = new();
+
+    protected override async Task OnInitializedAsync()
+        => _customers = await CustomerService.GetAllAsync();
+
+    private async Task Reload()
+    {
+        _customers = await CustomerService.GetAllAsync();
+        StateHasChanged();
+    }
+
+    private void StartEdit(CustomerDto c)
+    {
+        var req = new EditDrawerRequest
+        {
+            Title = "Kunde bearbeiten",
+            Model = c,
+            ContractsAssembly = typeof(CustomerDto).Assembly, // <-- WICHTIG
+            IsCreate = false,
+            OnSave = async ctx =>
+            {
+                try
+                {
+                    var up = (UpdateCustomerRequest)ctx.Build("Update");
+                    _ = await CustomerService.UpdateAsync(up);
+                    await Reload();
+                    DrawerService.Close();
+                }
+                catch (Exception ex)
+                {
+                    ConfirmService.Open(new DialogRequest
+                    {
+                        Title = "Fehler beim Speichern",
+                        Message = ex.Message,
+                        ConfirmText = "Okay",
+                        OnConfirm = () => Task.CompletedTask
+                    });
+                }
+            },
+            OnDelete = async ctx =>
+            {
+                var model = (CustomerDto)ctx.Model;
+
+                ConfirmService.Open(new DialogRequest
+                {
+                    Title = "Löschen bestätigen",
+                    Message = $"Firma „{model.Name}“ wirklich löschen?",
+                    ConfirmText = "Löschen",
+                    OnConfirm = async () =>
+                    {
+                        try
+                        {
+                            await CustomerService.DeleteAsync(model.Id);
+                            await Reload();
+                            DrawerService.Close();
+                        }
+                        catch (Exception ex)
+                        {
+                            ConfirmService.Open(new DialogRequest
+                            {
+                                Title = "Löschen fehlgeschlagen",
+                                Message = ex.Message,
+                                ConfirmText = "Okay",
+                                OnConfirm = () => Task.CompletedTask
+                            });
+                        }
+                    }
+                });
+            }
+        };
+
+        DrawerService.Open(req);
+    }
+
+    private void StartCreate()
+    {
+        var empty = new CustomerDto(
+            Id: Guid.Empty,
+            Name: "",
+            Industry: "",
+            EmployeeCount: 0,
+            RevenuePerYear: 0m,
+            IsActive: true,
+            CreatedAt: DateTime.UtcNow,
+            UpdatedAt: DateTime.UtcNow,
+            UserCount: 0
+        );
+
+        DrawerService.Open(new EditDrawerRequest
+        {
+            Title = "Firma anlegen",
+            Model = empty,
+            ContractsAssembly = typeof(CustomerDto).Assembly, // <-- WICHTIG
+            IsCreate = true,
+            OnSave = async ctx =>
+            {
+                try
+                {
+                    var req = (CreateCustomerRequest)ctx.Build("Create");
+                    _ = await CustomerService.CreateAsync(req);
+                    await Reload();
+                    DrawerService.Close();
+                }
+                catch (Exception ex)
+                {
+                    ConfirmService.Open(new DialogRequest
+                    {
+                        Title = "Fehler beim Anlegen",
+                        Message = ex.Message,
+                        ConfirmText = "Okay",
+                        OnConfirm = () => Task.CompletedTask
+                    });
+                }
+            }
+        });
+    }
+}

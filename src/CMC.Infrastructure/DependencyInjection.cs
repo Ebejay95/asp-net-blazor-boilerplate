@@ -9,18 +9,23 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace CMC.Infrastructure;
 
-public static class DependencyInjection {
-  public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration) {
-    // Database
-    services.AddDbContext<AppDbContext>(options => options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
+public static class DependencyInjection
+{
+    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
+    {
+        // Database
+        services.AddDbContext<AppDbContext>(options =>
+            options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
 
-    // Repositories
-    services.AddScoped<IUserRepository, UserRepository>();
+        // Repositories
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<ICustomerRepository, CustomerRepository>();
 
-    // Services
-    services.AddScoped<IEmailService, EmailService>();
-    services.AddScoped<UserService>();
+        // Services
+        services.AddScoped<IEmailService, EmailService>();
+        services.AddScoped<UserService>();
+        services.AddScoped<CustomerService>();
 
-    return services;
-  }
+        return services;
+    }
 }

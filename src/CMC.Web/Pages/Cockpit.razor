@@ -32,43 +32,11 @@
 	{
 		new MenuNode
 		{
-			Id = "overview",
-			Text = "Übersicht",
-			Href = "/cockpit",
+			Id = "customers",
+			Text = "Firmenkunden",
+			Href = "/cockpit/customers",
 			Match = NavLinkMatch.All,
-			Component = typeof(CockpitOverview)
-		},
-		new MenuNode
-		{
-			Id = "kunden",
-			Text = "Kunden",
-			Href = "",
-			Children = new()
-			{
-				new MenuNode
-				{
-					Id="kunden-alle",
-					Text="Alle Kunden",
-					Href="/cockpit/kunden",
-					Component = typeof(CockpitCustomers)
-				}
-			}
-		},
-		new MenuNode
-		{
-			Id = "libraries",
-			Text = "Bibliotheken",
-			Href = "",
-			Children = new()
-			{
-				new MenuNode
-				{
-					Id="lib-scenarios",
-					Text="Szenarien",
-					Href="/cockpit/szenarien",
-					Component = typeof(CockpitScenarios)
-				}
-			}
+			Component = typeof(CockpitCustomers)
 		},
 		new MenuNode
 		{

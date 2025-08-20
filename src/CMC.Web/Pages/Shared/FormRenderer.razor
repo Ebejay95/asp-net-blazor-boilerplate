@@ -1,295 +1,310 @@
-@* src/CMC.Web/Pages/Shared/FormRenderer.razor *@
 @using System.ComponentModel.DataAnnotations
 @using System.Reflection
-@inherits ComponentBase
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Web
+@using CMC.Web.Shared
+@using CMC.Web.Pages.Shared
 
-@if (Model is not null)
-{
-	@foreach (var f in _fields)
-	{
-		<div class="form-group">
-			<label for="@f.Id">@f.Label</label>
-			@RenderInput(f)
-			@if (!string.IsNullOrWhiteSpace(f.Hint))
-			{
-				<small>@f.Hint</small>
-			}
-		</div>
-	}
+<div class="form-grid">
+    @if (Model is not null)
+    {
+        @foreach (var prop in VisibleProps)
+        {
+            var pType = EffectiveType(prop.PropertyType);
+            var label = GetDisplayName(prop) ?? prop.Name;
+            var current = prop.GetValue(Model);
 
-	@if (IsCreate)
-	{
-		<div class="form-group">
-			<label for="fld_Password">Passwort</label>
-			<input id="fld_Password"
-				   type="password"
-				   class="form-control"
-				   @bind="PasswordValue" />
-			<small>Mindestens 8 Zeichen</small>
-		</div>
-	}
-}
+            <div class="form-row">
+                <label class="form-label">@label</label>
+
+                @switch (TypeCodeOf(pType))
+                {
+                    case TypeCode.Boolean:
+                        {
+                            var chk = current as bool? ?? false;
+                            <input type="checkbox"
+                                   checked="@chk"
+                                   @onchange="e => OnBooleanChanged(prop.Name, e)" />
+                            break;
+                        }
+                    case TypeCode.DateTime:
+                        {
+                            var dt = current as DateTime? ?? default;
+                            var val = dt == default ? "" : ToDateTimeLocalValue(dt);
+                            <input class="form-control" type="datetime-local"
+                                   value="@val"
+                                   @onchange="e => OnChanged(prop.Name, ParseDateTimeLocal(e.Value?.ToString()))" />
+                            break;
+                        }
+                    case TypeCode.Decimal:
+                        {
+                            var dec = current as decimal? ?? 0m;
+                            <input class="form-control" type="number"
+                                   step="any"
+                                   value="@dec"
+                                   @onchange="e => OnChanged(prop.Name, ParseDecimal(e.Value?.ToString()))" />
+                            break;
+                        }
+                    case TypeCode.Double:
+                    case TypeCode.Single:
+                        {
+                            var dbl = current is double d ? d : current is float f ? (double)f : 0d;
+                            <input class="form-control" type="number"
+                                   step="any"
+                                   value="@dbl"
+                                   @onchange="e => OnChanged(prop.Name, ParseDouble(e.Value?.ToString()))" />
+                            break;
+                        }
+                    case TypeCode.Int16:
+                    case TypeCode.Int32:
+                    case TypeCode.Int64:
+                    case TypeCode.UInt16:
+                    case TypeCode.UInt32:
+                    case TypeCode.UInt64:
+                        {
+                            var num = current?.ToString() ?? "0";
+                            <input class="form-control" type="number"
+                                   step="1"
+                                   value="@num"
+                                   @onchange="e => OnChanged(prop.Name, ParseLongOrInt(pType, e.Value?.ToString()))" />
+                            break;
+                        }
+                    case TypeCode.String:
+                        {
+                            var txt = current?.ToString() ?? string.Empty;
+                            // Falls ein Property "Password" heißt, maskieren
+                            var isPw = prop.Name.Contains("Password", StringComparison.OrdinalIgnoreCase);
+                            <input class="form-control"
+                                   type="@(isPw ? "password" : "text")"
+                                   autocomplete="@(isPw ? "new-password" : null)"
+                                   value="@txt"
+                                   @onchange="e => OnChanged(prop.Name, e.Value?.ToString())" />
+                            break;
+                        }
+                    default:
+                        {
+                            if (pType == typeof(Guid))
+                            {
+                                var gtxt = current?.ToString() ?? string.Empty;
+                                <input class="form-control" type="text" value="@gtxt" disabled />
+                            }
+                            else
+                            {
+                                var raw = current?.ToString() ?? string.Empty;
+                                <input class="form-control" type="text" value="@raw"
+                                       @onchange="e => OnChanged(prop.Name, e.Value?.ToString())" />
+                            }
+                            break;
+                        }
+                }
+            </div>
+        }
+    }
+
+    @if (ExtraFields?.Count > 0)
+    {
+        @foreach (var ef in ExtraFields)
+        {
+            var label = string.IsNullOrWhiteSpace(ef.Label) ? ef.Name : ef.Label;
+            var hint  = ef.Hint;
+
+            <div class="form-row">
+                <label class="form-label">@label</label>
+
+                @* ---- Relation (Single) via RelationPicker ---- *@
+                @if (string.Equals(ef.DataType, "relation-single", StringComparison.OrdinalIgnoreCase))
+                {
+                    @InitRelationSingleState(ef)
+
+                    <RelationPicker IsMany="false"
+                                    Options="@(ef.Options ?? new())"
+                                    ValueSingle="@_relSingle[ef.Name]"
+                                    ValueSingleChanged="@(v => SetRelationSingle(ef.Name, v))"
+                                    OnCreateNew="ef.OnCreateNew"
+                                    Placeholder="Suchen…" />
+                }
+                else if (string.Equals(ef.DataType, "relation-many", StringComparison.OrdinalIgnoreCase))
+                {
+                    @InitRelationManyState(ef)
+
+                    <RelationPicker IsMany="true"
+                                    Options="@(ef.Options ?? new())"
+                                    ValueMany="@_relMany[ef.Name]"
+                                    ValueManyChanged="@(vals => SetRelationMany(ef.Name, vals))"
+                                    OnCreateNew="ef.OnCreateNew"
+                                    Placeholder="Suchen…" />
+                }
+                else if (string.Equals(ef.DataType, "password", StringComparison.OrdinalIgnoreCase))
+                {
+                    var txt = ef.Value?.ToString() ?? string.Empty;
+                    <input class="form-control" type="password"
+                           autocomplete="new-password"
+                           value="@txt"
+                           @onchange="e => OnChanged(ef.Name, e.Value?.ToString())" />
+                }
+                else if (ef.Options != null && ef.Options.Any())
+                {
+                    // Einfaches Dropdown
+                    var current = ef.Value?.ToString() ?? string.Empty;
+                    var isDisabled = ef.ReadOnly;
+
+                    <select class="form-control" disabled="@isDisabled" @onchange="e => OnChanged(ef.Name, e.Value?.ToString())">
+                        <option value="">-- bitte wählen --</option>
+                        @foreach (var opt in ef.Options)
+                        {
+                            var selected = string.Equals(opt.Value, current, StringComparison.OrdinalIgnoreCase);
+                            <option value="@opt.Value" selected="@selected">@opt.Key</option>
+                        }
+                    </select>
+                }
+                else
+                {
+                    // Textfeld (oder read-only)
+                    var txt = ef.Value?.ToString() ?? string.Empty;
+                    if (ef.ReadOnly)
+                    {
+                        <input class="form-control" type="text" value="@txt" disabled />
+                    }
+                    else
+                    {
+                        <input class="form-control" type="text" value="@txt" @onchange="e => OnChanged(ef.Name, e.Value?.ToString())" />
+                    }
+                }
+
+                @if (!string.IsNullOrWhiteSpace(hint))
+                {
+                    <div class="form-hint">@hint</div>
+                }
+            </div>
+        }
+    }
+</div>
 
 @code {
-	[Parameter] public object? Model { get; set; }
-	[Parameter] public bool IsCreate { get; set; } = false;
+    // ===================== Parameters & Cascade ================================
+    [Parameter, EditorRequired] public object Model { get; set; } = default!;
+    [Parameter] public List<ExtraField> ExtraFields { get; set; } = new();
+    [Parameter] public EventCallback<(string Name, object? Value)> OnFieldChanged { get; set; }
 
-	private readonly List<FieldMeta> _fields = new();
-	private readonly Dictionary<string, object?> _changes = new(StringComparer.OrdinalIgnoreCase);
+    [CascadingParameter] public RequestBuildContext? Ctx { get; set; }
 
-	private record FieldMeta(
-		PropertyInfo Prop,
-		string Id,
-		string Label,
-		int Order,
-		string? Format,
-		string? Hint,
-		Type Type,
-		bool ReadOnly
-	);
+    // ===================== RelationPicker interner State ======================
+    private readonly Dictionary<string, string?> _relSingle = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, List<string>> _relMany = new(StringComparer.OrdinalIgnoreCase);
 
-	// bind-Hilfseigenschaft fürs synthetische Password-Feld
-	private string PasswordValue
-	{
-		get => _changes.TryGetValue("Password", out var p) ? p?.ToString() ?? "" : "";
-		set => Write("Password", value);
-	}
+    private RenderFragment InitRelationSingleState(ExtraField ef) => builder =>
+    {
+        if (!_relSingle.ContainsKey(ef.Name))
+            _relSingle[ef.Name] = ef.Value?.ToString();
+    };
 
-	protected override void OnParametersSet()
-	{
-		BuildFields();
-		_changes.Clear(); // neuer Model-Context → Reset
-	}
+    private RenderFragment InitRelationManyState(ExtraField ef) => builder =>
+    {
+        if (!_relMany.ContainsKey(ef.Name))
+        {
+            // ef.Value kann CSV, IEnumerable<string> oder null sein – wir normalisieren auf List<string>
+            var lst = new List<string>();
+            if (ef.Value is IEnumerable<string> es) lst = es.ToList();
+            else if (ef.Value is string s && !string.IsNullOrWhiteSpace(s)) lst = s.Split(',').Select(x => x.Trim()).Where(x => x.Length > 0).ToList();
+            _relMany[ef.Name] = lst;
+        }
+    };
 
-	// Exponieren für den Drawer
-	public IReadOnlyDictionary<string, object?> GetChanges() => _changes;
+    private async Task SetRelationSingle(string name, string? value)
+    {
+        _relSingle[name] = value;
+        await OnChanged(name, value);
+    }
 
-	private void BuildFields()
-	{
-		_fields.Clear();
-		if (Model is null) return;
+    private async Task SetRelationMany(string name, List<string> values)
+    {
+        _relMany[name] = values;
+        // ⚠️ Falls du hier echte IEnumerable<Guid> im Request brauchst, musst du die Map-Logik im RequestFactory erweitern.
+        await OnChanged(name, values);
+    }
 
-		var t = Model.GetType();
-		var props = t.GetProperties(BindingFlags.Public | BindingFlags.Instance)
-			.Where(p =>
-			{
-				// Indexer überspringen
-				if (p.GetIndexParameters().Length > 0) return false;
+    // ===================== Reflection Helpers =================================
+    private IEnumerable<PropertyInfo> VisibleProps => GetVisibleProps();
 
-				// nie bearbeiten
-				if (string.Equals(p.Name, "Id", StringComparison.OrdinalIgnoreCase)) return false;
+    private IEnumerable<PropertyInfo> GetVisibleProps()
+    {
+        if (Model is null) yield break;
 
-				// Create: Systemfelder ausblenden
-				if (IsCreate && (p.Name.Equals("CreatedAt", StringComparison.OrdinalIgnoreCase)
-					|| p.Name.Equals("LastLoginAt", StringComparison.OrdinalIgnoreCase)
-					|| p.Name.Equals("IsEmailConfirmed", StringComparison.OrdinalIgnoreCase)))
-					return false;
+        var type = Model.GetType();
+        foreach (var p in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+        {
+            if (!p.CanRead) continue;
 
-				// ScaffoldColumn(false) respektieren
-				var scaffold = p.GetCustomAttributes(typeof(ScaffoldColumnAttribute), true)
-					.Cast<ScaffoldColumnAttribute>()
-					.FirstOrDefault();
-				if (scaffold?.Scaffold == false) return false;
+            var scaffold = p.GetCustomAttribute<ScaffoldColumnAttribute>();
+            if (scaffold is { Scaffold: false }) continue;
 
-				return true;
-			})
-			.Select(p =>
-			{
-				var display = p.GetCustomAttributes(typeof(DisplayAttribute), true).Cast<DisplayAttribute>().FirstOrDefault();
-				var fmt = p.GetCustomAttributes(typeof(DisplayFormatAttribute), true).Cast<DisplayFormatAttribute>().FirstOrDefault()?.DataFormatString;
-				var ro = p.SetMethod is null || p.GetSetMethod() is null;
-				return new FieldMeta(
-					Prop: p,
-					Id: $"fld_{p.Name}",
-					Label: display?.GetName() ?? SplitPascal(p.Name),
-					Order: display?.GetOrder() ?? int.MaxValue,
-					Format: fmt,
-					Hint: display?.GetDescription(),
-					Type: Nullable.GetUnderlyingType(p.PropertyType) ?? p.PropertyType,
-					ReadOnly: ro
-				);
-			})
-			.OrderBy(f => f.Order)
-			.ToList();
+            var disp = p.GetCustomAttribute<DisplayAttribute>();
+            if (disp?.GetAutoGenerateField() == false) continue;
 
-		_fields.AddRange(props);
-	}
+            yield return p;
+        }
+    }
 
-	private static string SplitPascal(string s)
-	{
-		var sb = new System.Text.StringBuilder();
-		for (int i = 0; i < s.Length; i++)
-		{
-			if (i > 0 && char.IsUpper(s[i]) && !char.IsUpper(s[i - 1]))
-				sb.Append(' ');
-			sb.Append(s[i]);
-		}
-		return sb.ToString();
-	}
+    private static string? GetDisplayName(PropertyInfo p)
+        => p.GetCustomAttribute<DisplayAttribute>()?.GetName();
 
-	private object? Read(string name)
-	{
-		if (_changes.TryGetValue(name, out var v)) return v;
-		return Model?.GetType().GetProperty(name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase)
-			?.GetValue(Model);
-	}
+    // ===================== Typing Helpers =====================================
+    private static Type EffectiveType(Type t) => Nullable.GetUnderlyingType(t) ?? t;
 
-	private void Write(string name, object? value)
-	{
-		_changes[name] = value;
-		StateHasChanged();
-	}
+    private static TypeCode TypeCodeOf(Type t)
+    {
+        var et = EffectiveType(t);
+        return Type.GetTypeCode(et);
+    }
 
-	private RenderFragment RenderInput(FieldMeta f) => builder =>
-	{
-		var seq = 0;
-		if (Model is null) return;
+    // ===================== Conversions / Format ===============================
+    private static string ToDateTimeLocalValue(DateTime dt)
+    {
+        var local = dt.Kind == DateTimeKind.Utc ? dt.ToLocalTime() : dt;
+        return local.ToString("yyyy-MM-ddTHH:mm");
+    }
 
-		object? val = Read(f.Prop.Name);
-		var isNullable = Nullable.GetUnderlyingType(f.Prop.PropertyType) != null;
+    private static DateTime? ParseDateTimeLocal(string? s)
+        => DateTime.TryParse(s, out var dt) ? dt : null;
 
-		if (f.ReadOnly)
-		{
-			builder.OpenElement(seq++, "div");
-			builder.AddAttribute(seq++, "class", "form-control ed-readonly");
-			builder.AddAttribute(seq++, "id", f.Id);
-			builder.AddAttribute(seq++, "readonly", true);
-			builder.AddContent(seq++, val?.ToString());
-			builder.CloseElement();
-			return;
-		}
+    private static decimal? ParseDecimal(string? s)
+        => decimal.TryParse(s, System.Globalization.NumberStyles.Any,
+                            System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : null;
 
-		// bool → checkbox
-		if (f.Type == typeof(bool))
-		{
-			builder.OpenElement(seq++, "input");
-			builder.AddAttribute(seq++, "type", "checkbox");
-			builder.AddAttribute(seq++, "class", "ed-checkbox");
-			builder.AddAttribute(seq++, "id", f.Id);
-			builder.AddAttribute(seq++, "checked", (bool?)(val ?? false) == true);
-			builder.AddAttribute(seq++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, e =>
-			{
-				var b = e.Value is bool bb ? bb : (e.Value?.ToString()?.ToLower() == "true");
-				Write(f.Prop.Name, b);
-			}));
-			builder.CloseElement();
-			return;
-		}
+    private static double? ParseDouble(string? s)
+        => double.TryParse(s, System.Globalization.NumberStyles.Any,
+                           System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : null;
 
-		// enum → select
-		if (f.Type.IsEnum)
-		{
-			builder.OpenElement(seq++, "select");
-			builder.AddAttribute(seq++, "class", "form-control");
-			builder.AddAttribute(seq++, "id", f.Id);
-			builder.AddAttribute(seq++, "value", val?.ToString());
-			builder.AddAttribute(seq++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, e =>
-			{
-				var s = e.Value?.ToString();
-				if (s is null) return;
-				var parsed = Enum.Parse(f.Type, s, true);
-				Write(f.Prop.Name, parsed);
-			}));
-			foreach (var name in Enum.GetNames(f.Type))
-			{
-				builder.OpenElement(seq++, "option");
-				builder.AddAttribute(seq++, "value", name);
-				builder.AddContent(seq++, name);
-				builder.CloseElement();
-			}
-			builder.CloseElement();
-			return;
-		}
+    private static object? ParseLongOrInt(Type numberType, string? s)
+    {
+        if (!long.TryParse(s, out var l)) return null;
 
-		// DateTime → datetime-local
-		if (f.Type == typeof(DateTime))
-		{
-			builder.OpenElement(seq++, "input");
-			builder.AddAttribute(seq++, "type", "datetime-local");
-			builder.AddAttribute(seq++, "class", "form-control");
-			builder.AddAttribute(seq++, "id", f.Id);
-			var dt = val as DateTime? ?? default;
-			var iso = dt == default ? "" : dt.ToLocalTime().ToString("yyyy-MM-ddTHH:mm");
-			builder.AddAttribute(seq++, "value", iso);
-			builder.AddAttribute(seq++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, e =>
-			{
-				if (DateTime.TryParse(e.Value?.ToString(), out var parsed))
-					Write(f.Prop.Name, parsed.ToUniversalTime());
-				else if (isNullable)
-					Write(f.Prop.Name, null);
-			}));
-			builder.CloseElement();
-			return;
-		}
+        var et = EffectiveType(numberType);
+        if (et == typeof(int))   return (int) l;
+        if (et == typeof(long))  return l;
+        if (et == typeof(short)) return (short) l;
+        if (et == typeof(uint))  return (uint) Math.Max(0, l);
+        if (et == typeof(ulong)) return (ulong) Math.Max(0, l);
+        if (et == typeof(ushort))return (ushort) Math.Max(0, l);
 
-		// string mit DataType.MultilineText → textarea
-		var dataType = f.Prop.GetCustomAttributes(typeof(DataTypeAttribute), true).Cast<DataTypeAttribute>().FirstOrDefault();
-		if (f.Type == typeof(string) && dataType?.DataType == DataType.MultilineText)
-		{
-			builder.OpenElement(seq++, "textarea");
-			builder.AddAttribute(seq++, "class", "form-control");
-			builder.AddAttribute(seq++, "id", f.Id);
-			builder.AddAttribute(seq++, "rows", 4);
-			builder.AddAttribute(seq++, "value", val?.ToString());
-			builder.AddAttribute(seq++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, e =>
-			{
-				Write(f.Prop.Name, e.Value?.ToString());
-			}));
-			builder.AddContent(seq++, val?.ToString());
-			builder.CloseElement();
-			return;
-		}
+        return l;
+    }
 
-		// Zahl → number
-		if (f.Type == typeof(int) || f.Type == typeof(long) || f.Type == typeof(decimal) || f.Type == typeof(double) || f.Type == typeof(float))
-		{
-			builder.OpenElement(seq++, "input");
-			builder.AddAttribute(seq++, "type", "number");
-			builder.AddAttribute(seq++, "class", "form-control");
-			builder.AddAttribute(seq++, "id", f.Id);
-			builder.AddAttribute(seq++, "value", val?.ToString());
-			builder.AddAttribute(seq++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, e =>
-			{
-				var s = e.Value?.ToString();
-				if (string.IsNullOrWhiteSpace(s)) { Write(f.Prop.Name, isNullable ? null : val); return; }
-				try
-				{
-					object? num = f.Type == typeof(int) ? int.Parse(s) :
-						f.Type == typeof(long) ? long.Parse(s) :
-						f.Type == typeof(decimal) ? decimal.Parse(s) :
-						f.Type == typeof(double) ? double.Parse(s) :
-						f.Type == typeof(float) ? float.Parse(s) : null;
-					Write(f.Prop.Name, num);
-				}
-				catch { /* ignore */ }
-			}));
-			builder.CloseElement();
-			return;
-		}
+    // ===================== Change Propagation =================================
+    private async Task OnChanged(string name, object? value)
+    {
+        if (OnFieldChanged.HasDelegate)
+            await OnFieldChanged.InvokeAsync((name, value));
+    }
 
-		// Guid → readonly text
-		if (f.Type == typeof(Guid))
-		{
-			builder.OpenElement(seq++, "input");
-			builder.AddAttribute(seq++, "type", "text");
-			builder.AddAttribute(seq++, "class", "form-control");
-			builder.AddAttribute(seq++, "id", f.Id);
-			builder.AddAttribute(seq++, "readonly", true);
-			builder.AddAttribute(seq++, "value", val?.ToString());
-			builder.CloseElement();
-			return;
-		}
+    private async Task OnBooleanChanged(string name, ChangeEventArgs e)
+    {
+        bool? value = null;
 
-		// default → text
-		builder.OpenElement(seq++, "input");
-		builder.AddAttribute(seq++, "type", "text");
-		builder.AddAttribute(seq++, "class", "form-control");
-		builder.AddAttribute(seq++, "id", f.Id);
-		builder.AddAttribute(seq++, "value", val?.ToString());
-		builder.AddAttribute(seq++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, e =>
-		{
-			Write(f.Prop.Name, e.Value?.ToString());
-		}));
-		builder.CloseElement();
-	};
+        if (e.Value is bool boolValue) value = boolValue;
+        else if (e.Value?.ToString() == "on") value = true;
+        else if (bool.TryParse(e.Value?.ToString(), out var parsedBool)) value = parsedBool;
+
+        await OnChanged(name, value);
+    }
 }

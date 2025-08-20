@@ -19,6 +19,7 @@ public record UpdateUserRequest(
     /// </summary>
     [Required]
     [StringLength(100, MinimumLength = 1)]
+    [Display(Name = "Vorname")]
     string FirstName,
 
     /// <summary>
@@ -26,10 +27,32 @@ public record UpdateUserRequest(
     /// </summary>
     [Required]
     [StringLength(100, MinimumLength = 1)]
+    [Display(Name = "Nachname")]
     string LastName,
+
+    /// <summary>
+    /// Updated role for the user.
+    /// </summary>
+    [StringLength(100)]
+    [Display(Name = "Rolle")]
+    string? Role = null,
+
+    /// <summary>
+    /// Updated department for the user.
+    /// </summary>
+    [StringLength(100)]
+    [Display(Name = "Abteilung")]
+    string? Department = null,
 
     /// <summary>
     /// Email confirmation status. Only administrators can modify this.
     /// </summary>
-    bool? IsEmailConfirmed = null
+    [Display(Name = "E-Mail bestätigt")]
+    bool? IsEmailConfirmed = null,
+
+    /// <summary>
+    /// Customer assignment. Only administrators can modify this.
+    /// </summary>
+    [Display(Name = "Firma")]
+    Guid? CustomerId = null
 );

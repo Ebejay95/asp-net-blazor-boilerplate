@@ -1,82 +1,144 @@
-@* src/CMC.Web/Pages/Shared/EditDrawer.razor *@
 @using System.Reflection
+@using Microsoft.AspNetCore.Components
+@using CMC.Web.Services
 @using CMC.Web.Shared
 @using CMC.Web.Util
-@using CMC.Web.Services
+@implements IDisposable
 
-<div class="ed-backdrop @(IsOpen ? "ed-backdrop--open" : "")" @onclick="Close"></div>
-<div class="ed-wrap @(IsOpen ? "ed-wrap--open" : "")" role="dialog" aria-modal="true" aria-label="@_title">
-	<div class="ed-header">
-		<h3>@_title</h3>
-		<button class="ed-icon" @onclick="Close" aria-label="Close">✕</button>
-	</div>
+@inject EditDrawerService EditDrawerService
 
-	<div class="ed-body">
-		@if (_model is not null)
-		{
-			<FormRenderer @ref="_form" Model="_model" IsCreate="_createMode" />
-		}
-	</div>
+@if (_isOpen && _request is not null)
+{
+    <!-- Backdrop -->
+    <div class="ed-backdrop ed-backdrop--open" @onclick="Close" aria-hidden="true"></div>
 
-	<div class="btn-group">
-		<button class="btn primary" @onclick="Save">Speichern</button>
-		@if (!_createMode)
-		{
-			<button class="btn danger" @onclick="Delete">Löschen</button>
-		}
-		<button class="btn flat" @onclick="Close">Abbrechen</button>
-	</div>
-</div>
+    <!-- Panel -->
+    <aside class="ed-wrap ed-wrap--open"
+           role="dialog"
+           aria-modal="true"
+           aria-labelledby="ed-title"
+           @onclick:stopPropagation>
+        <header class="ed-header">
+            <h3 id="ed-title">@_request.Title</h3>
+            <button class="btn flat" @onclick="Close" aria-label="Schließen">×</button>
+        </header>
+
+        <section class="ed-body">
+            <CascadingValue Value="_ctx">
+                <FormRenderer @ref="_form"
+                              Model="_request.Model"
+                              ExtraFields="_request.ExtraFields"
+                              OnFieldChanged="OnFieldChanged" />
+            </CascadingValue>
+        </section>
+
+        <footer class="ed-body" style="border-top:1px solid #eee; padding-top:.5rem;">
+            <div class="btn-group">
+                <button class="btn primary" @onclick="SaveAsync">Speichern</button>
+                @if (_request.OnDelete is not null && !_request.IsCreate)
+                {
+                    <button class="btn danger" @onclick="DeleteAsync">Löschen</button>
+                }
+                <button class="btn flat" @onclick="Close">Abbrechen</button>
+            </div>
+        </footer>
+    </aside>
+}
 
 @code {
-	private bool IsOpen;
-	private string _title = "";
-	private object? _model;
-	private Assembly? _contractsAsm;
-	private FormRenderer? _form;
-	private bool _createMode = false;
-	private string _action = "Update";
+    // ---- Optionaler Parameter-Modus (falls du <EditDrawer Request="..."/> jemals nutzt) ----
+    [Parameter] public EditDrawerRequest? Request { get; set; }
+    private bool _openedByParameter;
 
-	private Func<RequestBuildContext, Task>? _onSave;
-	private Func<RequestBuildContext, Task>? _onDelete;
+    protected override void OnParametersSet()
+    {
+        if (Request is not null) HandleOpen(Request);
+        else if (_openedByParameter) HandleClose();
 
-	public void Open(EditDrawerRequest req)
-	{
-		_title = req.Title;
-		_model = req.Model;
-		_contractsAsm = req.ContractsAssembly;
-		_onSave = req.OnSave;
-		_onDelete = req.OnDelete;
-		_createMode = req.IsCreate;  // Fixed: use IsCreate instead of CreateMode
-		_action = string.IsNullOrWhiteSpace(req.Action) ? (_createMode ? "Register" : "Update") : req.Action;  // Fixed: use Action property
-		IsOpen = true;
-		StateHasChanged();
-	}
+        _openedByParameter = Request is not null;
+    }
 
-	public void Close()
-	{
-		IsOpen = false;
-		StateHasChanged();
-	}
+    // ---- Service-Modus --------------------------------------------------------
+    protected override void OnInitialized()
+    {
+        EditDrawerService.OpenRequested += HandleOpen;
+        EditDrawerService.CloseRequested += HandleClose;
+    }
 
-	private RequestBuildContext BuildCtx()
-	{
-		var changes = _form?.GetChanges() ?? new Dictionary<string, object?>();
-		var provider = new CompositeValueProvider(_model!, changes);
-		return new RequestBuildContext(_model!, _contractsAsm!, provider, _action);  // Pass action to context
-	}
+    // ---- State ----------------------------------------------------------------
+    private bool _isOpen;
+    private EditDrawerRequest? _request;
 
-	private async Task Save()
-	{
-		if (_model is not null && _onSave is not null && _contractsAsm is not null)
-			await _onSave.Invoke(BuildCtx()); // Aktion in OnSave selbst per Build("...") wählen
-		Close();
-	}
+    private FormRenderer? _form;
+    private RequestBuildContext? _ctx;
 
-	private async Task Delete()
-	{
-		if (_model is not null && _onDelete is not null && _contractsAsm is not null)
-			await _onDelete.Invoke(BuildCtx()); // OnDelete ruft Build("Delete")
-		Close();
-	}
+    private readonly Dictionary<string, object?> _changes =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    private void HandleOpen(EditDrawerRequest req)
+    {
+        Console.WriteLine($"EditDrawer: OPEN -> {req.Title}");
+        _request = req;
+        _changes.Clear();
+
+        var provider = new CompositeValueProvider(req.Model, _changes);
+        _ctx = new RequestBuildContext(
+            req.Model,
+            req.ContractsAssembly,
+            provider,
+            req.IsCreate ? "Create" : "Update"
+        );
+
+        _isOpen = true;
+        StateHasChanged();
+    }
+
+    private void HandleClose()
+    {
+        Console.WriteLine("EditDrawer: CLOSE");
+        _isOpen = false;
+        _request = null;
+        _ctx = null;
+        _changes.Clear();
+        StateHasChanged();
+    }
+
+    private void OnFieldChanged((string Name, object? Value) change)
+        => _changes[change.Name] = change.Value;
+
+    private async Task SaveAsync()
+    {
+        if (_request is null) return;
+
+        var provider = new CompositeValueProvider(_request.Model, _changes);
+        var action = _request.IsCreate ? "Create" : "Update";
+
+        _ctx = new RequestBuildContext(
+            _request.Model,
+            _request.ContractsAssembly,
+            provider,
+            action
+        );
+
+        if (_request.OnSave is not null && _ctx is not null)
+            await _request.OnSave.Invoke(_ctx);
+
+        Close();
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (_request?.OnDelete is not null && _ctx is not null)
+            await _request.OnDelete.Invoke(_ctx);
+
+        Close();
+    }
+
+    private void Close() => HandleClose();
+
+    public void Dispose()
+    {
+        EditDrawerService.OpenRequested -= HandleOpen;
+        EditDrawerService.CloseRequested -= HandleClose;
+    }
 }

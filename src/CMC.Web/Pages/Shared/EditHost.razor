@@ -1,27 +1,38 @@
-@* src/CMC.Web/Shared/EditHost.razor *@
 @using CMC.Web.Services
+@inherits Microsoft.AspNetCore.Components.ComponentBase
 @inject EditDrawerService DrawerService
+@implements IDisposable
 
-<EditDrawer @ref="_drawer" />
+<!-- Wir geben den Request als Parameter an EditDrawer weiter -->
+<EditDrawer Request="@_currentRequest" />
 
 @code {
-	private EditDrawer? _drawer;
+    private EditDrawerRequest? _currentRequest;
 
-	protected override void OnInitialized()
-	{
-		DrawerService.OnOpen += HandleOpen;
-		DrawerService.OnClose += HandleClose;
-	}
+    protected override void OnInitialized()
+    {
+        DrawerService.OpenRequested += OnOpenRequested;
+        DrawerService.CloseRequested += OnCloseRequested;
+    }
 
-	private void HandleOpen(CMC.Web.Services.EditDrawerRequest req)
-		=> InvokeAsync(() => _drawer?.Open(req));
+    private void OnOpenRequested(EditDrawerRequest req)
+    {
+        // direkte Parameterversorgung -> Drawer rendert sofort auf
+        _currentRequest = req;
+        InvokeAsync(StateHasChanged);
+        Console.WriteLine($"EditHost: Open '{req.Title}'");
+    }
 
-	private void HandleClose()
-		=> InvokeAsync(() => _drawer?.Close());
+    private void OnCloseRequested()
+    {
+        _currentRequest = null;
+        InvokeAsync(StateHasChanged);
+        Console.WriteLine("EditHost: Close");
+    }
 
-	public void Dispose()
-	{
-		DrawerService.OnOpen -= HandleOpen;
-		DrawerService.OnClose -= HandleClose;
-	}
+    public void Dispose()
+    {
+        DrawerService.OpenRequested -= OnOpenRequested;
+        DrawerService.CloseRequested -= OnCloseRequested;
+    }
 }

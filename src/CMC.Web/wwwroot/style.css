@@ -232,6 +232,9 @@
   .w-44 {
     width: calc(var(--spacing) * 44);
   }
+  .w-100 {
+    width: calc(var(--spacing) * 100);
+  }
   .origin-top-right {
     transform-origin: top right;
   }
