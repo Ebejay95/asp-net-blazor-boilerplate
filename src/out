@@ -11,16 +11,17 @@
 -rw-r--r--@ 1 jonathaneberle  staff  301 15 Aug 15:11 ./Properties/launchSettings.json
 -rw-r--r--@ 1 jonathaneberle  staff  559 18 Aug 20:41 ./_Imports.razor
 -rw-r--r--@ 1 jonathaneberle  staff  4642 19 Aug 14:24 ./Controllers/AuthController.cs
--rw-r--r--@ 1 jonathaneberle  staff  13465 20 Aug 23:11 ./Pages/Shared/FormRenderer.razor
--rw-r--r--@ 1 jonathaneberle  staff  4338 20 Aug 23:05 ./Pages/Shared/EditDrawer.razor
--rw-r--r--@ 1 jonathaneberle  staff  1093 20 Aug 17:25 ./Pages/Shared/ExtraField.cs
--rw-r--r--@ 1 jonathaneberle  staff  172 20 Aug 22:48 ./Pages/Shared/MainLayout.razor
+-rw-r--r--@ 1 jonathaneberle  staff  13364 20 Aug 23:50 ./Pages/Shared/FormRenderer.razor
+-rw-r--r--@ 1 jonathaneberle  staff  4418 21 Aug 10:25 ./Pages/Shared/EditDrawer.razor
+-rw-r--r--@ 1 jonathaneberle  staff  768 20 Aug 23:49 ./Pages/Shared/ExtraField.cs
+-rw-r--r--@ 1 jonathaneberle  staff  126 21 Aug 00:19 ./Pages/Shared/MainLayout.razor
+-rw-r--r--@ 1 jonathaneberle  staff  391 20 Aug 23:49 ./Pages/Shared/EditStackedHost.razor
 -rw-r--r--@ 1 jonathaneberle  staff  624 19 Aug 08:23 ./Pages/Shared/RequestBuildContext.cs
 -rw-r--r--@ 1 jonathaneberle  staff  1850 18 Aug 09:54 ./Pages/Shared/ProfileMenu.razor
 -rw-r--r--@ 1 jonathaneberle  staff  3425 18 Aug 21:57 ./Pages/Shared/Dialog.razor
 -rw-r--r--@ 1 jonathaneberle  staff  138 18 Aug 12:35 ./Pages/Shared/RedirectToCockpit.razor
 -rw-r--r--@ 1 jonathaneberle  staff  587 18 Aug 12:33 ./Pages/Shared/NavMenu.razor
--rw-r--r--@ 1 jonathaneberle  staff  3724 20 Aug 17:25 ./Pages/Shared/RelationPicker.razor
+-rw-r--r--@ 1 jonathaneberle  staff  5162 20 Aug 23:56 ./Pages/Shared/RelationPicker.razor
 -rw-r--r--@ 1 jonathaneberle  staff  1067 20 Aug 22:58 ./Pages/Shared/EditHost.razor
 -rw-r--r--@ 1 jonathaneberle  staff  4238 19 Aug 09:23 ./Pages/Shared/AutoTable.razor
 -rw-r--r--@ 1 jonathaneberle  staff  700 18 Aug 22:08 ./Pages/Shared/MainFooter.razor
@@ -34,7 +35,7 @@
 -rw-r--r--@ 1 jonathaneberle  staff  91 18 Aug 13:34 ./Pages/CockpitPages/CockpitOverview.razor
 -rw-r--r--@ 1 jonathaneberle  staff  91 18 Aug 13:34 ./Pages/CockpitPages/CockpitScenarios.razor
 -rw-r--r--@ 1 jonathaneberle  staff  4317 20 Aug 23:07 ./Pages/CockpitPages/CockpitCustomers.razor
--rw-r--r--@ 1 jonathaneberle  staff  7753 20 Aug 23:12 ./Pages/CockpitPages/CockpitUsers.razor
+-rw-r--r--@ 1 jonathaneberle  staff  7994 21 Aug 00:15 ./Pages/CockpitPages/CockpitUsers.razor
 -rw-r--r--@ 1 jonathaneberle  staff  1600 18 Aug 12:33 ./Pages/_Host.cshtml
 -rw-r--r--@ 1 jonathaneberle  staff  1684 18 Aug 09:54 ./Pages/Profile.razor
 -rw-r--r--@ 1 jonathaneberle  staff  4136 18 Aug 09:54 ./Pages/ResetPassword.razor
@@ -42,7 +43,7 @@
 -rw-r--r--@ 1 jonathaneberle  staff  6420 20 Aug 21:55 ./Pages/Cockpit.razor
 -rw-r--r--@ 1 jonathaneberle  staff  883 18 Aug 09:54 ./appsettings.Production.json
 -rw-r--r--@ 1 jonathaneberle  staff  994 19 Aug 14:01 ./Services/Relations.cs
--rw-r--r--@ 1 jonathaneberle  staff  1629 20 Aug 22:59 ./Services/EditDrawerService.cs
+-rw-r--r--@ 1 jonathaneberle  staff  2001 21 Aug 00:16 ./Services/EditDrawerService.cs
 -rw-r--r--@ 1 jonathaneberle  staff  1072 19 Aug 14:15 ./Services/EditSession.cs
 -rw-r--r--@ 1 jonathaneberle  staff  2915 18 Aug 17:29 ./Services/DialogService.cs
 -rw-r--r--@ 1 jonathaneberle  staff  4483 20 Aug 22:23 ./Program.cs
@@ -854,12 +855,14 @@ namespace CMC.Web.Controllers
                 {
                     @InitRelationSingleState(ef)
 
-                    <RelationPicker IsMany="false"
-                                    Options="@(ef.Options ?? new())"
-                                    ValueSingle="@_relSingle[ef.Name]"
-                                    ValueSingleChanged="@(v => SetRelationSingle(ef.Name, v))"
-                                    OnCreateNew="ef.OnCreateNew"
-                                    Placeholder="Suchen…" />
+					<RelationPicker IsMany="false"
+						Options="@(ef.Options ?? new())"
+						ValueSingle="@_relSingle[ef.Name]"
+						ValueSingleChanged="@(v => SetRelationSingle(ef.Name, v))"
+						OnCreateNew="ef.OnCreateNew"
+						OnSearch="ef.OnSearch"
+						DebounceMs="ef.DebounceMs"
+						Placeholder="Suchen…" />
                 }
                 else if (string.Equals(ef.DataType, "relation-many", StringComparison.OrdinalIgnoreCase))
                 {
@@ -869,8 +872,10 @@ namespace CMC.Web.Controllers
                                     Options="@(ef.Options ?? new())"
                                     ValueMany="@_relMany[ef.Name]"
                                     ValueManyChanged="@(vals => SetRelationMany(ef.Name, vals))"
-                                    OnCreateNew="ef.OnCreateNew"
-                                    Placeholder="Suchen…" />
+						OnCreateNew="ef.OnCreateNew"
+						OnSearch="ef.OnSearch"
+						DebounceMs="ef.DebounceMs"
+						Placeholder="Suchen…" />
                 }
                 else if (string.Equals(ef.DataType, "password", StringComparison.OrdinalIgnoreCase))
                 {
@@ -1059,11 +1064,11 @@ namespace CMC.Web.Controllers
 @if (_isOpen && _request is not null)
 {
     <!-- Backdrop -->
-    <div class="ed-backdrop ed-backdrop--open" @onclick="Close" aria-hidden="true"></div>
+    <div class="ed-backdrop ed-backdrop--open" style="z-index:@ZIndex" aria-hidden="true"></div>
+
 
     <!-- Panel -->
-    <aside class="ed-wrap ed-wrap--open"
-           role="dialog"
+    <aside class="ed-wrap ed-wrap--open" style="z-index:@(ZIndex+1)" role="dialog"
            aria-modal="true"
            aria-labelledby="ed-title"
            @onclick:stopPropagation>
@@ -1095,6 +1100,8 @@ namespace CMC.Web.Controllers
 }
 
 @code {
+		[Parameter] public int ZIndex { get; set; } = 1000;
+
     // ---- Optionaler Parameter-Modus (falls du <EditDrawer Request="..."/> jemals nutzt) ----
     [Parameter] public EditDrawerRequest? Request { get; set; }
     private bool _openedByParameter;
@@ -1199,17 +1206,17 @@ namespace CMC.Web.Shared;
 /// das nicht direkt aus dem DTO gerendert wird.
 /// </summary>
 public record ExtraField(
-    string Name,                                     // Property/Request-Feldname (z.B. "CustomerId")
-    string Label,                                    // Label im Formular
-    System.Type Type,                                // Datentyp (z.B. typeof(Guid?))
-    bool ReadOnly = false,                           // read-only?
-    string? Hint = null,                             // Hilfetext
-    // Spezielle Renderer: "relation-single", "relation-many", "password"
-    string? DataType = null,
-    object? Value = null,                            // Vorbelegung
-    System.Collections.Generic.List<System.Collections.Generic.KeyValuePair<string, string>>? Options = null, // (Text, Value)
-    // Callback für "+" im RelationPicker (Inline-Create)
-    System.Func<System.Threading.Tasks.Task<System.Collections.Generic.KeyValuePair<string, string>?>>? OnCreateNew = null
+	string Name,
+	string Label,
+	System.Type Type,
+	bool ReadOnly = false,
+	string? Hint = null,
+	string? DataType = null,
+	object? Value = null,
+	System.Collections.Generic.List<System.Collections.Generic.KeyValuePair<string, string>>? Options = null,
+	System.Func<System.Threading.Tasks.Task<System.Collections.Generic.KeyValuePair<string, string>?>>? OnCreateNew = null,
+	System.Func<string, System.Threading.Tasks.Task<System.Collections.Generic.List<System.Collections.Generic.KeyValuePair<string,string>>>>? OnSearch = null,
+	int DebounceMs = 250
 );
 === ./Pages/Shared/MainLayout.razor ===
 @inherits LayoutComponentBase
@@ -1217,11 +1224,32 @@ public record ExtraField(
 <NavMenu />
 <main>
     @Body
-    <!-- Drawer direkt hosten (statt EditHost) -->
-    <EditDrawer />
+    <EditStackedHost />
     <DialogHost />
 </main>
 <MainFooter />
+=== ./Pages/Shared/EditStackedHost.razor ===
+@using CMC.Web.Services
+@inject EditDrawerService Service
+@implements IDisposable
+
+@code {
+	protected override void OnInitialized()
+	{
+		Service.StackChanged += StateHasChanged;
+	}
+
+	public void Dispose()
+	{
+		Service.StackChanged -= StateHasChanged;
+	}
+}
+
+@for (var i = 0; i < Service.Stack.Count; i++)
+{
+	var req = Service.Stack[i];
+	<EditDrawer Request="@req" ZIndex="@(1000 + i*2)" />
+}
 === ./Pages/Shared/RequestBuildContext.cs ===
 using System.Reflection;
 using CMC.Web.Util;
@@ -1474,125 +1502,223 @@ public sealed class RequestBuildContext
     <ProfileMenu/>
 </header>
 === ./Pages/Shared/RelationPicker.razor ===
-@* Relation-Picker mit Suchfeld, Liste/Select und optionalem Inline-Create („+“) *@
+@* RelationPicker mit:
+   - IsMany (Single/Multi)
+   - OnSearch(term) -> async serverseitige Suche mit Debounce
+   - OnCreateNew() -> Inline-Create, setzt Ergebnis sofort
+   - Options (lokale statische Liste; wird genutzt wenn OnSearch == null)
+*@
+@using System
+@using System.Linq
 
 <div class="relation-picker">
-    <div class="rp-row">
-        <input class="form-control"
-               placeholder="@Placeholder"
-               @bind="search"
-               @bind:event="oninput" />
+	<div class="rp-row">
+		<input class="form-control"
+			   placeholder="@Placeholder"
+			   value="@search"
+			   @oninput="OnSearchChanged" />
 
-        @if (OnCreateNew is not null)
-        {
-            <button type="button" class="btn btn-icon" @onclick="CreateNewAsync" title="Neu anlegen">+</button>
-        }
-    </div>
+		@if (OnCreateNew is not null)
+		{
+			<button type="button" class="btn btn-icon" @onclick="CreateNewAsync" title="Neu anlegen">+</button>
+		}
+	</div>
 
-    @if (!IsMany)
-    {
-        <select class="form-control" @onchange="OnSingleChanged">
-            <option value="">– bitte wählen –</option>
-            @foreach (var opt in Filtered)
-            {
-                <option value="@opt.Value" selected="@(opt.Value == ValueSingle)">
-                    @opt.Key
-                </option>
-            }
-        </select>
-    }
-    else
-    {
-        <div class="rp-chips">
-            @foreach (var id in ValueMany)
-            {
-                var label = Options.FirstOrDefault(o => o.Value == id).Key ?? id;
-                <span class="chip">@label <button class="chip-x" type="button" @onclick="@(() => RemoveMany(id))">x</button></span>
-            }
-        </div>
+	@if (_loading)
+	{
+		<div class="rp-loading">Suchen…</div>
+	}
 
-        <div class="rp-list">
-            @foreach (var opt in Filtered)
-            {
-                if (!ValueMany.Contains(opt.Value))
-                {
-                    <button type="button" class="rp-item" @onclick="@(() => AddMany(opt.Value))">@opt.Key</button>
-                }
-            }
-        </div>
-    }
+	@if (!IsMany)
+	{
+		<select class="form-control" @onchange="OnSingleChanged">
+			<option value="">– bitte wählen –</option>
+			@foreach (var opt in Current)
+			{
+				<option value="@opt.Value" selected="@(opt.Value == ValueSingle)">@opt.Key</option>
+			}
+		</select>
+	}
+	else
+	{
+		<div class="rp-chips">
+			@foreach (var id in ValueMany)
+			{
+				var label = LabelFor(id);
+				<span class="chip">
+					@label
+					<button class="chip-x" type="button" @onclick="@(() => RemoveMany(id))">x</button>
+				</span>
+			}
+		</div>
+
+		<div class="rp-list">
+			@foreach (var opt in Current)
+			{
+				if (!ValueMany.Contains(opt.Value))
+				{
+					<button type="button" class="rp-item" @onclick="@(() => AddMany(opt.Value))">@opt.Key</button>
+				}
+			}
+		</div>
+	}
 </div>
 
 @code {
-    [Parameter] public bool IsMany { get; set; }
-    [Parameter] public List<KeyValuePair<string,string>> Options { get; set; } = new();
+	[Parameter] public bool IsMany { get; set; }
+	[Parameter] public List<KeyValuePair<string,string>> Options { get; set; } = new();
 
-    // Single
-    [Parameter] public string? ValueSingle { get; set; }
-    [Parameter] public EventCallback<string?> ValueSingleChanged { get; set; }
+	// Single
+	[Parameter] public string? ValueSingle { get; set; }
+	[Parameter] public EventCallback<string?> ValueSingleChanged { get; set; }
 
-    // Many
-    [Parameter] public List<string> ValueMany { get; set; } = new();
-    [Parameter] public EventCallback<List<string>> ValueManyChanged { get; set; }
+	// Many
+	[Parameter] public List<string> ValueMany { get; set; } = new();
+	[Parameter] public EventCallback<List<string>> ValueManyChanged { get; set; }
 
-    // Inline-Create (optional)
-    [Parameter] public Func<Task<KeyValuePair<string,string>?>>? OnCreateNew { get; set; }
+	// Inline-Create (optional)
+	[Parameter] public Func<Task<KeyValuePair<string,string>?>>? OnCreateNew { get; set; }
 
-    [Parameter] public string Placeholder { get; set; } = "Suchen…";
+	// Serverseitige Suche (optional)
+	[Parameter] public Func<string, Task<List<KeyValuePair<string,string>>>>? OnSearch { get; set; }
+	[Parameter] public int DebounceMs { get; set; } = 250;
 
-    private string search = string.Empty;
+	[Parameter] public string Placeholder { get; set; } = "Suchen…";
 
-    private IEnumerable<KeyValuePair<string,string>> Filtered =>
-        string.IsNullOrWhiteSpace(search)
-            ? Options
-            : Options.Where(o => o.Key.Contains(search, StringComparison.OrdinalIgnoreCase));
+	private string search = string.Empty;
+	private bool _loading;
+	private CancellationTokenSource? _cts;
+	private List<KeyValuePair<string,string>> _remote = new();
 
-    private async Task CreateNewAsync()
-    {
-        if (OnCreateNew is null) return;
+	private IEnumerable<KeyValuePair<string,string>> Current =>
+		OnSearch is null
+			? (string.IsNullOrWhiteSpace(search)
+				? Options
+				: Options.Where(o => o.Key.Contains(search, StringComparison.OrdinalIgnoreCase)))
+			: _remote;
 
-        var created = await OnCreateNew.Invoke();
-        if (created is null) return;
+	protected override async Task OnInitializedAsync()
+	{
+		// Bei serverseitiger Suche einmal initial laden (leerer Term)
+		if (OnSearch is not null)
+		{
+			_loading = true;
+			try
+			{
+				_remote = await OnSearch.Invoke(string.Empty) ?? new();
+			}
+			finally
+			{
+				_loading = false;
+			}
+		}
+	}
 
-        if (!Options.Any(o => o.Value == created.Value.Value))
-            Options.Insert(0, created.Value);
+	private async Task CreateNewAsync()
+	{
+		if (OnCreateNew is null) return;
 
-        if (!IsMany)
-        {
-            ValueSingle = created.Value.Value;
-            await ValueSingleChanged.InvokeAsync(ValueSingle);
-        }
-        else
-        {
-            if (!ValueMany.Contains(created.Value.Value))
-            {
-                ValueMany.Add(created.Value.Value);
-                await ValueManyChanged.InvokeAsync(ValueMany);
-            }
-        }
-    }
+		var created = await OnCreateNew.Invoke();
+		if (created is null) return;
 
-    private async Task OnSingleChanged(ChangeEventArgs e)
-    {
-        var v = e.Value?.ToString();
-        ValueSingle = string.IsNullOrWhiteSpace(v) ? null : v;
-        await ValueSingleChanged.InvokeAsync(ValueSingle);
-    }
+		EnsureOption(created.Value);
 
-    private async Task AddMany(string id)
-    {
-        if (!ValueMany.Contains(id))
-        {
-            ValueMany.Add(id);
-            await ValueManyChanged.InvokeAsync(ValueMany);
-        }
-    }
+		if (!IsMany)
+		{
+			ValueSingle = created.Value.Value;
+			await ValueSingleChanged.InvokeAsync(ValueSingle);
+		}
+		else
+		{
+			if (!ValueMany.Contains(created.Value.Value))
+			{
+				ValueMany.Add(created.Value.Value);
+				await ValueManyChanged.InvokeAsync(ValueMany);
+			}
+		}
+	}
 
-    private async Task RemoveMany(string id)
-    {
-        if (ValueMany.Remove(id))
-            await ValueManyChanged.InvokeAsync(ValueMany);
-    }
+	private async Task OnSearchChanged(ChangeEventArgs e)
+	{
+		search = e.Value?.ToString() ?? string.Empty;
+
+		// Lokale Suche → nur rerendern
+		if (OnSearch is null)
+		{
+			StateHasChanged();
+			return;
+		}
+
+		_cts?.Cancel();
+		_cts = new CancellationTokenSource();
+		var token = _cts.Token;
+
+		_loading = true;
+		StateHasChanged();
+
+		try
+		{
+			if (DebounceMs > 0)
+				await Task.Delay(DebounceMs, token);
+
+			var results = await OnSearch.Invoke(search);
+			if (!token.IsCancellationRequested)
+			{
+				_remote = results ?? new();
+			}
+		}
+		catch (TaskCanceledException) { }
+		finally
+		{
+			if (!token.IsCancellationRequested)
+			{
+				_loading = false;
+				StateHasChanged();
+			}
+		}
+	}
+
+	private string LabelFor(string id)
+	{
+		var fromRemote = _remote.FirstOrDefault(o => o.Value == id);
+		if (!string.IsNullOrEmpty(fromRemote.Key)) return fromRemote.Key;
+
+		var fromLocal = Options.FirstOrDefault(o => o.Value == id);
+		if (!string.IsNullOrEmpty(fromLocal.Key)) return fromLocal.Key;
+
+		return id;
+	}
+
+	private void EnsureOption(KeyValuePair<string,string> opt)
+	{
+		if (!Options.Any(o => o.Value == opt.Value))
+			Options.Insert(0, opt);
+
+		if (OnSearch is not null && !_remote.Any(r => r.Value == opt.Value))
+			_remote.Insert(0, opt);
+	}
+
+	private async Task OnSingleChanged(ChangeEventArgs e)
+	{
+		var v = e.Value?.ToString();
+		ValueSingle = string.IsNullOrWhiteSpace(v) ? null : v;
+		await ValueSingleChanged.InvokeAsync(ValueSingle);
+	}
+
+	private async Task AddMany(string id)
+	{
+		if (!ValueMany.Contains(id))
+		{
+			ValueMany.Add(id);
+			await ValueManyChanged.InvokeAsync(ValueMany);
+		}
+	}
+
+	private async Task RemoveMany(string id)
+	{
+		if (ValueMany.Remove(id))
+			await ValueManyChanged.InvokeAsync(ValueMany);
+	}
 }
 === ./Pages/Shared/EditHost.razor ===
 @using CMC.Web.Services
@@ -2772,10 +2898,21 @@ public sealed class RequestBuildContext
 			Type: typeof(Guid?),
 			ReadOnly: false,
 			Hint: "Firma suchen oder neu anlegen.",
-			DataType: "relation-single", // <-- wichtig: RelationPicker aktivieren
+			DataType: "relation-single",
 			Value: model.CustomerId,
-			Options: _customers.Select(c => new KeyValuePair<string, string>(c.Name, c.Id.ToString())).ToList(),
-			OnCreateNew: CreateCustomerInline // "+"-Button einblenden
+			Options: new(), // optional: initial leer
+			OnCreateNew: CreateCustomerInline,
+			OnSearch: async (term) =>
+			{
+				var all = await CustomerService.GetAllAsync();
+				var filtered = string.IsNullOrWhiteSpace(term)
+					? all
+					: all.Where(c => c.Name.Contains(term, StringComparison.OrdinalIgnoreCase));
+				return filtered
+					.Select(c => new KeyValuePair<string,string>(c.Name, c.Id.ToString()))
+					.ToList();
+			},
+			DebounceMs: 300
 		));
 
         // ----- Passwort NUR bei Create zeigen -----
@@ -3542,54 +3679,72 @@ public sealed class RelationDescriptor
     public Func<object, Task>? OnChanged { get; init; }
 }
 === ./Services/EditDrawerService.cs ===
-using System;
-using System.Collections.Generic;
-using System.Reflection;
-using System.Threading.Tasks;
+using System.Collections.Concurrent;
+using System.Reflection; // <- This was missing
 using CMC.Web.Shared;
 
 namespace CMC.Web.Services;
-
 public sealed class EditDrawerRequest
 {
-    /// <summary>Titel im Drawer.</summary>
-    public string Title { get; set; } = string.Empty;
+    public required string Title { get; init; }
+    public required object Model { get; init; }
+    public required Assembly ContractsAssembly { get; init; }
+    public bool IsCreate { get; init; } = false;
+    public string Action { get; init; } = "Update";
 
-    /// <summary>Das anzuzeigende/zu bearbeitende Modell (typisch DTO).</summary>
-    public object Model { get; set; } = default!;
+    public Func<RequestBuildContext, Task>? OnSave { get; init; }
+    public Func<RequestBuildContext, Task>? OnDelete { get; init; }
 
-    /// <summary>Assembly, in der die Request-Typen liegen (für ctx.Build("Create"/"Update")).</summary>
-    public Assembly ContractsAssembly { get; set; } = typeof(string).Assembly;
+    public Func<RequestBuildContext, Task>? OnBeforeSave { get; set; }
+    public Func<RequestBuildContext, Task>? OnAfterSave  { get; set; }
 
-    /// <summary>Erstellmodus (steuert Felder wie Passwort etc.).</summary>
-    public bool IsCreate { get; set; }
-
-    /// <summary>Zusätzliche, nicht aus dem DTO abgeleitete Felder (Relationen, Passwort, ...).</summary>
     public List<ExtraField> ExtraFields { get; } = new();
 
-    /// <summary>Speichern-Callback (wird von EditDrawer aufgerufen).</summary>
-    public Func<RequestBuildContext, Task>? OnSave { get; set; }
-
-    /// <summary>Löschen-Callback (wird von EditDrawer aufgerufen).</summary>
-    public Func<RequestBuildContext, Task>? OnDelete { get; set; }
+    // NEU: generische Relationen
+    public List<RelationDescriptor> Relations { get; } = new();
 }
-
 public sealed class EditDrawerService
 {
-    public event Action<EditDrawerRequest>? OpenRequested;
-    public event Action? CloseRequested;
+	public event Action? StackChanged;
 
-    public void Open(EditDrawerRequest request)
-    {
-        Console.WriteLine($"EditDrawerService.Open: {request.Title}");
-        OpenRequested?.Invoke(request);
-    }
+	public event Action<EditDrawerRequest>? OpenRequested;
+	public event Action? CloseRequested;
+	private readonly List<Frame> _stack = new();
+	private record Frame(EditDrawerRequest Request, TaskCompletionSource<object?>? Result);
 
-    public void Close()
-    {
-        Console.WriteLine("EditDrawerService.Close");
-        CloseRequested?.Invoke();
-    }
+	public IReadOnlyList<EditDrawerRequest> Stack => _stack.Select(f => f.Request).ToList();
+
+		// Open anpassen
+	public void Open(EditDrawerRequest request)
+	{
+		Push(new Frame(request, null));
+		OpenRequested?.Invoke(request);
+	}
+
+
+	public Task<T?> OpenForResult<T>(EditDrawerRequest request)
+	{
+		var tcs = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
+		Push(new Frame(request, tcs));
+		return tcs.Task.ContinueWith(t => (T?)t.Result);
+	}
+
+	// Close anpassen
+	public void Close(object? result = null)
+	{
+		if (_stack.Count == 0) return;
+		var top = _stack[^1];
+		_stack.RemoveAt(_stack.Count - 1);
+		top.Result?.TrySetResult(result);
+		StackChanged?.Invoke();
+		CloseRequested?.Invoke();
+	}
+
+	private void Push(Frame frame)
+	{
+		_stack.Add(frame);
+		StackChanged?.Invoke();
+	}
 }
 === ./Services/EditSession.cs ===
 using CMC.Web.Shared;

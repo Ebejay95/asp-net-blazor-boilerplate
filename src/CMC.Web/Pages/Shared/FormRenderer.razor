@@ -116,12 +116,14 @@
                 {
                     @InitRelationSingleState(ef)
 
-                    <RelationPicker IsMany="false"
-                                    Options="@(ef.Options ?? new())"
-                                    ValueSingle="@_relSingle[ef.Name]"
-                                    ValueSingleChanged="@(v => SetRelationSingle(ef.Name, v))"
-                                    OnCreateNew="ef.OnCreateNew"
-                                    Placeholder="Suchen…" />
+					<RelationPicker IsMany="false"
+						Options="@(ef.Options ?? new())"
+						ValueSingle="@_relSingle[ef.Name]"
+						ValueSingleChanged="@(v => SetRelationSingle(ef.Name, v))"
+						OnCreateNew="ef.OnCreateNew"
+						OnSearch="ef.OnSearch"
+						DebounceMs="ef.DebounceMs"
+						Placeholder="Suchen…" />
                 }
                 else if (string.Equals(ef.DataType, "relation-many", StringComparison.OrdinalIgnoreCase))
                 {
@@ -131,8 +133,10 @@
                                     Options="@(ef.Options ?? new())"
                                     ValueMany="@_relMany[ef.Name]"
                                     ValueManyChanged="@(vals => SetRelationMany(ef.Name, vals))"
-                                    OnCreateNew="ef.OnCreateNew"
-                                    Placeholder="Suchen…" />
+						OnCreateNew="ef.OnCreateNew"
+						OnSearch="ef.OnSearch"
+						DebounceMs="ef.DebounceMs"
+						Placeholder="Suchen…" />
                 }
                 else if (string.Equals(ef.DataType, "password", StringComparison.OrdinalIgnoreCase))
                 {

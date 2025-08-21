@@ -4,23 +4,18 @@
 @using CMC.Web.Shared
 @using CMC.Web.Util
 @implements IDisposable
-
 @inject EditDrawerService EditDrawerService
 
 @if (_isOpen && _request is not null)
 {
     <!-- Backdrop -->
-    <div class="ed-backdrop ed-backdrop--open" @onclick="Close" aria-hidden="true"></div>
+    <div class="ed-backdrop ed-backdrop--open" style="z-index:@ZIndex" aria-hidden="true"></div>
 
     <!-- Panel -->
-    <aside class="ed-wrap ed-wrap--open"
-           role="dialog"
-           aria-modal="true"
-           aria-labelledby="ed-title"
-           @onclick:stopPropagation>
+    <aside class="ed-wrap ed-wrap--open" style="z-index:@(ZIndex+1)" role="dialog" aria-modal="true" aria-labelledby="ed-title" @onclick:stopPropagation>
         <header class="ed-header">
             <h3 id="ed-title">@_request.Title</h3>
-            <button class="btn flat" @onclick="Close" aria-label="Schließen">×</button>
+            <button class="btn flat" @onclick="Cancel" aria-label="Schließen">×</button>
         </header>
 
         <section class="ed-body">
@@ -39,56 +34,63 @@
                 {
                     <button class="btn danger" @onclick="DeleteAsync">Löschen</button>
                 }
-                <button class="btn flat" @onclick="Close">Abbrechen</button>
+                <button class="btn flat" @onclick="Cancel">Abbrechen</button>
             </div>
         </footer>
     </aside>
 }
 
 @code {
-    // ---- Optionaler Parameter-Modus (falls du <EditDrawer Request="..."/> jemals nutzt) ----
+    [Parameter] public int ZIndex { get; set; } = 1000;
+
+    // --- Parameter-Modus (Stacked) ---
     [Parameter] public EditDrawerRequest? Request { get; set; }
     private bool _openedByParameter;
+    private bool _useServiceEvents;
+
+    protected override void OnInitialized()
+    {
+        // Nur wenn KEIN Parameter-Request gesetzt ist -> Service-Modus (einzelner Drawer)
+        _useServiceEvents = Request is null;
+        if (_useServiceEvents)
+        {
+            EditDrawerService.OpenRequested += HandleOpen;
+            EditDrawerService.CloseRequested += HandleClose;
+        }
+    }
 
     protected override void OnParametersSet()
     {
-        if (Request is not null) HandleOpen(Request);
-        else if (_openedByParameter) HandleClose();
-
-        _openedByParameter = Request is not null;
+        if (Request is not null)
+        {
+            // Nur öffnen, wenn sich die Instanz wirklich geändert hat
+            if (!ReferenceEquals(Request, _request))
+            {
+                HandleOpen(Request);
+            }
+            _openedByParameter = true;
+        }
+        else if (_openedByParameter)
+        {
+            HandleClose();
+            _openedByParameter = false;
+        }
     }
 
-    // ---- Service-Modus --------------------------------------------------------
-    protected override void OnInitialized()
-    {
-        EditDrawerService.OpenRequested += HandleOpen;
-        EditDrawerService.CloseRequested += HandleClose;
-    }
-
-    // ---- State ----------------------------------------------------------------
+    // --- State ---
     private bool _isOpen;
     private EditDrawerRequest? _request;
-
     private FormRenderer? _form;
     private RequestBuildContext? _ctx;
-
-    private readonly Dictionary<string, object?> _changes =
-        new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, object?> _changes = new(StringComparer.OrdinalIgnoreCase);
 
     private void HandleOpen(EditDrawerRequest req)
     {
         Console.WriteLine($"EditDrawer: OPEN -> {req.Title}");
         _request = req;
         _changes.Clear();
-
         var provider = new CompositeValueProvider(req.Model, _changes);
-        _ctx = new RequestBuildContext(
-            req.Model,
-            req.ContractsAssembly,
-            provider,
-            req.IsCreate ? "Create" : "Update"
-        );
-
+        _ctx = new RequestBuildContext(req.Model, req.ContractsAssembly, provider, req.IsCreate ? "Create" : "Update");
         _isOpen = true;
         StateHasChanged();
     }
@@ -103,42 +105,37 @@
         StateHasChanged();
     }
 
-    private void OnFieldChanged((string Name, object? Value) change)
-        => _changes[change.Name] = change.Value;
+    private void OnFieldChanged((string Name, object? Value) change) => _changes[change.Name] = change.Value;
 
     private async Task SaveAsync()
     {
-        if (_request is null) return;
+        if (_request is null || _ctx is null) return;
 
-        var provider = new CompositeValueProvider(_request.Model, _changes);
-        var action = _request.IsCreate ? "Create" : "Update";
-
-        _ctx = new RequestBuildContext(
-            _request.Model,
-            _request.ContractsAssembly,
-            provider,
-            action
-        );
-
-        if (_request.OnSave is not null && _ctx is not null)
+        // OnSave soll selbst entscheiden, ob/was geschlossen wird (Top-Frame)
+        if (_request.OnSave is not null)
             await _request.OnSave.Invoke(_ctx);
-
-        Close();
     }
 
     private async Task DeleteAsync()
     {
+        _changes.Clear();
         if (_request?.OnDelete is not null && _ctx is not null)
             await _request.OnDelete.Invoke(_ctx);
-
-        Close();
+        // OnDelete entscheidet i. d. R. selbst über Close (z. B. nach Confirm)
     }
 
-    private void Close() => HandleClose();
+    private void Cancel()
+    {
+        // Immer nur den obersten Drawer schließen
+        EditDrawerService.Close();
+    }
 
     public void Dispose()
     {
-        EditDrawerService.OpenRequested -= HandleOpen;
-        EditDrawerService.CloseRequested -= HandleClose;
+        if (_useServiceEvents)
+        {
+            EditDrawerService.OpenRequested -= HandleOpen;
+            EditDrawerService.CloseRequested -= HandleClose;
+        }
     }
 }

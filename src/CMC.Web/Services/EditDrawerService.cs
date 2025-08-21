@@ -1,49 +1,67 @@
-using System;
-using System.Collections.Generic;
-using System.Reflection;
-using System.Threading.Tasks;
+using System.Collections.Concurrent;
+using System.Reflection; // <- This was missing
 using CMC.Web.Shared;
 
 namespace CMC.Web.Services;
-
 public sealed class EditDrawerRequest
 {
-    /// <summary>Titel im Drawer.</summary>
-    public string Title { get; set; } = string.Empty;
+    public required string Title { get; init; }
+    public required object Model { get; init; }
+    public required Assembly ContractsAssembly { get; init; }
+    public bool IsCreate { get; init; } = false;
+    public string Action { get; init; } = "Update";
 
-    /// <summary>Das anzuzeigende/zu bearbeitende Modell (typisch DTO).</summary>
-    public object Model { get; set; } = default!;
+    public Func<RequestBuildContext, Task>? OnSave { get; init; }
+    public Func<RequestBuildContext, Task>? OnDelete { get; init; }
 
-    /// <summary>Assembly, in der die Request-Typen liegen (für ctx.Build("Create"/"Update")).</summary>
-    public Assembly ContractsAssembly { get; set; } = typeof(string).Assembly;
+    public Func<RequestBuildContext, Task>? OnBeforeSave { get; set; }
+    public Func<RequestBuildContext, Task>? OnAfterSave  { get; set; }
 
-    /// <summary>Erstellmodus (steuert Felder wie Passwort etc.).</summary>
-    public bool IsCreate { get; set; }
-
-    /// <summary>Zusätzliche, nicht aus dem DTO abgeleitete Felder (Relationen, Passwort, ...).</summary>
     public List<ExtraField> ExtraFields { get; } = new();
 
-    /// <summary>Speichern-Callback (wird von EditDrawer aufgerufen).</summary>
-    public Func<RequestBuildContext, Task>? OnSave { get; set; }
-
-    /// <summary>Löschen-Callback (wird von EditDrawer aufgerufen).</summary>
-    public Func<RequestBuildContext, Task>? OnDelete { get; set; }
+    // NEU: generische Relationen
+    public List<RelationDescriptor> Relations { get; } = new();
 }
-
 public sealed class EditDrawerService
 {
-    public event Action<EditDrawerRequest>? OpenRequested;
-    public event Action? CloseRequested;
+	public event Action? StackChanged;
 
-    public void Open(EditDrawerRequest request)
-    {
-        Console.WriteLine($"EditDrawerService.Open: {request.Title}");
-        OpenRequested?.Invoke(request);
-    }
+	public event Action<EditDrawerRequest>? OpenRequested;
+	public event Action? CloseRequested;
+	private readonly List<Frame> _stack = new();
+	private record Frame(EditDrawerRequest Request, TaskCompletionSource<object?>? Result);
 
-    public void Close()
-    {
-        Console.WriteLine("EditDrawerService.Close");
-        CloseRequested?.Invoke();
-    }
+	public IReadOnlyList<EditDrawerRequest> Stack => _stack.Select(f => f.Request).ToList();
+
+		// Open anpassen
+	public void Open(EditDrawerRequest request)
+	{
+		Push(new Frame(request, null));
+		OpenRequested?.Invoke(request);
+	}
+
+
+	public Task<T?> OpenForResult<T>(EditDrawerRequest request)
+	{
+		var tcs = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
+		Push(new Frame(request, tcs));
+		return tcs.Task.ContinueWith(t => (T?)t.Result);
+	}
+
+	// Close anpassen
+	public void Close(object? result = null)
+	{
+		if (_stack.Count == 0) return;
+		var top = _stack[^1];
+		_stack.RemoveAt(_stack.Count - 1);
+		top.Result?.TrySetResult(result);
+		StackChanged?.Invoke();
+		CloseRequested?.Invoke();
+	}
+
+	private void Push(Frame frame)
+	{
+		_stack.Add(frame);
+		StackChanged?.Invoke();
+	}
 }

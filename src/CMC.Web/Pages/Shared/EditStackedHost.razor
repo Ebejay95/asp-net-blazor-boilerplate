@@ -1,0 +1,21 @@
+@using CMC.Web.Services
+@inject EditDrawerService Service
+@implements IDisposable
+
+@code {
+	protected override void OnInitialized()
+	{
+		Service.StackChanged += StateHasChanged;
+	}
+
+	public void Dispose()
+	{
+		Service.StackChanged -= StateHasChanged;
+	}
+}
+
+@for (var i = 0; i < Service.Stack.Count; i++)
+{
+	var req = Service.Stack[i];
+	<EditDrawer Request="@req" ZIndex="@(1000 + i*2)" />
+}

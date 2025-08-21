@@ -118,10 +118,21 @@
 			Type: typeof(Guid?),
 			ReadOnly: false,
 			Hint: "Firma suchen oder neu anlegen.",
-			DataType: "relation-single", // <-- wichtig: RelationPicker aktivieren
+			DataType: "relation-single",
 			Value: model.CustomerId,
-			Options: _customers.Select(c => new KeyValuePair<string, string>(c.Name, c.Id.ToString())).ToList(),
-			OnCreateNew: CreateCustomerInline // "+"-Button einblenden
+			Options: new(), // optional: initial leer
+			OnCreateNew: CreateCustomerInline,
+			OnSearch: async (term) =>
+			{
+				var all = await CustomerService.GetAllAsync();
+				var filtered = string.IsNullOrWhiteSpace(term)
+					? all
+					: all.Where(c => c.Name.Contains(term, StringComparison.OrdinalIgnoreCase));
+				return filtered
+					.Select(c => new KeyValuePair<string,string>(c.Name, c.Id.ToString()))
+					.ToList();
+			},
+			DebounceMs: 300
 		));
 
         // ----- Passwort NUR bei Create zeigen -----
@@ -167,55 +178,54 @@
     // kannst du später ergänzen. Der FormRenderer selbst unterstützt aktuell keinen
     // OnCreateNew-Hook.
     private async Task<KeyValuePair<string, string>?> CreateCustomerInline()
-    {
-        var tcs = new TaskCompletionSource<KeyValuePair<string, string>?>();
+	{
+		var empty = new CustomerDto(
+			Id: Guid.Empty,
+			Name: "",
+			Industry: "",
+			EmployeeCount: 0,
+			RevenuePerYear: 0m,
+			IsActive: true,
+			CreatedAt: DateTime.UtcNow,
+			UpdatedAt: DateTime.UtcNow,
+			UserCount: 0
+		);
 
-        var empty = new CustomerDto(
-            Id: Guid.Empty,
-            Name: "",
-            Industry: "",
-            EmployeeCount: 0,
-            RevenuePerYear: 0m,
-            IsActive: true,
-            CreatedAt: DateTime.UtcNow,
-            UpdatedAt: DateTime.UtcNow,
-            UserCount: 0
-        );
+		var result = await DrawerService.OpenForResult<KeyValuePair<string, string>?>(
+			new EditDrawerRequest
+			{
+				Title = "Firma anlegen",
+				Model = empty,
+				ContractsAssembly = typeof(CustomerDto).Assembly,
+				IsCreate = true,
+				OnSave = async ctx =>
+				{
+					try
+					{
+						var req = (CreateCustomerRequest)ctx.Build("Create");
+						var created = await CustomerService.CreateAsync(req);
 
-        DrawerService.Open(new EditDrawerRequest
-        {
-            Title = "Firma anlegen",
-            Model = empty,
-            ContractsAssembly = typeof(CustomerDto).Assembly,
-            IsCreate = true,
-            OnSave = async ctx =>
-            {
-                try
-                {
-                    var req = (CreateCustomerRequest)ctx.Build("Create");
-                    var created = await CustomerService.CreateAsync(req);
+						// Refresh für Dropdown
+						_customers = await CustomerService.GetAllAsync();
 
-                    // Liste refreshen (für den Firmen-Dropdown)
-                    _customers = await CustomerService.GetAllAsync();
+						// Ergebnis an den aufrufenden RelationPicker zurückgeben und NUR den Top-Drawer schließen
+						DrawerService.Close(new KeyValuePair<string, string>(created.Name, created.Id.ToString()));
+					}
+					catch (Exception ex)
+					{
+						ConfirmService.Open(new DialogRequest
+						{
+							Title = "Fehler beim Anlegen",
+							Message = ex.Message,
+							ConfirmText = "Okay",
+							OnConfirm = () => Task.CompletedTask
+						});
+					}
+				},
+				OnDelete = _ => Task.CompletedTask
+			}
+		);
 
-                    tcs.TrySetResult(new KeyValuePair<string, string>(created.Name, created.Id.ToString()));
-                    DrawerService.Close();
-                }
-                catch (Exception ex)
-                {
-                    tcs.TrySetResult(null);
-                    ConfirmService.Open(new DialogRequest
-                    {
-                        Title = "Fehler beim Anlegen",
-                        Message = ex.Message,
-                        ConfirmText = "Okay",
-                        OnConfirm = () => Task.CompletedTask
-                    });
-                }
-            },
-            OnDelete = _ => Task.CompletedTask
-        });
-
-        return await tcs.Task;
-    }
+		return result;
+	}
 }

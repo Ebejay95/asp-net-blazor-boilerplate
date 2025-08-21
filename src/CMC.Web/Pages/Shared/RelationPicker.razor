@@ -1,120 +1,218 @@
-@* Relation-Picker mit Suchfeld, Liste/Select und optionalem Inline-Create („+“) *@
+@* RelationPicker mit:
+   - IsMany (Single/Multi)
+   - OnSearch(term) -> async serverseitige Suche mit Debounce
+   - OnCreateNew() -> Inline-Create, setzt Ergebnis sofort
+   - Options (lokale statische Liste; wird genutzt wenn OnSearch == null)
+*@
+@using System
+@using System.Linq
 
 <div class="relation-picker">
-    <div class="rp-row">
-        <input class="form-control"
-               placeholder="@Placeholder"
-               @bind="search"
-               @bind:event="oninput" />
+	<div class="rp-row">
+		<input class="form-control"
+			   placeholder="@Placeholder"
+			   value="@search"
+			   @oninput="OnSearchChanged" />
 
-        @if (OnCreateNew is not null)
-        {
-            <button type="button" class="btn btn-icon" @onclick="CreateNewAsync" title="Neu anlegen">+</button>
-        }
-    </div>
+		@if (OnCreateNew is not null)
+		{
+			<button type="button" class="btn btn-icon" @onclick="CreateNewAsync" title="Neu anlegen">+</button>
+		}
+	</div>
 
-    @if (!IsMany)
-    {
-        <select class="form-control" @onchange="OnSingleChanged">
-            <option value="">– bitte wählen –</option>
-            @foreach (var opt in Filtered)
-            {
-                <option value="@opt.Value" selected="@(opt.Value == ValueSingle)">
-                    @opt.Key
-                </option>
-            }
-        </select>
-    }
-    else
-    {
-        <div class="rp-chips">
-            @foreach (var id in ValueMany)
-            {
-                var label = Options.FirstOrDefault(o => o.Value == id).Key ?? id;
-                <span class="chip">@label <button class="chip-x" type="button" @onclick="@(() => RemoveMany(id))">x</button></span>
-            }
-        </div>
+	@if (_loading)
+	{
+		<div class="rp-loading">Suchen…</div>
+	}
 
-        <div class="rp-list">
-            @foreach (var opt in Filtered)
-            {
-                if (!ValueMany.Contains(opt.Value))
-                {
-                    <button type="button" class="rp-item" @onclick="@(() => AddMany(opt.Value))">@opt.Key</button>
-                }
-            }
-        </div>
-    }
+	@if (!IsMany)
+	{
+		<select class="form-control" @onchange="OnSingleChanged">
+			<option value="">– bitte wählen –</option>
+			@foreach (var opt in Current)
+			{
+				<option value="@opt.Value" selected="@(opt.Value == ValueSingle)">@opt.Key</option>
+			}
+		</select>
+	}
+	else
+	{
+		<div class="rp-chips">
+			@foreach (var id in ValueMany)
+			{
+				var label = LabelFor(id);
+				<span class="chip">
+					@label
+					<button class="chip-x" type="button" @onclick="@(() => RemoveMany(id))">x</button>
+				</span>
+			}
+		</div>
+
+		<div class="rp-list">
+			@foreach (var opt in Current)
+			{
+				if (!ValueMany.Contains(opt.Value))
+				{
+					<button type="button" class="rp-item" @onclick="@(() => AddMany(opt.Value))">@opt.Key</button>
+				}
+			}
+		</div>
+	}
 </div>
 
 @code {
-    [Parameter] public bool IsMany { get; set; }
-    [Parameter] public List<KeyValuePair<string,string>> Options { get; set; } = new();
+	[Parameter] public bool IsMany { get; set; }
+	[Parameter] public List<KeyValuePair<string,string>> Options { get; set; } = new();
 
-    // Single
-    [Parameter] public string? ValueSingle { get; set; }
-    [Parameter] public EventCallback<string?> ValueSingleChanged { get; set; }
+	// Single
+	[Parameter] public string? ValueSingle { get; set; }
+	[Parameter] public EventCallback<string?> ValueSingleChanged { get; set; }
 
-    // Many
-    [Parameter] public List<string> ValueMany { get; set; } = new();
-    [Parameter] public EventCallback<List<string>> ValueManyChanged { get; set; }
+	// Many
+	[Parameter] public List<string> ValueMany { get; set; } = new();
+	[Parameter] public EventCallback<List<string>> ValueManyChanged { get; set; }
 
-    // Inline-Create (optional)
-    [Parameter] public Func<Task<KeyValuePair<string,string>?>>? OnCreateNew { get; set; }
+	// Inline-Create (optional)
+	[Parameter] public Func<Task<KeyValuePair<string,string>?>>? OnCreateNew { get; set; }
 
-    [Parameter] public string Placeholder { get; set; } = "Suchen…";
+	// Serverseitige Suche (optional)
+	[Parameter] public Func<string, Task<List<KeyValuePair<string,string>>>>? OnSearch { get; set; }
+	[Parameter] public int DebounceMs { get; set; } = 250;
 
-    private string search = string.Empty;
+	[Parameter] public string Placeholder { get; set; } = "Suchen…";
 
-    private IEnumerable<KeyValuePair<string,string>> Filtered =>
-        string.IsNullOrWhiteSpace(search)
-            ? Options
-            : Options.Where(o => o.Key.Contains(search, StringComparison.OrdinalIgnoreCase));
+	private string search = string.Empty;
+	private bool _loading;
+	private CancellationTokenSource? _cts;
+	private List<KeyValuePair<string,string>> _remote = new();
 
-    private async Task CreateNewAsync()
-    {
-        if (OnCreateNew is null) return;
+	private IEnumerable<KeyValuePair<string,string>> Current =>
+		OnSearch is null
+			? (string.IsNullOrWhiteSpace(search)
+				? Options
+				: Options.Where(o => o.Key.Contains(search, StringComparison.OrdinalIgnoreCase)))
+			: _remote;
 
-        var created = await OnCreateNew.Invoke();
-        if (created is null) return;
+	protected override async Task OnInitializedAsync()
+	{
+		// Bei serverseitiger Suche einmal initial laden (leerer Term)
+		if (OnSearch is not null)
+		{
+			_loading = true;
+			try
+			{
+				_remote = await OnSearch.Invoke(string.Empty) ?? new();
+			}
+			finally
+			{
+				_loading = false;
+			}
+		}
+	}
 
-        if (!Options.Any(o => o.Value == created.Value.Value))
-            Options.Insert(0, created.Value);
+	private async Task CreateNewAsync()
+	{
+		if (OnCreateNew is null) return;
 
-        if (!IsMany)
-        {
-            ValueSingle = created.Value.Value;
-            await ValueSingleChanged.InvokeAsync(ValueSingle);
-        }
-        else
-        {
-            if (!ValueMany.Contains(created.Value.Value))
-            {
-                ValueMany.Add(created.Value.Value);
-                await ValueManyChanged.InvokeAsync(ValueMany);
-            }
-        }
-    }
+		var created = await OnCreateNew.Invoke();
+		if (created is null) return;
 
-    private async Task OnSingleChanged(ChangeEventArgs e)
-    {
-        var v = e.Value?.ToString();
-        ValueSingle = string.IsNullOrWhiteSpace(v) ? null : v;
-        await ValueSingleChanged.InvokeAsync(ValueSingle);
-    }
+		EnsureOption(created.Value);
 
-    private async Task AddMany(string id)
-    {
-        if (!ValueMany.Contains(id))
-        {
-            ValueMany.Add(id);
-            await ValueManyChanged.InvokeAsync(ValueMany);
-        }
-    }
+		if (!IsMany)
+		{
+			ValueSingle = created.Value.Value;
+			await ValueSingleChanged.InvokeAsync(ValueSingle);
+		}
+		else
+		{
+			if (!ValueMany.Contains(created.Value.Value))
+			{
+				ValueMany.Add(created.Value.Value);
+				await ValueManyChanged.InvokeAsync(ValueMany);
+			}
+		}
+	}
 
-    private async Task RemoveMany(string id)
-    {
-        if (ValueMany.Remove(id))
-            await ValueManyChanged.InvokeAsync(ValueMany);
-    }
+	private async Task OnSearchChanged(ChangeEventArgs e)
+	{
+		search = e.Value?.ToString() ?? string.Empty;
+
+		// Lokale Suche → nur rerendern
+		if (OnSearch is null)
+		{
+			StateHasChanged();
+			return;
+		}
+
+		_cts?.Cancel();
+		_cts = new CancellationTokenSource();
+		var token = _cts.Token;
+
+		_loading = true;
+		StateHasChanged();
+
+		try
+		{
+			if (DebounceMs > 0)
+				await Task.Delay(DebounceMs, token);
+
+			var results = await OnSearch.Invoke(search);
+			if (!token.IsCancellationRequested)
+			{
+				_remote = results ?? new();
+			}
+		}
+		catch (TaskCanceledException) { }
+		finally
+		{
+			if (!token.IsCancellationRequested)
+			{
+				_loading = false;
+				StateHasChanged();
+			}
+		}
+	}
+
+	private string LabelFor(string id)
+	{
+		var fromRemote = _remote.FirstOrDefault(o => o.Value == id);
+		if (!string.IsNullOrEmpty(fromRemote.Key)) return fromRemote.Key;
+
+		var fromLocal = Options.FirstOrDefault(o => o.Value == id);
+		if (!string.IsNullOrEmpty(fromLocal.Key)) return fromLocal.Key;
+
+		return id;
+	}
+
+	private void EnsureOption(KeyValuePair<string,string> opt)
+	{
+		if (!Options.Any(o => o.Value == opt.Value))
+			Options.Insert(0, opt);
+
+		if (OnSearch is not null && !_remote.Any(r => r.Value == opt.Value))
+			_remote.Insert(0, opt);
+	}
+
+	private async Task OnSingleChanged(ChangeEventArgs e)
+	{
+		var v = e.Value?.ToString();
+		ValueSingle = string.IsNullOrWhiteSpace(v) ? null : v;
+		await ValueSingleChanged.InvokeAsync(ValueSingle);
+	}
+
+	private async Task AddMany(string id)
+	{
+		if (!ValueMany.Contains(id))
+		{
+			ValueMany.Add(id);
+			await ValueManyChanged.InvokeAsync(ValueMany);
+		}
+	}
+
+	private async Task RemoveMany(string id)
+	{
+		if (ValueMany.Remove(id))
+			await ValueManyChanged.InvokeAsync(ValueMany);
+	}
 }
