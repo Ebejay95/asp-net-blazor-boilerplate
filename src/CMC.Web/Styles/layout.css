@@ -1,4 +1,9 @@
 @layer components {
+	.shadow-soft {
+		--tw-shadow: 0 10px 25px -10px rgba(2, 6, 23, .15);
+		--tw-shadow-colored: 0 10px 25px -10px var(--tw-shadow-color);
+		box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+	}
 
 	html,
 	body {
@@ -10,16 +15,11 @@
 	}
 
 	header.header-main {
-		@apply shadow-[var(--audicius-shadow)];
-		@apply bg-white fixed w-full flex justify-between items-center pl-4 pr-4 h-[60px] z-[3];
+		@apply fixed w-full flex justify-between items-center h-[60px] z-[3];
 	}
 
 	header.header-main .profile-card {
 		@apply bg-[var(--audicius-blue)] rounded text-[white];
-	}
-
-	aside.aside-main {
-		@apply bg-[var(--audicius-blue)];
 	}
 
 	section {
@@ -62,7 +62,10 @@
 
 	/* Karten – Ergänzungen */
 	.card {
-		@apply bg-white rounded-xl shadow-md border border-black/5;
+		@apply rounded-3xl border border-slate-200 bg-white p-5;
+	}
+	.box {
+		@apply border border-slate-200 bg-white p-5;
 	}
 
 }

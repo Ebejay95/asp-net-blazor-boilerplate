@@ -1,4 +1,5 @@
 @layer components {
+
     /* Cockpit Layout */
     .cockpit {
         @apply h-screen overflow-hidden;
@@ -48,18 +49,18 @@
     }
 
     /* Menü */
-    .has-children {
-        @apply hidden flex-col flex;
+    .has-children ul {
+        @apply flex-col flex;
         @apply space-y-1;
     }
 
     .has-children ul {
-        @apply bg-[var(--audicius-darken)];
+        @apply block pl-3;
     }
 
     .has-children a,
     .has-children span {
-        @apply block px-3 py-2 hover:bg-white/20 transition;
+        @apply block;
     }
 
     /* Optional: Hover-Open – falls du ausschließlich Klick willst, diese Zeile löschen */

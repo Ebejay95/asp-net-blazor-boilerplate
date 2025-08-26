@@ -5,22 +5,18 @@ using CMC.Web.Shared;
 namespace CMC.Web.Services;
 public sealed class EditDrawerRequest
 {
-    public required string Title { get; init; }
-    public required object Model { get; init; }
-    public required Assembly ContractsAssembly { get; init; }
-    public bool IsCreate { get; init; } = false;
-    public string Action { get; init; } = "Update";
+	public string Title { get; init; } = "";
+	public object Model { get; init; } = default!;
+	public Assembly ContractsAssembly { get; init; } = default!;
+	public bool IsCreate { get; init; }
+	public Func<EditContextAdapter, Task> OnSave { get; init; } = _ => Task.CompletedTask;
+	public Func<EditContextAdapter, Task>? OnDelete { get; init; }
 
-    public Func<RequestBuildContext, Task>? OnSave { get; init; }
-    public Func<RequestBuildContext, Task>? OnDelete { get; init; }
+	// NEU: Für relation-auto
+	public Type? EfParentType { get; init; }          // z.B. typeof(User)
+	public Func<object, object>? GetParentKey { get; init; } // z.B. m => ((UserDto)m).Id
 
-    public Func<RequestBuildContext, Task>? OnBeforeSave { get; set; }
-    public Func<RequestBuildContext, Task>? OnAfterSave  { get; set; }
-
-    public List<ExtraField> ExtraFields { get; } = new();
-
-    // NEU: generische Relationen
-    public List<RelationDescriptor> Relations { get; } = new();
+	public List<ExtraField> ExtraFields { get; } = new();
 }
 public sealed class EditDrawerService
 {

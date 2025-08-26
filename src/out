@@ -1,477 +1,48 @@
--rw-r--r--@ 1 jonathaneberle  staff  122 18 Aug 16:59 ./Util/IValueProvider.cs
--rw-r--r--@ 1 jonathaneberle  staff  1968 19 Aug 09:06 ./Util/CompositeValueProvider.cs
--rw-r--r--@ 1 jonathaneberle  staff  4476 19 Aug 14:17 ./Util/IRelationshipManager.cs
--rw-r--r--@ 1 jonathaneberle  staff  731 19 Aug 10:22 ./Util/RequestConventions.cs
--rw-r--r--@ 1 jonathaneberle  staff  5771 19 Aug 09:12 ./Util/RequestFactory.cs
--rw-r--r--@ 1 jonathaneberle  staff  230 19 Aug 14:15 ./Util/EditSessionFactory.cs
 -rw-r--r--@ 1 jonathaneberle  staff  1240 20 Aug 14:23 ./Auth/CookieEvents.cs
 -rw-r--r--@ 1 jonathaneberle  staff  767 18 Aug 09:54 ./appsettings.json
 -rw-r--r--@ 1 jonathaneberle  staff  557 16 Aug 00:39 ./App.razor
--rw-r--r--@ 1 jonathaneberle  staff  483 15 Aug 11:38 ./CMC.Web.csproj
+-rw-r--r--@ 1 jonathaneberle  staff  714 26 Aug 11:16 ./CMC.Web.csproj
 -rw-r--r--@ 1 jonathaneberle  staff  301 15 Aug 15:11 ./Properties/launchSettings.json
--rw-r--r--@ 1 jonathaneberle  staff  559 18 Aug 20:41 ./_Imports.razor
+-rw-r--r--@ 1 jonathaneberle  staff  638 21 Aug 18:34 ./_Imports.razor
 -rw-r--r--@ 1 jonathaneberle  staff  4642 19 Aug 14:24 ./Controllers/AuthController.cs
--rw-r--r--@ 1 jonathaneberle  staff  13364 20 Aug 23:50 ./Pages/Shared/FormRenderer.razor
--rw-r--r--@ 1 jonathaneberle  staff  4418 21 Aug 10:25 ./Pages/Shared/EditDrawer.razor
--rw-r--r--@ 1 jonathaneberle  staff  768 20 Aug 23:49 ./Pages/Shared/ExtraField.cs
--rw-r--r--@ 1 jonathaneberle  staff  126 21 Aug 00:19 ./Pages/Shared/MainLayout.razor
+-rw-r--r--@ 1 jonathaneberle  staff  19647 26 Aug 11:03 ./Pages/Shared/FormRenderer.razor
+-rw-r--r--@ 1 jonathaneberle  staff  4165 26 Aug 11:10 ./Pages/Shared/EditDrawer.razor
+-rw-r--r--@ 1 jonathaneberle  staff  570 21 Aug 12:24 ./Pages/Shared/ExtraField.cs
+-rw-r--r--@ 1 jonathaneberle  staff  122 21 Aug 16:30 ./Pages/Shared/MainLayout.razor
 -rw-r--r--@ 1 jonathaneberle  staff  391 20 Aug 23:49 ./Pages/Shared/EditStackedHost.razor
--rw-r--r--@ 1 jonathaneberle  staff  624 19 Aug 08:23 ./Pages/Shared/RequestBuildContext.cs
 -rw-r--r--@ 1 jonathaneberle  staff  1850 18 Aug 09:54 ./Pages/Shared/ProfileMenu.razor
 -rw-r--r--@ 1 jonathaneberle  staff  3425 18 Aug 21:57 ./Pages/Shared/Dialog.razor
 -rw-r--r--@ 1 jonathaneberle  staff  138 18 Aug 12:35 ./Pages/Shared/RedirectToCockpit.razor
 -rw-r--r--@ 1 jonathaneberle  staff  587 18 Aug 12:33 ./Pages/Shared/NavMenu.razor
--rw-r--r--@ 1 jonathaneberle  staff  5162 20 Aug 23:56 ./Pages/Shared/RelationPicker.razor
+-rw-r--r--@ 1 jonathaneberle  staff  1740 21 Aug 14:16 ./Pages/Shared/ChoiceDialog.razor
 -rw-r--r--@ 1 jonathaneberle  staff  1067 20 Aug 22:58 ./Pages/Shared/EditHost.razor
--rw-r--r--@ 1 jonathaneberle  staff  4238 19 Aug 09:23 ./Pages/Shared/AutoTable.razor
+-rw-r--r--@ 1 jonathaneberle  staff  4404 21 Aug 18:18 ./Pages/Shared/AutoTable.razor
 -rw-r--r--@ 1 jonathaneberle  staff  700 18 Aug 22:08 ./Pages/Shared/MainFooter.razor
 -rw-r--r--@ 1 jonathaneberle  staff  198 14 Aug 14:48 ./Pages/Shared/RedirectToLogin.razor
--rw-r--r--@ 1 jonathaneberle  staff  2200 18 Aug 21:08 ./Pages/Shared/DialogHost.razor
--rw-r--r--@ 1 jonathaneberle  staff  716 14 Aug 14:48 ./Pages/Debug.razor
+-rw-r--r--@ 1 jonathaneberle  staff  9824 26 Aug 11:10 ./Pages/Shared/EditContextAdapter.cs
+-rw-r--r--@ 1 jonathaneberle  staff  2405 21 Aug 16:11 ./Pages/Shared/DialogHost.razor
 -rw-r--r--@ 1 jonathaneberle  staff  12522 18 Aug 12:33 ./Pages/Index.razor
 -rw-r--r--@ 1 jonathaneberle  staff  229 15 Aug 15:11 ./Pages/Logout.razor
 -rw-r--r--@ 1 jonathaneberle  staff  3451 18 Aug 09:54 ./Pages/Login.razor
 -rw-r--r--@ 1 jonathaneberle  staff  2130 18 Aug 09:54 ./Pages/ForgotPassword.razor
 -rw-r--r--@ 1 jonathaneberle  staff  91 18 Aug 13:34 ./Pages/CockpitPages/CockpitOverview.razor
 -rw-r--r--@ 1 jonathaneberle  staff  91 18 Aug 13:34 ./Pages/CockpitPages/CockpitScenarios.razor
--rw-r--r--@ 1 jonathaneberle  staff  4317 20 Aug 23:07 ./Pages/CockpitPages/CockpitCustomers.razor
--rw-r--r--@ 1 jonathaneberle  staff  7994 21 Aug 00:15 ./Pages/CockpitPages/CockpitUsers.razor
+-rw-r--r--@ 1 jonathaneberle  staff  4344 26 Aug 10:30 ./Pages/CockpitPages/CockpitCustomers.razor
+-rw-r--r--@ 1 jonathaneberle  staff  3473 26 Aug 10:33 ./Pages/CockpitPages/CockpitUsers.razor
 -rw-r--r--@ 1 jonathaneberle  staff  1600 18 Aug 12:33 ./Pages/_Host.cshtml
 -rw-r--r--@ 1 jonathaneberle  staff  1684 18 Aug 09:54 ./Pages/Profile.razor
 -rw-r--r--@ 1 jonathaneberle  staff  4136 18 Aug 09:54 ./Pages/ResetPassword.razor
 -rw-r--r--@ 1 jonathaneberle  staff  4427 18 Aug 09:54 ./Pages/Register.razor
 -rw-r--r--@ 1 jonathaneberle  staff  6420 20 Aug 21:55 ./Pages/Cockpit.razor
 -rw-r--r--@ 1 jonathaneberle  staff  883 18 Aug 09:54 ./appsettings.Production.json
--rw-r--r--@ 1 jonathaneberle  staff  994 19 Aug 14:01 ./Services/Relations.cs
--rw-r--r--@ 1 jonathaneberle  staff  2001 21 Aug 00:16 ./Services/EditDrawerService.cs
--rw-r--r--@ 1 jonathaneberle  staff  1072 19 Aug 14:15 ./Services/EditSession.cs
--rw-r--r--@ 1 jonathaneberle  staff  2915 18 Aug 17:29 ./Services/DialogService.cs
--rw-r--r--@ 1 jonathaneberle  staff  4483 20 Aug 22:23 ./Program.cs
+-rw-r--r--@ 1 jonathaneberle  staff  2379 21 Aug 12:47 ./Services/RelationDialogService.cs
+-rw-r--r--@ 1 jonathaneberle  staff  8894 21 Aug 18:22 ./Services/Relations.cs
+-rw-r--r--@ 1 jonathaneberle  staff  1891 21 Aug 12:24 ./Services/EditDrawerService.cs
+-rw-r--r--@ 1 jonathaneberle  staff  14306 21 Aug 14:00 ./Services/EntityManager.cs
+-rw-r--r--@ 1 jonathaneberle  staff  2068 21 Aug 14:16 ./Services/DialogServiceExtensions.cs
+-rw-r--r--@ 1 jonathaneberle  staff  1230 21 Aug 12:45 ./Services/DialogService.cs
+-rw-r--r--@ 1 jonathaneberle  staff  4474 26 Aug 10:39 ./Program.cs
 === FILE CONTENTS ===
-=== ./Util/IValueProvider.cs ===
-using System;
-
-namespace CMC.Web.Util;
-
-public interface IValueProvider
-{
-	bool TryGet(string name, out object? value);
-}
-=== ./Util/CompositeValueProvider.cs ===
-using System;
-using System.Collections.Generic;
-using System.Reflection;
-
-namespace CMC.Web.Util;
-
-public sealed class CompositeValueProvider : IValueProvider
-{
-	private readonly object _model;
-	private readonly IReadOnlyDictionary<string, object?> _changes;
-
-	public CompositeValueProvider(object model, IReadOnlyDictionary<string, object?> changes)
-	{
-		_model = model;
-		_changes = changes;
-	}
-
-	public bool TryGet(string name, out object? value)
-	{
-		// Debug-Ausgabe hinzufügen
-		Console.WriteLine($"CompositeValueProvider.TryGet: Searching for '{name}'");
-
-		// Erst in Changes schauen (höhere Priorität)
-		if (_changes.TryGetValue(name, out value))
-		{
-			Console.WriteLine($"Found '{name}' in changes: '{value}'");
-			return true;
-		}
-
-		// Dann im Model schauen (mit case-insensitive Suche)
-		var prop = _model.GetType().GetProperty(name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
-		if (prop != null)
-		{
-			value = prop.GetValue(_model);
-			Console.WriteLine($"Found '{name}' in model: '{value}'");
-			return true;
-		}
-
-		// Debug: Alle verfügbaren Keys ausgeben
-		Console.WriteLine($"Available changes keys: {string.Join(", ", _changes.Keys)}");
-		Console.WriteLine($"Available model properties: {string.Join(", ", _model.GetType().GetProperties().Select(p => p.Name))}");
-
-		value = null;
-		Console.WriteLine($"'{name}' not found anywhere");
-		return false;
-	}
-
-	// Hilfsmethode für Debugging
-	public void DebugPrint()
-	{
-		Console.WriteLine("=== CompositeValueProvider Debug ===");
-		Console.WriteLine("Changes:");
-		foreach (var kvp in _changes)
-		{
-			Console.WriteLine($"  {kvp.Key} = {kvp.Value}");
-		}
-
-		Console.WriteLine("Model properties:");
-		foreach (var prop in _model.GetType().GetProperties())
-		{
-			try
-			{
-				var val = prop.GetValue(_model);
-				Console.WriteLine($"  {prop.Name} = {val}");
-			}
-			catch (Exception ex)
-			{
-				Console.WriteLine($"  {prop.Name} = ERROR: {ex.Message}");
-			}
-		}
-	}
-}
-=== ./Util/IRelationshipManager.cs ===
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using CMC.Web.Shared;
-
-namespace CMC.Web.Util;
-
-/// <summary>
-/// Verwaltet Beziehungen zwischen Entities und deren Side-Effects beim Bearbeiten
-/// </summary>
-public interface IRelationshipManager
-{
-    /// <summary>
-    /// Registriert eine Beziehung zwischen zwei Entity-Typen
-    /// </summary>
-    void RegisterRelationship<TSource, TTarget>(
-        string relationshipName,
-        Func<TSource, Task<IEnumerable<TTarget>>> getRelatedEntities,
-        Func<TSource, TTarget, Task>? updateRelation = null,
-        Func<TSource, TTarget, Task>? removeRelation = null
-    );
-
-    /// <summary>
-    /// Führt alle Beziehungs-Updates für eine Entity durch
-    /// </summary>
-    Task ProcessRelationshipUpdates<T>(T entity, RequestBuildContext context);
-
-    /// <summary>
-    /// Holt alle verwandten Entities für eine gegebene Entity
-    /// </summary>
-    Task<IEnumerable<object>> GetRelatedEntities<T>(T entity, string relationshipName);
-}
-
-public class RelationshipManager : IRelationshipManager
-{
-    private readonly Dictionary<(Type, string), IRelationshipDefinition> _relationships = new();
-
-    public void RegisterRelationship<TSource, TTarget>(
-        string relationshipName,
-        Func<TSource, Task<IEnumerable<TTarget>>> getRelatedEntities,
-        Func<TSource, TTarget, Task>? updateRelation = null,
-        Func<TSource, TTarget, Task>? removeRelation = null)
-    {
-        var key = (typeof(TSource), relationshipName);
-        _relationships[key] = new RelationshipDefinition<TSource, TTarget>
-        {
-            GetRelatedEntities = getRelatedEntities,
-            UpdateRelation = updateRelation,
-            RemoveRelation = removeRelation
-        };
-    }
-
-    public async Task ProcessRelationshipUpdates<T>(T entity, RequestBuildContext context)
-    {
-        var entityType = typeof(T);
-
-        // Finde alle registrierten Beziehungen für diesen Entity-Typ
-        foreach (var kvp in _relationships)
-        {
-            if (kvp.Key.Item1 == entityType)
-            {
-                var relationship = kvp.Value;
-                await relationship.ProcessUpdate(entity, context);
-            }
-        }
-    }
-
-    public async Task<IEnumerable<object>> GetRelatedEntities<T>(T entity, string relationshipName)
-    {
-        var key = (typeof(T), relationshipName);
-        if (_relationships.TryGetValue(key, out var relationship))
-        {
-            return await relationship.GetRelated(entity);
-        }
-        return Enumerable.Empty<object>();
-    }
-
-    private interface IRelationshipDefinition
-    {
-        Task ProcessUpdate(object source, RequestBuildContext context);
-        Task<IEnumerable<object>> GetRelated(object source);
-    }
-
-    private class RelationshipDefinition<TSource, TTarget> : IRelationshipDefinition
-    {
-        public Func<TSource, Task<IEnumerable<TTarget>>> GetRelatedEntities { get; set; } = default!;
-        public Func<TSource, TTarget, Task>? UpdateRelation { get; set; }
-        public Func<TSource, TTarget, Task>? RemoveRelation { get; set; }
-
-        public async Task ProcessUpdate(object source, RequestBuildContext context)
-        {
-            if (source is TSource typedSource)
-            {
-                var relatedEntities = await GetRelatedEntities(typedSource);
-
-                foreach (var relatedEntity in relatedEntities)
-                {
-                    // Prüfe ob die Änderungen diese Beziehung betreffen
-                    if (ShouldUpdateRelation(context, relatedEntity))
-                    {
-                        if (UpdateRelation != null)
-                            await UpdateRelation(typedSource, relatedEntity);
-                    }
-                }
-            }
-        }
-
-        public async Task<IEnumerable<object>> GetRelated(object source)
-        {
-            if (source is TSource typedSource)
-            {
-                var related = await GetRelatedEntities(typedSource);
-                return related.Cast<object>();
-            }
-            return Enumerable.Empty<object>();
-        }
-
-        private bool ShouldUpdateRelation(RequestBuildContext context, TTarget relatedEntity)
-        {
-            // Implementiere Logic um zu entscheiden ob eine Relation aktualisiert werden soll
-            // Basierend auf den Änderungen im Context
-            return true; // Vereinfacht - könnte komplexere Logic enthalten
-        }
-    }
-}
-=== ./Util/RequestConventions.cs ===
-using System;
-using System.Linq;
-using System.Reflection;
-
-namespace CMC.Web.Util;
-
-public static class RequestConventions
-{
-	public static Type? FindRequestType(object model, string action, Assembly contractsAssembly)
-	{
-		var modelName = model.GetType().Name;
-		if (modelName.StartsWith("Edit", StringComparison.OrdinalIgnoreCase))
-			modelName = modelName[4..];
-		if (modelName.EndsWith("Model", StringComparison.OrdinalIgnoreCase))
-			modelName = modelName[..^5];
-		if (modelName.EndsWith("Dto", StringComparison.OrdinalIgnoreCase))
-			modelName = modelName[..^3];
-
-		var reqName = $"{action}{modelName}Request";
-		return contractsAssembly.GetTypes().FirstOrDefault(x => x.Name.Equals(reqName, StringComparison.Ordinal));
-	}
-}
-=== ./Util/RequestFactory.cs ===
-using System;
-using System.Globalization;
-using System.Linq;
-using System.Reflection;
-
-namespace CMC.Web.Util;
-
-public static class RequestFactory
-{
-	public static object MapByProvider(object model, IValueProvider provider, string action, Assembly contractsAssembly)
-	{
-		Console.WriteLine($"=== RequestFactory.MapByProvider ===");
-		Console.WriteLine($"Action: {action}");
-		Console.WriteLine($"Model: {model.GetType().Name}");
-
-		var requestType = RequestConventions.FindRequestType(model, action, contractsAssembly)
-			?? throw new InvalidOperationException($"Request-Typ für '{action}' nicht gefunden.");
-
-		Console.WriteLine($"Found request type: {requestType.Name}");
-
-		return MapToRequest(model, provider, requestType);
-	}
-
-	private static object MapToRequest(object model, IValueProvider provider, Type requestType)
-	{
-		Console.WriteLine($"=== MapToRequest for {requestType.Name} ===");
-
-		var ctors = requestType.GetConstructors(BindingFlags.Public | BindingFlags.Instance)
-			.OrderByDescending(c => c.GetParameters().Length)
-			.ToList();
-
-		Console.WriteLine($"Found {ctors.Count} constructors");
-
-		// Versuche erst Konstruktoren mit Parametern
-		foreach (var ctor in ctors.Where(c => c.GetParameters().Length > 0))
-		{
-			var ps = ctor.GetParameters();
-			var args = new object?[ps.Length];
-			var ok = true;
-
-			Console.WriteLine($"Trying constructor with {ps.Length} parameters:");
-
-			for (int i = 0; i < ps.Length; i++)
-			{
-				var p = ps[i];
-				Console.WriteLine($"  Parameter {i}: {p.Name} ({p.ParameterType.Name})");
-
-				if (string.IsNullOrEmpty(p.Name) || !TryGet(provider, model, p.Name, out var val))
-				{
-					if (p.HasDefaultValue)
-					{
-						args[i] = p.DefaultValue;
-						Console.WriteLine($"    -> Using default value: {p.DefaultValue}");
-						continue;
-					}
-					if (IsNullable(p.ParameterType))
-					{
-						args[i] = null;
-						Console.WriteLine($"    -> Using null (nullable)");
-						continue;
-					}
-					Console.WriteLine($"    -> FAILED: No value found and not nullable/no default");
-					ok = false;
-					break;
-				}
-
-				Console.WriteLine($"    -> Found value: '{val}' (type: {val?.GetType().Name ?? "null"})");
-
-				if (!TryConvert(val, p.ParameterType, out var conv))
-				{
-					Console.WriteLine($"    -> FAILED: Could not convert to {p.ParameterType.Name}");
-					ok = false;
-					break;
-				}
-
-				Console.WriteLine($"    -> Converted to: '{conv}' (type: {conv?.GetType().Name ?? "null"})");
-				args[i] = conv;
-			}
-
-			if (ok)
-			{
-				Console.WriteLine($"Constructor with parameters succeeded! Creating instance...");
-				var instance = ctor.Invoke(args);
-				Console.WriteLine($"Created: {instance}");
-				return instance;
-			}
-			else
-			{
-				Console.WriteLine($"Constructor failed, trying next...");
-			}
-		}
-
-		Console.WriteLine("All parameterized constructors failed, using parameterless + property setting...");
-
-		// Fallback: parameterlos + setzbare Properties
-		var inst = Activator.CreateInstance(requestType) ?? throw new InvalidOperationException($"Cannot create {requestType.Name}");
-		var props = requestType.GetProperties(BindingFlags.Public | BindingFlags.Instance).Where(p => p.CanWrite);
-
-		Console.WriteLine($"Found {props.Count()} writable properties");
-
-		foreach (var rp in props)
-		{
-			Console.WriteLine($"Setting property: {rp.Name}");
-			if (string.IsNullOrEmpty(rp.Name) || !TryGet(provider, model, rp.Name, out var val))
-			{
-				Console.WriteLine($"  -> No value found");
-				continue;
-			}
-			Console.WriteLine($"  -> Found value: '{val}'");
-
-			if (!TryConvert(val, rp.PropertyType, out var conv))
-			{
-				Console.WriteLine($"  -> Could not convert");
-				continue;
-			}
-			Console.WriteLine($"  -> Setting to: '{conv}'");
-
-			rp.SetValue(inst, conv);
-		}
-
-		Console.WriteLine($"Final instance after property setting: {inst}");
-		return inst;
-	}
-
-	private static bool TryGet(IValueProvider provider, object model, string name, out object? value)
-	{
-		Console.WriteLine($"    TryGet: Looking for '{name}'");
-
-		if (provider.TryGet(name, out value))
-		{
-			Console.WriteLine($"    TryGet: Found in provider: '{value}'");
-			return true;
-		}
-
-		// Letzter Versuch: Id o.ä. über Case-Insensitive
-		var prop = model.GetType().GetProperty(name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
-		if (prop != null)
-		{
-			value = prop.GetValue(model);
-			Console.WriteLine($"    TryGet: Found in model: '{value}'");
-			return true;
-		}
-
-		Console.WriteLine($"    TryGet: Not found");
-		value = null;
-		return false;
-	}
-
-	private static bool IsNullable(Type t) => !t.IsValueType || Nullable.GetUnderlyingType(t) != null;
-
-	private static bool TryConvert(object? value, Type targetType, out object? result)
-	{
-		var nn = Nullable.GetUnderlyingType(targetType) ?? targetType;
-		if (value == null) { result = null; return true; }
-		if (nn.IsInstanceOfType(value)) { result = value; return true; }
-
-		try
-		{
-			if (nn.IsEnum)
-			{
-				if (value is string s) { result = Enum.Parse(nn, s, true); return true; }
-				result = Enum.ToObject(nn, Convert.ChangeType(value, Enum.GetUnderlyingType(nn), CultureInfo.InvariantCulture)!);
-				return true;
-			}
-			if (nn == typeof(Guid))
-			{
-				if (value is Guid g) { result = g; return true; }
-				if (value is string sg && Guid.TryParse(sg, out var pg)) { result = pg; return true; }
-				result = null; return false;
-			}
-			if (nn == typeof(DateTime))
-			{
-				if (value is DateTime dt) { result = dt; return true; }
-				if (value is string sd && DateTime.TryParse(sd, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var pdt)) { result = pdt; return true; }
-			}
-			result = Convert.ChangeType(value, nn, CultureInfo.InvariantCulture);
-			return true;
-		}
-		catch { result = null; return false; }
-	}
-}
-
-=== ./Util/EditSessionFactory.cs ===
-using System.Reflection;
-
-namespace CMC.Web.Services;
-
-public sealed class EditSessionFactory
-{
-    public EditSession Create(object model, Assembly asm, string action = "Update")
-        => new EditSession(model, asm, action);
-}
 === ./Auth/CookieEvents.cs ===
 // src/CMC.Web/Auth/CookieEvents.cs
 using System;
@@ -571,9 +142,12 @@ public sealed class CookieEvents : CookieAuthenticationEvents
   </PropertyGroup>
 
   <ItemGroup>
+	  <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
     <ProjectReference Include="..\CMC.Application\CMC.Application.csproj"/>
     <ProjectReference Include="..\CMC.Infrastructure\CMC.Infrastructure.csproj"/>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.10"/>
+		<PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.*" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="8.*" />
   </ItemGroup>
 </Project>
 === ./Properties/launchSettings.json ===
@@ -607,6 +181,7 @@ public sealed class CookieEvents : CookieAuthenticationEvents
 @using System.ComponentModel.DataAnnotations
 @using System.Reflection
 @using CMC.Web.Services
+@using CMC.Contracts.Common   <!-- ✨ NEU: Attribute für Editorsteuerung -->
 === ./Controllers/AuthController.cs ===
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authentication;
@@ -739,464 +314,768 @@ namespace CMC.Web.Controllers
 === ./Pages/Shared/FormRenderer.razor ===
 @using System.ComponentModel.DataAnnotations
 @using System.Reflection
+@using System.Linq
 @using Microsoft.AspNetCore.Components
 @using Microsoft.AspNetCore.Components.Web
 @using CMC.Web.Shared
 @using CMC.Web.Pages.Shared
+@using CMC.Web.Services
+@using CMC.Contracts.Common
+
+@inject IRelationshipManager Rels
+@inject DialogService Dialogs
 
 <div class="form-grid">
-    @if (Model is not null)
-    {
-        @foreach (var prop in VisibleProps)
-        {
-            var pType = EffectiveType(prop.PropertyType);
-            var label = GetDisplayName(prop) ?? prop.Name;
-            var current = prop.GetValue(Model);
+	@if (Model is not null)
+	{
+		@foreach (var prop in VisibleProps)
+		{
+			var pType = EffectiveType(prop.PropertyType);
+			var label = GetDisplayName(prop) ?? prop.Name;
+			var current = prop.GetValue(Model);
 
-            <div class="form-row">
-                <label class="form-label">@label</label>
+			<div class="form-row">
+				<label class="form-label">@label</label>
 
-                @switch (TypeCodeOf(pType))
-                {
-                    case TypeCode.Boolean:
-                        {
-                            var chk = current as bool? ?? false;
-                            <input type="checkbox"
-                                   checked="@chk"
-                                   @onchange="e => OnBooleanChanged(prop.Name, e)" />
-                            break;
-                        }
-                    case TypeCode.DateTime:
-                        {
-                            var dt = current as DateTime? ?? default;
-                            var val = dt == default ? "" : ToDateTimeLocalValue(dt);
-                            <input class="form-control" type="datetime-local"
-                                   value="@val"
-                                   @onchange="e => OnChanged(prop.Name, ParseDateTimeLocal(e.Value?.ToString()))" />
-                            break;
-                        }
-                    case TypeCode.Decimal:
-                        {
-                            var dec = current as decimal? ?? 0m;
-                            <input class="form-control" type="number"
-                                   step="any"
-                                   value="@dec"
-                                   @onchange="e => OnChanged(prop.Name, ParseDecimal(e.Value?.ToString()))" />
-                            break;
-                        }
-                    case TypeCode.Double:
-                    case TypeCode.Single:
-                        {
-                            var dbl = current is double d ? d : current is float f ? (double)f : 0d;
-                            <input class="form-control" type="number"
-                                   step="any"
-                                   value="@dbl"
-                                   @onchange="e => OnChanged(prop.Name, ParseDouble(e.Value?.ToString()))" />
-                            break;
-                        }
-                    case TypeCode.Int16:
-                    case TypeCode.Int32:
-                    case TypeCode.Int64:
-                    case TypeCode.UInt16:
-                    case TypeCode.UInt32:
-                    case TypeCode.UInt64:
-                        {
-                            var num = current?.ToString() ?? "0";
-                            <input class="form-control" type="number"
-                                   step="1"
-                                   value="@num"
-                                   @onchange="e => OnChanged(prop.Name, ParseLongOrInt(pType, e.Value?.ToString()))" />
-                            break;
-                        }
-                    case TypeCode.String:
-                        {
-                            var txt = current?.ToString() ?? string.Empty;
-                            // Falls ein Property "Password" heißt, maskieren
-                            var isPw = prop.Name.Contains("Password", StringComparison.OrdinalIgnoreCase);
-                            <input class="form-control"
-                                   type="@(isPw ? "password" : "text")"
-                                   autocomplete="@(isPw ? "new-password" : null)"
-                                   value="@txt"
-                                   @onchange="e => OnChanged(prop.Name, e.Value?.ToString())" />
-                            break;
-                        }
-                    default:
-                        {
-                            if (pType == typeof(Guid))
-                            {
-                                var gtxt = current?.ToString() ?? string.Empty;
-                                <input class="form-control" type="text" value="@gtxt" disabled />
-                            }
-                            else
-                            {
-                                var raw = current?.ToString() ?? string.Empty;
-                                <input class="form-control" type="text" value="@raw"
-                                       @onchange="e => OnChanged(prop.Name, e.Value?.ToString())" />
-                            }
-                            break;
-                        }
-                }
-            </div>
-        }
-    }
+				@if (TryGetSelectOptions(prop, out var selectOpts))
+				{
+					var value = current?.ToString() ?? string.Empty;
+					<select class="form-control" @onchange="e => OnChanged(prop.Name, e.Value?.ToString())">
+						<option value="">-- bitte wählen --</option>
+						@foreach (var opt in selectOpts)
+						{
+							var selected = string.Equals(opt.Value, value, StringComparison.OrdinalIgnoreCase);
+							<option value="@opt.Value" selected="@selected">@opt.Key</option>
+						}
+					</select>
+				}
+				else
+				{
+					var relAttr = prop.GetCustomAttribute<RelationFromAttribute>();
+					if (relAttr is not null && Request.EfParentType is not null && Request.ContractsAssembly is not null)
+					{
+						var uiKey = $"prop::{prop.Name}";
+						var relationName = string.IsNullOrWhiteSpace(relAttr.RelationName)
+							? DeriveRelationName(prop.Name)
+							: relAttr.RelationName;
 
-    @if (ExtraFields?.Count > 0)
-    {
-        @foreach (var ef in ExtraFields)
-        {
-            var label = string.IsNullOrWhiteSpace(ef.Label) ? ef.Name : ef.Label;
-            var hint  = ef.Hint;
+						EnsureRelationLoaded(uiKey, relationName);
 
-            <div class="form-row">
-                <label class="form-label">@label</label>
+						if (_relLoading.Contains(uiKey))
+						{
+							<input class="form-control" type="text" value="Lade Optionen …" disabled />
+						}
+						else if (_relKind.TryGetValue(uiKey, out var kind) && _relOptions.TryGetValue(uiKey, out var opts))
+						{
+							if (!relAttr.IsMany && kind == RelationKind.Reference)
+							{
+								if (!_relSingle.ContainsKey(uiKey))
+									_relSingle[uiKey] = current?.ToString();
 
-                @* ---- Relation (Single) via RelationPicker ---- *@
-                @if (string.Equals(ef.DataType, "relation-single", StringComparison.OrdinalIgnoreCase))
-                {
-                    @InitRelationSingleState(ef)
+								var cur = _relSingle[uiKey] ?? string.Empty;
+								<select class="form-control" @onchange="e => SetRelationSingle(prop.Name, e.Value?.ToString())">
+									<option value="">-- bitte wählen --</option>
+									@foreach (var o in opts)
+									{
+										var sel = string.Equals(o.Value, cur, StringComparison.OrdinalIgnoreCase);
+										<option value="@o.Value" selected="@sel">@o.Key</option>
+									}
+								</select>
+							}
+							else if (relAttr.IsMany && kind == RelationKind.ManyToMany)
+							{
+								var key = prop.Name;
+								if (!_relMany.ContainsKey(key))
+								{
+									var lst = new List<string>();
+									if (current is IEnumerable<string> es) lst = es.ToList();
+									else if (current is string s && !string.IsNullOrWhiteSpace(s))
+										lst = s.Split(',').Select(x => x.Trim()).Where(x => x.Length > 0).ToList();
+									_relMany[key] = lst;
+								}
 
-					<RelationPicker IsMany="false"
-						Options="@(ef.Options ?? new())"
-						ValueSingle="@_relSingle[ef.Name]"
-						ValueSingleChanged="@(v => SetRelationSingle(ef.Name, v))"
-						OnCreateNew="ef.OnCreateNew"
-						OnSearch="ef.OnSearch"
-						DebounceMs="ef.DebounceMs"
-						Placeholder="Suchen…" />
-                }
-                else if (string.Equals(ef.DataType, "relation-many", StringComparison.OrdinalIgnoreCase))
-                {
-                    @InitRelationManyState(ef)
+								@RenderCheckboxList(key, opts)
+							}
+							else
+							{
+								<input class="form-control" type="text" value="(Relation nicht verfügbar)" disabled />
+							}
+						}
+						else
+						{
+							<input class="form-control" type="text" value="(Relation nicht verfügbar)" disabled />
+						}
+					}
+					else
+					{
+						@switch (TypeCodeOf(pType))
+						{
+							case TypeCode.Boolean:
+							{
+								var chk = current as bool? ?? false;
+								<input type="checkbox" checked="@chk" @onchange="e => OnBooleanChanged(prop.Name, e)" />
+								break;
+							}
+							case TypeCode.DateTime:
+							{
+								var dt = current as DateTime? ?? default;
+								var val = dt == default ? "" : ToDateTimeLocalValue(dt);
+								<input class="form-control" type="datetime-local" value="@val" @oninput="e => OnChanged(prop.Name, ParseDateTimeLocal(e.Value?.ToString()))" />
+								break;
+							}
+							case TypeCode.Decimal:
+							{
+								var dec = current as decimal? ?? 0m;
+								<input class="form-control" type="number" step="any" value="@dec" @oninput="e => OnChanged(prop.Name, ParseDecimal(e.Value?.ToString()))" />
+								break;
+							}
+							case TypeCode.Double:
+							case TypeCode.Single:
+							{
+								var dbl = current is double d ? d : current is float f ? (double)f : 0d;
+								<input class="form-control" type="number" step="any" value="@dbl" @oninput="e => OnChanged(prop.Name, ParseDouble(e.Value?.ToString()))" />
+								break;
+							}
+							case TypeCode.Int16:
+							case TypeCode.Int32:
+							case TypeCode.Int64:
+							case TypeCode.UInt16:
+							case TypeCode.UInt32:
+							case TypeCode.UInt64:
+							{
+								var num = current?.ToString() ?? "0";
+								<input class="form-control" type="number" step="1" value="@num" @oninput="e => OnChanged(prop.Name, ParseLongOrInt(pType, e.Value?.ToString()))" />
+								break;
+							}
+							case TypeCode.String:
+							{
+								var txt = current?.ToString() ?? string.Empty;
+								var isPw = prop.Name.Contains("Password", StringComparison.OrdinalIgnoreCase);
+								<input class="form-control" type="@(isPw ? "password" : "text")" autocomplete="@(isPw ? "new-password" : null)" value="@txt" @oninput="e => OnChanged(prop.Name, e.Value?.ToString())" />
+								break;
+							}
+							default:
+							{
+								if (pType == typeof(Guid))
+								{
+									var gtxt = current?.ToString() ?? string.Empty;
+									<input class="form-control" type="text" value="@gtxt" disabled />
+								}
+								else
+								{
+									var raw = current?.ToString() ?? string.Empty;
+									<input class="form-control" type="text" value="@raw" @oninput="e => OnChanged(prop.Name, e.Value?.ToString())" />
+								}
+								break;
+							}
+						}
+					}
+				}
+			</div>
+		}
+	}
 
-                    <RelationPicker IsMany="true"
-                                    Options="@(ef.Options ?? new())"
-                                    ValueMany="@_relMany[ef.Name]"
-                                    ValueManyChanged="@(vals => SetRelationMany(ef.Name, vals))"
-						OnCreateNew="ef.OnCreateNew"
-						OnSearch="ef.OnSearch"
-						DebounceMs="ef.DebounceMs"
-						Placeholder="Suchen…" />
-                }
-                else if (string.Equals(ef.DataType, "password", StringComparison.OrdinalIgnoreCase))
-                {
-                    var txt = ef.Value?.ToString() ?? string.Empty;
-                    <input class="form-control" type="password"
-                           autocomplete="new-password"
-                           value="@txt"
-                           @onchange="e => OnChanged(ef.Name, e.Value?.ToString())" />
-                }
-                else if (ef.Options != null && ef.Options.Any())
-                {
-                    // Einfaches Dropdown
-                    var current = ef.Value?.ToString() ?? string.Empty;
-                    var isDisabled = ef.ReadOnly;
+	@if (ExtraFields?.Count > 0)
+	{
+		@foreach (var ef in ExtraFields)
+		{
+			var label = string.IsNullOrWhiteSpace(ef.Label) ? ef.Name : ef.Label;
+			var hint = ef.Hint;
 
-                    <select class="form-control" disabled="@isDisabled" @onchange="e => OnChanged(ef.Name, e.Value?.ToString())">
-                        <option value="">-- bitte wählen --</option>
-                        @foreach (var opt in ef.Options)
-                        {
-                            var selected = string.Equals(opt.Value, current, StringComparison.OrdinalIgnoreCase);
-                            <option value="@opt.Value" selected="@selected">@opt.Key</option>
-                        }
-                    </select>
-                }
-                else
-                {
-                    // Textfeld (oder read-only)
-                    var txt = ef.Value?.ToString() ?? string.Empty;
-                    if (ef.ReadOnly)
-                    {
-                        <input class="form-control" type="text" value="@txt" disabled />
-                    }
-                    else
-                    {
-                        <input class="form-control" type="text" value="@txt" @onchange="e => OnChanged(ef.Name, e.Value?.ToString())" />
-                    }
-                }
+			<div class="form-row">
+				<label class="form-label">@label</label>
 
-                @if (!string.IsNullOrWhiteSpace(hint))
-                {
-                    <div class="form-hint">@hint</div>
-                }
-            </div>
-        }
-    }
+				@if (string.Equals(ef.DataType, "relation-auto", StringComparison.OrdinalIgnoreCase))
+				{
+					var relationName = DeriveRelationName(ef.Name);
+
+					if (Request.EfParentType is null || Request.ContractsAssembly is null)
+					{
+						<input class="form-control" type="text" value="(Relation nicht konfiguriert)" disabled />
+					}
+					else
+					{
+						EnsureRelationLoaded(ef.Name, relationName);
+
+						if (_relLoading.Contains(ef.Name))
+						{
+							<input class="form-control" type="text" value="Lade Optionen …" disabled />
+						}
+						else if (_relKind.TryGetValue(ef.Name, out var kind) && _relOptions.TryGetValue(ef.Name, out var opts))
+						{
+							if (kind == RelationKind.Reference)
+							{
+								if (!_relSingle.ContainsKey(ef.Name))
+									_relSingle[ef.Name] = ef.Value?.ToString();
+
+								var current = _relSingle[ef.Name] ?? string.Empty;
+								<select class="form-control" @onchange="e => SetRelationSingle(ef.Name, e.Value?.ToString())">
+									<option value="">-- bitte wählen --</option>
+									@foreach (var o in opts)
+									{
+										var sel = string.Equals(o.Value, current, StringComparison.OrdinalIgnoreCase);
+										<option value="@o.Value" selected="@sel">@o.Key</option>
+									}
+								</select>
+							}
+							else if (kind == RelationKind.ManyToMany)
+							{
+								if (!_relMany.ContainsKey(ef.Name))
+								{
+									var lst = new List<string>();
+									if (ef.Value is IEnumerable<string> es) lst = es.ToList();
+									else if (ef.Value is string s && !string.IsNullOrWhiteSpace(s))
+										lst = s.Split(',').Select(x => x.Trim()).Where(x => x.Length > 0).ToList();
+									_relMany[ef.Name] = lst;
+								}
+
+								@RenderCheckboxList(ef.Name, opts)
+							}
+							else
+							{
+								<input class="form-control" type="text" value="(Relationstyp nicht unterstützt)" disabled />
+							}
+						}
+						else
+						{
+							<input class="form-control" type="text" value="(Keine Optionen gefunden)" disabled />
+						}
+					}
+				}
+				else if (string.Equals(ef.DataType, "password", StringComparison.OrdinalIgnoreCase))
+				{
+					var txt = ef.Value?.ToString() ?? string.Empty;
+					<input class="form-control" type="password" autocomplete="new-password" value="@txt" @oninput="e => OnChanged(ef.Name, e.Value?.ToString())" />
+				}
+				else if (ef.Options != null && ef.Options.Any())
+				{
+					var current = ef.Value?.ToString() ?? string.Empty;
+					var isDisabled = ef.ReadOnly;
+
+					<select class="form-control" disabled="@isDisabled" @onchange="e => OnChanged(ef.Name, e.Value?.ToString())">
+						<option value="">-- bitte wählen --</option>
+						@foreach (var opt in ef.Options)
+						{
+							var selected = string.Equals(opt.Value, current, StringComparison.OrdinalIgnoreCase);
+							<option value="@opt.Value" selected="@selected">@opt.Key</option>
+						}
+					</select>
+				}
+				else
+				{
+					var txt = ef.Value?.ToString() ?? string.Empty;
+					if (ef.ReadOnly)
+					{
+						<input class="form-control" type="text" value="@txt" disabled />
+					}
+					else
+					{
+						<input class="form-control" type="text" value="@txt" @oninput="e => OnChanged(ef.Name, e.Value?.ToString())" />
+					}
+				}
+
+				@if (!string.IsNullOrWhiteSpace(hint))
+				{
+					<div class="form-hint">@hint</div>
+				}
+			</div>
+		}
+	}
 </div>
 
 @code {
-    // ===================== Parameters & Cascade ================================
-    [Parameter, EditorRequired] public object Model { get; set; } = default!;
-    [Parameter] public List<ExtraField> ExtraFields { get; set; } = new();
-    [Parameter] public EventCallback<(string Name, object? Value)> OnFieldChanged { get; set; }
 
-    [CascadingParameter] public RequestBuildContext? Ctx { get; set; }
+	[Parameter, EditorRequired] public object Model { get; set; } = default!;
+	[Parameter] public List<ExtraField> ExtraFields { get; set; } = new();
+	[Parameter] public EventCallback<(string Name, object? Value)> OnFieldChanged { get; set; }
+	[Parameter] public EditDrawerRequest Request { get; set; } = default!;
+	[Parameter] public EditContextAdapter Ctx { get; set; } = default!;
 
-    // ===================== RelationPicker interner State ======================
-    private readonly Dictionary<string, string?> _relSingle = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, List<string>> _relMany = new(StringComparer.OrdinalIgnoreCase);
+	// --- Relation-Cache/State ---
+	private readonly Dictionary<string, RelationKind> _relKind = new(StringComparer.OrdinalIgnoreCase);
+	private readonly Dictionary<string, List<KeyValuePair<string,string>>> _relOptions = new(StringComparer.OrdinalIgnoreCase);
+	private readonly HashSet<string> _relLoading = new(StringComparer.OrdinalIgnoreCase);
 
-    private RenderFragment InitRelationSingleState(ExtraField ef) => builder =>
-    {
-        if (!_relSingle.ContainsKey(ef.Name))
-            _relSingle[ef.Name] = ef.Value?.ToString();
-    };
+	private readonly Dictionary<string, string?> _relSingle = new(StringComparer.OrdinalIgnoreCase);
+	private readonly Dictionary<string, List<string>> _relMany = new(StringComparer.OrdinalIgnoreCase);
 
-    private RenderFragment InitRelationManyState(ExtraField ef) => builder =>
-    {
-        if (!_relMany.ContainsKey(ef.Name))
-        {
-            // ef.Value kann CSV, IEnumerable<string> oder null sein – wir normalisieren auf List<string>
-            var lst = new List<string>();
-            if (ef.Value is IEnumerable<string> es) lst = es.ToList();
-            else if (ef.Value is string s && !string.IsNullOrWhiteSpace(s)) lst = s.Split(',').Select(x => x.Trim()).Where(x => x.Length > 0).ToList();
-            _relMany[ef.Name] = lst;
-        }
-    };
+	private IEnumerable<PropertyInfo> VisibleProps => GetVisibleProps();
 
-    private async Task SetRelationSingle(string name, string? value)
-    {
-        _relSingle[name] = value;
-        await OnChanged(name, value);
-    }
+	private IEnumerable<PropertyInfo> GetVisibleProps()
+	{
+		if (Model is null) yield break;
 
-    private async Task SetRelationMany(string name, List<string> values)
-    {
-        _relMany[name] = values;
-        // ⚠️ Falls du hier echte IEnumerable<Guid> im Request brauchst, musst du die Map-Logik im RequestFactory erweitern.
-        await OnChanged(name, values);
-    }
+		var type = Model.GetType();
+		var allProps = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+						   .Where(p => p.CanRead)
+						   .ToList();
 
-    // ===================== Reflection Helpers =================================
-    private IEnumerable<PropertyInfo> VisibleProps => GetVisibleProps();
+		var propNames = new HashSet<string>(allProps.Select(p => p.Name), StringComparer.OrdinalIgnoreCase);
+		var extraNames = new HashSet<string>((ExtraFields ?? new()).Select(ef => ef.Name), StringComparer.OrdinalIgnoreCase);
 
-    private IEnumerable<PropertyInfo> GetVisibleProps()
-    {
-        if (Model is null) yield break;
+		foreach (var p in allProps)
+		{
+			var scaffold = p.GetCustomAttribute<ScaffoldColumnAttribute>();
+			if (scaffold is { Scaffold: false }) continue;
 
-        var type = Model.GetType();
-        foreach (var p in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
-        {
-            if (!p.CanRead) continue;
+			var disp = p.GetCustomAttribute<DisplayAttribute>();
+			if (disp?.GetAutoGenerateField() == false) continue;
 
-            var scaffold = p.GetCustomAttribute<ScaffoldColumnAttribute>();
-            if (scaffold is { Scaffold: false }) continue;
+			if (p.GetCustomAttribute<EditorHiddenAttribute>() is not null)
+				continue;
 
-            var disp = p.GetCustomAttribute<DisplayAttribute>();
-            if (disp?.GetAutoGenerateField() == false) continue;
+			var hideIfs = p.GetCustomAttributes<EditorHideIfExistsAttribute>()?.ToList();
+			if (hideIfs is { Count: > 0 } &&
+				hideIfs.Any(h => propNames.Contains(h.OtherProperty) || extraNames.Contains(h.OtherProperty)))
+				continue;
 
-            yield return p;
-        }
-    }
+			if ((hideIfs is null || hideIfs.Count == 0) &&
+				p.PropertyType == typeof(string) &&
+				p.Name.EndsWith("Name", StringComparison.OrdinalIgnoreCase))
+			{
+				var root = p.Name[..^"Name".Length];
+				if (propNames.Contains(root + "Id") || extraNames.Contains(root + "Id"))
+					continue;
+			}
 
-    private static string? GetDisplayName(PropertyInfo p)
-        => p.GetCustomAttribute<DisplayAttribute>()?.GetName();
+			yield return p;
+		}
+	}
 
-    // ===================== Typing Helpers =====================================
-    private static Type EffectiveType(Type t) => Nullable.GetUnderlyingType(t) ?? t;
+	private bool TryGetSelectOptions(PropertyInfo p, out List<KeyValuePair<string,string>> options)
+	{
+		options = new();
+		var attr = p.GetCustomAttribute<SelectFromAttribute>();
+		if (attr is null) return false;
 
-    private static TypeCode TypeCodeOf(Type t)
-    {
-        var et = EffectiveType(t);
-        return Type.GetTypeCode(et);
-    }
+		try
+		{
+			var path = attr.SourcePath?.Trim() ?? string.Empty;
+			var lastDot = path.LastIndexOf('.');
+			if (lastDot <= 0 || lastDot >= path.Length - 1) return false;
 
-    // ===================== Conversions / Format ===============================
-    private static string ToDateTimeLocalValue(DateTime dt)
-    {
-        var local = dt.Kind == DateTimeKind.Utc ? dt.ToLocalTime() : dt;
-        return local.ToString("yyyy-MM-ddTHH:mm");
-    }
+			var typeName = path[..lastDot];
+			var member = path[(lastDot + 1)..];
 
-    private static DateTime? ParseDateTimeLocal(string? s)
-        => DateTime.TryParse(s, out var dt) ? dt : null;
+			// robuste Typauflösung (erst: Assembly der Property; dann: ContractsAssembly; dann: alle Assemblies)
+			var sourceType = TryResolveType(typeName, p.DeclaringType?.Assembly);
+			if (sourceType is null) return false;
 
-    private static decimal? ParseDecimal(string? s)
-        => decimal.TryParse(s, System.Globalization.NumberStyles.Any,
-                            System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : null;
+			var flags = BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy;
+			var field = sourceType.GetField(member, flags);
+			var prop = sourceType.GetProperty(member, flags);
 
-    private static double? ParseDouble(string? s)
-        => double.TryParse(s, System.Globalization.NumberStyles.Any,
-                           System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : null;
+			object? raw = field?.GetValue(null) ?? prop?.GetValue(null);
+			if (raw is null) return false;
 
-    private static object? ParseLongOrInt(Type numberType, string? s)
-    {
-        if (!long.TryParse(s, out var l)) return null;
+			options = ToOptions(raw);
+			return options.Count > 0;
+		}
+		catch
+		{
+			return false;
+		}
+	}
 
-        var et = EffectiveType(numberType);
-        if (et == typeof(int))   return (int) l;
-        if (et == typeof(long))  return l;
-        if (et == typeof(short)) return (short) l;
-        if (et == typeof(uint))  return (uint) Math.Max(0, l);
-        if (et == typeof(ulong)) return (ulong) Math.Max(0, l);
-        if (et == typeof(ushort))return (ushort) Math.Max(0, l);
+	private Type? TryResolveType(string typeName, Assembly? contextAsm)
+	{
+		Type? t = null;
 
-        return l;
-    }
+		// 0) Zuerst die Assembly der Property selbst
+		if (contextAsm != null)
+		{
+			try { t = contextAsm.GetType(typeName, throwOnError: false, ignoreCase: false); } catch { }
+			if (t != null) return t;
+		}
 
-    // ===================== Change Propagation =================================
-    private async Task OnChanged(string name, object? value)
-    {
-        if (OnFieldChanged.HasDelegate)
-            await OnFieldChanged.InvokeAsync((name, value));
-    }
+		// 1) Dann die mitgegebene Contracts-Assembly
+		if (Request?.ContractsAssembly != null)
+		{
+			try { t = Request.ContractsAssembly.GetType(typeName, throwOnError: false, ignoreCase: false); } catch { }
+			if (t != null) return t;
+		}
 
-    private async Task OnBooleanChanged(string name, ChangeEventArgs e)
-    {
-        bool? value = null;
+		// 2) Alle geladenen Assemblies scannen
+		foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+		{
+			try
+			{
+				t = asm.GetType(typeName, throwOnError: false, ignoreCase: false);
+				if (t != null) return t;
+			}
+			catch { }
+		}
 
-        if (e.Value is bool boolValue) value = boolValue;
-        else if (e.Value?.ToString() == "on") value = true;
-        else if (bool.TryParse(e.Value?.ToString(), out var parsedBool)) value = parsedBool;
+		// 3) Fallback: assembly-qualified konstruieren (Contracts-Assemblyname)
+		var asmName = Request?.ContractsAssembly?.GetName().Name ?? contextAsm?.GetName().Name;
+		if (!string.IsNullOrWhiteSpace(asmName))
+		{
+			try { t = Type.GetType($"{typeName}, {asmName}", throwOnError: false); } catch { }
+			if (t != null) return t;
+		}
 
-        await OnChanged(name, value);
-    }
+		return null;
+	}
+
+	private static List<KeyValuePair<string,string>> ToOptions(object? raw)
+	{
+		var result = new List<KeyValuePair<string,string>>();
+		if (raw is not System.Collections.IEnumerable seq) return result;
+
+		foreach (var item in seq)
+		{
+			if (item is KeyValuePair<string,string> kv)
+			{
+				result.Add(kv);
+				continue;
+			}
+
+			var t = item.GetType();
+
+			var labelProp = t.GetProperty("Label") ?? t.GetProperty("Name") ?? t.GetProperty("Text") ?? t.GetProperty("Key");
+			var valueProp = t.GetProperty("Tag")   ?? t.GetProperty("Value") ?? t.GetProperty("Id")  ?? t.GetProperty("Key");
+
+			if (labelProp is null && valueProp is null)
+			{
+				labelProp = t.GetProperty("Item1");
+				valueProp = t.GetProperty("Item2");
+			}
+
+			var label = labelProp?.GetValue(item)?.ToString();
+			var value = valueProp?.GetValue(item)?.ToString();
+
+			label ??= item.ToString() ?? "";
+			value ??= label;
+
+			if (!string.IsNullOrWhiteSpace(value))
+				result.Add(new KeyValuePair<string,string>(label, value));
+		}
+
+		return result;
+	}
+
+	private void EnsureRelationLoaded(string uiKey, string relationName)
+	{
+		if (_relOptions.ContainsKey(uiKey) || _relLoading.Contains(uiKey))
+			return;
+
+		if (Request.EfParentType is null)
+		{
+			_relOptions[uiKey] = new();
+			return;
+		}
+
+		_relLoading.Add(uiKey);
+
+		try
+		{
+			var desc = Rels.GetDescriptor(Request.EfParentType, relationName);
+			_relKind[uiKey] = desc.Kind;
+
+			_ = Task.Run(async () =>
+			{
+				try
+				{
+					var all = await desc.LoadOptions(); // (Label, Value)
+					var opts = all.Select(o => new KeyValuePair<string,string>(o.Label, o.Value)).ToList();
+					_relOptions[uiKey] = opts;
+				}
+				catch
+				{
+					_relOptions[uiKey] = new();
+				}
+				finally
+				{
+					_relLoading.Remove(uiKey);
+					await InvokeAsync(StateHasChanged);
+				}
+			});
+		}
+		catch
+		{
+			_relOptions[uiKey] = new();
+			_relLoading.Remove(uiKey);
+		}
+	}
+
+	private RenderFragment RenderCheckboxList(string name, IEnumerable<KeyValuePair<string,string>> options) => builder =>
+	{
+		var seq = 0;
+		var selected = _relMany.TryGetValue(name, out var lst) ? lst : new List<string>();
+
+		foreach (var opt in options)
+		{
+			var isChecked = selected.Contains(opt.Value, StringComparer.OrdinalIgnoreCase);
+
+			// Open label element
+			builder.OpenElement(seq++, "label");
+			builder.AddAttribute(seq++, "class", "chk-inline");
+
+			// Open input element
+			builder.OpenElement(seq++, "input");
+			builder.AddAttribute(seq++, "type", "checkbox");
+			builder.AddAttribute(seq++, "checked", isChecked);
+			builder.AddAttribute(seq++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, async e =>
+			{
+				var cur = _relMany.TryGetValue(name, out var existing) ? existing : new List<string>();
+				var nowChecked = e.Value?.ToString() == "on" || (e.Value is bool b && b);
+
+				if (nowChecked)
+				{
+					if (!cur.Contains(opt.Value)) cur.Add(opt.Value);
+				}
+				else
+				{
+					cur = cur.Where(v => !string.Equals(v, opt.Value, StringComparison.OrdinalIgnoreCase)).ToList();
+				}
+				_relMany[name] = cur;
+				await OnChanged(name, cur);
+			}));
+			// Close input element
+			builder.CloseElement();
+
+			// Add label text content
+			builder.AddContent(seq++, $" {opt.Key}");
+
+			// Close label element
+			builder.CloseElement();
+		}
+	};
+
+	private async Task SetRelationSingle(string name, string? value)
+	{
+		_relSingle[name] = value;
+		await OnChanged(name, value);
+	}
+
+	private static string? GetDisplayName(PropertyInfo p)
+		=> p.GetCustomAttribute<DisplayAttribute>()?.GetName();
+
+	private static Type EffectiveType(Type t) => Nullable.GetUnderlyingType(t) ?? t;
+
+	private static TypeCode TypeCodeOf(Type t)
+	{
+		var et = EffectiveType(t);
+		return Type.GetTypeCode(et);
+	}
+
+	private static string ToDateTimeLocalValue(DateTime dt)
+	{
+		var local = dt.Kind == DateTimeKind.Utc ? dt.ToLocalTime() : dt;
+		return local.ToString("yyyy-MM-ddTHH:mm");
+	}
+
+	private static DateTime? ParseDateTimeLocal(string? s)
+		=> DateTime.TryParse(s, out var dt) ? dt : null;
+
+	private static decimal? ParseDecimal(string? s)
+		=> decimal.TryParse(s, System.Globalization.NumberStyles.Any,
+							System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : null;
+
+	private static double? ParseDouble(string? s)
+		=> double.TryParse(s, System.Globalization.NumberStyles.Any,
+						   System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : null;
+
+	private static object? ParseLongOrInt(Type numberType, string? s)
+	{
+		if (!long.TryParse(s, out var l)) return null;
+
+		var et = EffectiveType(numberType);
+		if (et == typeof(int)) return (int)l;
+		if (et == typeof(long)) return l;
+		if (et == typeof(short)) return (short)l;
+		if (et == typeof(uint)) return (uint)Math.Max(0, l);
+		if (et == typeof(ulong)) return (ulong)Math.Max(0, l);
+		if (et == typeof(ushort)) return (ushort)Math.Max(0, l);
+
+		return l;
+	}
+
+	private async Task OnChanged(string name, object? value)
+	{
+		if (OnFieldChanged.HasDelegate)
+			await OnFieldChanged.InvokeAsync((name, value));
+	}
+
+	private async Task OnBooleanChanged(string name, ChangeEventArgs e)
+	{
+		bool? value = null;
+
+		if (e.Value is bool boolValue) value = boolValue;
+		else if (e.Value?.ToString() == "on") value = true;
+		else if (bool.TryParse(e.Value?.ToString(), out var parsedBool)) value = parsedBool;
+
+		await OnChanged(name, value);
+	}
+
+	private static string DeriveRelationName(string fieldName)
+	{
+		if (fieldName.EndsWith("Id", StringComparison.Ordinal))
+			return fieldName.Substring(0, fieldName.Length - 2);
+
+		if (fieldName.EndsWith("Ids", StringComparison.Ordinal))
+			return fieldName.Substring(0, fieldName.Length - 3);
+
+		return fieldName;
+	}
+
+	private void ShowConfigError(string msg)
+		=> Dialogs.Open(new DialogRequest { Title = "Konfiguration", Message = msg, OnConfirm = () => Task.CompletedTask });
 }
 === ./Pages/Shared/EditDrawer.razor ===
 @using System.Reflection
 @using Microsoft.AspNetCore.Components
 @using CMC.Web.Services
 @using CMC.Web.Shared
-@using CMC.Web.Util
 @implements IDisposable
-
 @inject EditDrawerService EditDrawerService
 
 @if (_isOpen && _request is not null)
 {
-    <!-- Backdrop -->
-    <div class="ed-backdrop ed-backdrop--open" style="z-index:@ZIndex" aria-hidden="true"></div>
+	<!-- Backdrop -->
+	<div class="ed-backdrop ed-backdrop--open" style="z-index:@ZIndex" aria-hidden="true"></div>
 
+	<!-- Panel -->
+	<aside class="ed-wrap ed-wrap--open" style="z-index:@(ZIndex+1)" role="dialog" aria-modal="true" aria-labelledby="ed-title" @onclick:stopPropagation>
+		<header class="ed-header">
+			<h3 id="ed-title">@_request.Title</h3>
+			<button class="btn flat" @onclick="Cancel" aria-label="Schließen">×</button>
+		</header>
 
-    <!-- Panel -->
-    <aside class="ed-wrap ed-wrap--open" style="z-index:@(ZIndex+1)" role="dialog"
-           aria-modal="true"
-           aria-labelledby="ed-title"
-           @onclick:stopPropagation>
-        <header class="ed-header">
-            <h3 id="ed-title">@_request.Title</h3>
-            <button class="btn flat" @onclick="Close" aria-label="Schließen">×</button>
-        </header>
+		<section class="ed-body">
+			<FormRenderer @ref="_form"
+						  Model="_request.Model"
+						  Request="_request"
+						  Ctx="_adapter"
+						  ExtraFields="_request.ExtraFields"
+						  OnFieldChanged="OnFieldChanged" />
+		</section>
 
-        <section class="ed-body">
-            <CascadingValue Value="_ctx">
-                <FormRenderer @ref="_form"
-                              Model="_request.Model"
-                              ExtraFields="_request.ExtraFields"
-                              OnFieldChanged="OnFieldChanged" />
-            </CascadingValue>
-        </section>
+<footer class="ed-body" style="border-top:1px solid #eee; padding-top:.5rem;">
+  <div class="btn-group">
+    <button type="button" class="btn primary" @onclick="SaveAsync">Speichern</button>
+    @if (_request.OnDelete is not null && !_request.IsCreate)
+    {
+      <button type="button" class="btn danger" @onclick="DeleteAsync">Löschen</button>
+    }
+    <button type="button" class="btn flat" @onclick="Cancel">Abbrechen</button>
+  </div>
+</footer>
 
-        <footer class="ed-body" style="border-top:1px solid #eee; padding-top:.5rem;">
-            <div class="btn-group">
-                <button class="btn primary" @onclick="SaveAsync">Speichern</button>
-                @if (_request.OnDelete is not null && !_request.IsCreate)
-                {
-                    <button class="btn danger" @onclick="DeleteAsync">Löschen</button>
-                }
-                <button class="btn flat" @onclick="Close">Abbrechen</button>
-            </div>
-        </footer>
-    </aside>
+	</aside>
 }
 
 @code {
-		[Parameter] public int ZIndex { get; set; } = 1000;
+	[Parameter] public int ZIndex { get; set; } = 1000;
 
-    // ---- Optionaler Parameter-Modus (falls du <EditDrawer Request="..."/> jemals nutzt) ----
-    [Parameter] public EditDrawerRequest? Request { get; set; }
-    private bool _openedByParameter;
+	// --- Parameter-Modus (Stacked) ---
+	[Parameter] public EditDrawerRequest? Request { get; set; }
+	private bool _openedByParameter;
+	private bool _useServiceEvents;
 
-    protected override void OnParametersSet()
-    {
-        if (Request is not null) HandleOpen(Request);
-        else if (_openedByParameter) HandleClose();
+	protected override void OnInitialized()
+	{
+	}
 
-        _openedByParameter = Request is not null;
-    }
+	protected override void OnParametersSet()
+	{
+		var wantServiceMode = Request is null;
 
-    // ---- Service-Modus --------------------------------------------------------
-    protected override void OnInitialized()
-    {
-        EditDrawerService.OpenRequested += HandleOpen;
-        EditDrawerService.CloseRequested += HandleClose;
-    }
+		if (wantServiceMode && !_useServiceEvents)
+		{
+			EditDrawerService.OpenRequested += HandleOpen;
+			EditDrawerService.CloseRequested += HandleClose;
+			_useServiceEvents = true;
+		}
+		else if (!wantServiceMode && _useServiceEvents)
+		{
+			EditDrawerService.OpenRequested -= HandleOpen;
+			EditDrawerService.CloseRequested -= HandleClose;
+			_useServiceEvents = false;
+		}
 
-    // ---- State ----------------------------------------------------------------
-    private bool _isOpen;
-    private EditDrawerRequest? _request;
+		if (Request is not null && !ReferenceEquals(Request, _request))
+		{
+			HandleOpen(Request);
+			_openedByParameter = true;
+		}
+		else if (Request is null && _openedByParameter)
+		{
+			HandleClose();
+			_openedByParameter = false;
+		}
+	}
 
-    private FormRenderer? _form;
-    private RequestBuildContext? _ctx;
 
-    private readonly Dictionary<string, object?> _changes =
-        new(StringComparer.OrdinalIgnoreCase);
+	// --- State ---
+	private bool _isOpen;
+	private EditDrawerRequest? _request;
+	private FormRenderer? _form;
 
-    private void HandleOpen(EditDrawerRequest req)
-    {
-        Console.WriteLine($"EditDrawer: OPEN -> {req.Title}");
-        _request = req;
-        _changes.Clear();
+	// Neues Build/Mapping-Objekt (ersetzt RequestBuildContext)
+	private EditContextAdapter? _adapter;
 
-        var provider = new CompositeValueProvider(req.Model, _changes);
-        _ctx = new RequestBuildContext(
-            req.Model,
-            req.ContractsAssembly,
-            provider,
-            req.IsCreate ? "Create" : "Update"
-        );
+	// Änderungen, die der FormRenderer via OnFieldChanged meldet (werden in Adapter gemappt)
+	private readonly Dictionary<string, object?> _changes = new(StringComparer.OrdinalIgnoreCase);
 
-        _isOpen = true;
-        StateHasChanged();
-    }
+	private void HandleOpen(EditDrawerRequest req)
+	{
+		Console.WriteLine($"EditDrawer: OPEN -> {req.Title}");
+		_request = req;
+		_changes.Clear();
 
-    private void HandleClose()
-    {
-        Console.WriteLine("EditDrawer: CLOSE");
-        _isOpen = false;
-        _request = null;
-        _ctx = null;
-        _changes.Clear();
-        StateHasChanged();
-    }
+		// Adapter inkl. Overrides (damit ExtraFields/OnFieldChanged in Build(...) landen)
+		_adapter = new EditContextAdapter(req, req.Model, _changes);
 
-    private void OnFieldChanged((string Name, object? Value) change)
-        => _changes[change.Name] = change.Value;
+		_isOpen = true;
+		StateHasChanged();
+	}
 
-    private async Task SaveAsync()
-    {
-        if (_request is null) return;
+	private void HandleClose()
+	{
+		Console.WriteLine("EditDrawer: CLOSE");
+		_isOpen = false;
+		_request = null;
+		_adapter = null;
+		_changes.Clear();
+		StateHasChanged();
+	}
 
-        var provider = new CompositeValueProvider(_request.Model, _changes);
-        var action = _request.IsCreate ? "Create" : "Update";
+	private void OnFieldChanged((string Name, object? Value) change) => _changes[change.Name] = change.Value;
 
-        _ctx = new RequestBuildContext(
-            _request.Model,
-            _request.ContractsAssembly,
-            provider,
-            action
-        );
+	private async Task SaveAsync()
+	{
+		if (_request is null) return;
 
-        if (_request.OnSave is not null && _ctx is not null)
-            await _request.OnSave.Invoke(_ctx);
+		// Adapter frisch mit *aktuellen* Änderungen bauen
+		_adapter = new EditContextAdapter(_request, _request.Model, _changes);
 
-        Close();
-    }
+		if (_request.OnSave is not null)
+			await _request.OnSave.Invoke(_adapter);
+	}
 
-    private async Task DeleteAsync()
-    {
-        if (_request?.OnDelete is not null && _ctx is not null)
-            await _request.OnDelete.Invoke(_ctx);
+	private async Task DeleteAsync()
+	{
+		_changes.Clear();
+		if (_request?.OnDelete is not null && _adapter is not null)
+			await _request.OnDelete.Invoke(_adapter);
+		// OnDelete entscheidet i. d. R. selbst über Close (z. B. nach Confirm)
+	}
 
-        Close();
-    }
+	private void Cancel()
+	{
+		// Immer nur den obersten Drawer schließen
+		EditDrawerService.Close();
+	}
 
-    private void Close() => HandleClose();
-
-    public void Dispose()
-    {
-        EditDrawerService.OpenRequested -= HandleOpen;
-        EditDrawerService.CloseRequested -= HandleClose;
-    }
+	public void Dispose()
+	{
+		if (_useServiceEvents)
+		{
+			EditDrawerService.OpenRequested -= HandleOpen;
+			EditDrawerService.CloseRequested -= HandleClose;
+		}
+	}
 }
 === ./Pages/Shared/ExtraField.cs ===
 namespace CMC.Web.Shared;
@@ -1205,18 +1084,18 @@ namespace CMC.Web.Shared;
 /// Beschreibt ein zusätzliches Formularfeld (z.B. Relation-Picker oder Passwort),
 /// das nicht direkt aus dem DTO gerendert wird.
 /// </summary>
-public record ExtraField(
+public sealed record ExtraField(
 	string Name,
 	string Label,
-	System.Type Type,
+	Type Type,
 	bool ReadOnly = false,
 	string? Hint = null,
-	string? DataType = null,
+	string DataType = "text",
 	object? Value = null,
-	System.Collections.Generic.List<System.Collections.Generic.KeyValuePair<string, string>>? Options = null,
-	System.Func<System.Threading.Tasks.Task<System.Collections.Generic.KeyValuePair<string, string>?>>? OnCreateNew = null,
-	System.Func<string, System.Threading.Tasks.Task<System.Collections.Generic.List<System.Collections.Generic.KeyValuePair<string,string>>>>? OnSearch = null,
-	int DebounceMs = 250
+	List<KeyValuePair<string,string>>? Options = null,
+	Func<Task<KeyValuePair<string,string>?>>? OnCreateNew = null,
+	Func<string, Task<List<KeyValuePair<string,string>>>>? OnSearch = null,
+	int DebounceMs = 0
 );
 === ./Pages/Shared/MainLayout.razor ===
 @inherits LayoutComponentBase
@@ -1224,7 +1103,7 @@ public record ExtraField(
 <NavMenu />
 <main>
     @Body
-    <EditStackedHost />
+<EditStackedHost />
     <DialogHost />
 </main>
 <MainFooter />
@@ -1249,33 +1128,6 @@ public record ExtraField(
 {
 	var req = Service.Stack[i];
 	<EditDrawer Request="@req" ZIndex="@(1000 + i*2)" />
-}
-=== ./Pages/Shared/RequestBuildContext.cs ===
-using System.Reflection;
-using CMC.Web.Util;
-
-namespace CMC.Web.Shared;
-
-public sealed class RequestBuildContext
-{
-	public object Model { get; }
-	public Assembly ContractsAssembly { get; }
-	public IValueProvider Provider { get; }
-	public string Action { get; }
-
-	public RequestBuildContext(object model, Assembly asm, IValueProvider provider, string action = "Update")
-	{
-		Model = model;
-		ContractsAssembly = asm;
-		Provider = provider;
-		Action = action;
-	}
-
-	public object Build(string? action = null)
-	{
-		var act = action ?? Action;
-		return RequestFactory.MapByProvider(Model, Provider, act, ContractsAssembly);
-	}
 }
 === ./Pages/Shared/ProfileMenu.razor ===
 @using Microsoft.AspNetCore.Components.Authorization
@@ -1501,224 +1353,71 @@ public sealed class RequestBuildContext
     </AuthorizeView>
     <ProfileMenu/>
 </header>
-=== ./Pages/Shared/RelationPicker.razor ===
-@* RelationPicker mit:
-   - IsMany (Single/Multi)
-   - OnSearch(term) -> async serverseitige Suche mit Debounce
-   - OnCreateNew() -> Inline-Create, setzt Ergebnis sofort
-   - Options (lokale statische Liste; wird genutzt wenn OnSearch == null)
-*@
-@using System
-@using System.Linq
-
-<div class="relation-picker">
-	<div class="rp-row">
-		<input class="form-control"
-			   placeholder="@Placeholder"
-			   value="@search"
-			   @oninput="OnSearchChanged" />
-
-		@if (OnCreateNew is not null)
-		{
-			<button type="button" class="btn btn-icon" @onclick="CreateNewAsync" title="Neu anlegen">+</button>
-		}
-	</div>
-
-	@if (_loading)
-	{
-		<div class="rp-loading">Suchen…</div>
-	}
-
-	@if (!IsMany)
-	{
-		<select class="form-control" @onchange="OnSingleChanged">
-			<option value="">– bitte wählen –</option>
-			@foreach (var opt in Current)
-			{
-				<option value="@opt.Value" selected="@(opt.Value == ValueSingle)">@opt.Key</option>
-			}
-		</select>
-	}
-	else
-	{
-		<div class="rp-chips">
-			@foreach (var id in ValueMany)
-			{
-				var label = LabelFor(id);
-				<span class="chip">
-					@label
-					<button class="chip-x" type="button" @onclick="@(() => RemoveMany(id))">x</button>
-				</span>
-			}
-		</div>
-
-		<div class="rp-list">
-			@foreach (var opt in Current)
-			{
-				if (!ValueMany.Contains(opt.Value))
-				{
-					<button type="button" class="rp-item" @onclick="@(() => AddMany(opt.Value))">@opt.Key</button>
-				}
-			}
-		</div>
-	}
-</div>
+=== ./Pages/Shared/ChoiceDialog.razor ===
+@using CMC.Web.Services
 
 @code {
-	[Parameter] public bool IsMany { get; set; }
-	[Parameter] public List<KeyValuePair<string,string>> Options { get; set; } = new();
+	[Parameter] public bool IsOpen { get; set; }
+	[Parameter] public string Title { get; set; } = "Auswahl";
+	[Parameter] public string Message { get; set; } = "";
+	[Parameter] public string ConfirmText { get; set; } = "Übernehmen";
+	[Parameter] public string CancelText { get; set; } = "Abbrechen";
+	[Parameter] public bool MultiSelect { get; set; } = false;
+	[Parameter] public List<DialogOption> Options { get; set; } = new();
+	[Parameter] public EventCallback<IReadOnlyList<string>> OnConfirmKeys { get; set; }
+	[Parameter] public EventCallback OnCancel { get; set; }
 
-	// Single
-	[Parameter] public string? ValueSingle { get; set; }
-	[Parameter] public EventCallback<string?> ValueSingleChanged { get; set; }
+	private HashSet<string> _sel = new();
 
-	// Many
-	[Parameter] public List<string> ValueMany { get; set; } = new();
-	[Parameter] public EventCallback<List<string>> ValueManyChanged { get; set; }
-
-	// Inline-Create (optional)
-	[Parameter] public Func<Task<KeyValuePair<string,string>?>>? OnCreateNew { get; set; }
-
-	// Serverseitige Suche (optional)
-	[Parameter] public Func<string, Task<List<KeyValuePair<string,string>>>>? OnSearch { get; set; }
-	[Parameter] public int DebounceMs { get; set; } = 250;
-
-	[Parameter] public string Placeholder { get; set; } = "Suchen…";
-
-	private string search = string.Empty;
-	private bool _loading;
-	private CancellationTokenSource? _cts;
-	private List<KeyValuePair<string,string>> _remote = new();
-
-	private IEnumerable<KeyValuePair<string,string>> Current =>
-		OnSearch is null
-			? (string.IsNullOrWhiteSpace(search)
-				? Options
-				: Options.Where(o => o.Key.Contains(search, StringComparison.OrdinalIgnoreCase)))
-			: _remote;
-
-	protected override async Task OnInitializedAsync()
+	private Task Toggle(string key)
 	{
-		// Bei serverseitiger Suche einmal initial laden (leerer Term)
-		if (OnSearch is not null)
+		if (MultiSelect)
 		{
-			_loading = true;
-			try
-			{
-				_remote = await OnSearch.Invoke(string.Empty) ?? new();
-			}
-			finally
-			{
-				_loading = false;
-			}
-		}
-	}
-
-	private async Task CreateNewAsync()
-	{
-		if (OnCreateNew is null) return;
-
-		var created = await OnCreateNew.Invoke();
-		if (created is null) return;
-
-		EnsureOption(created.Value);
-
-		if (!IsMany)
-		{
-			ValueSingle = created.Value.Value;
-			await ValueSingleChanged.InvokeAsync(ValueSingle);
+			if (!_sel.Add(key)) _sel.Remove(key);
 		}
 		else
 		{
-			if (!ValueMany.Contains(created.Value.Value))
+			_sel.Clear();
+			_sel.Add(key);
+		}
+		return Task.CompletedTask;
+	}
+
+	private Task Confirm() => OnConfirmKeys.InvokeAsync(_sel.ToList());
+	private Task Cancel()  => OnCancel.InvokeAsync();
+}
+
+@if (!IsOpen) { <text></text>; }
+else
+{
+	<div class="dialog-backdrop" @onclick="Cancel">
+		<div class="dialog" @onclick:stopPropagation="true">
+			<h3>@Title</h3>
+			@if (!string.IsNullOrWhiteSpace(Message))
 			{
-				ValueMany.Add(created.Value.Value);
-				await ValueManyChanged.InvokeAsync(ValueMany);
+				<p>@Message</p>
 			}
-		}
-	}
 
-	private async Task OnSearchChanged(ChangeEventArgs e)
-	{
-		search = e.Value?.ToString() ?? string.Empty;
+			<ul class="option-list">
+				@foreach (var o in Options)
+				{
+					var isSelected = _sel.Contains(o.Key) || o.Selected;
+					<li>
+						<button type="button"
+								class="option-btn @(isSelected ? "selected" : null)"
+								@onclick="() => Toggle(o.Key)">
+							@o.Label
+						</button>
+					</li>
+				}
+			</ul>
 
-		// Lokale Suche → nur rerendern
-		if (OnSearch is null)
-		{
-			StateHasChanged();
-			return;
-		}
-
-		_cts?.Cancel();
-		_cts = new CancellationTokenSource();
-		var token = _cts.Token;
-
-		_loading = true;
-		StateHasChanged();
-
-		try
-		{
-			if (DebounceMs > 0)
-				await Task.Delay(DebounceMs, token);
-
-			var results = await OnSearch.Invoke(search);
-			if (!token.IsCancellationRequested)
-			{
-				_remote = results ?? new();
-			}
-		}
-		catch (TaskCanceledException) { }
-		finally
-		{
-			if (!token.IsCancellationRequested)
-			{
-				_loading = false;
-				StateHasChanged();
-			}
-		}
-	}
-
-	private string LabelFor(string id)
-	{
-		var fromRemote = _remote.FirstOrDefault(o => o.Value == id);
-		if (!string.IsNullOrEmpty(fromRemote.Key)) return fromRemote.Key;
-
-		var fromLocal = Options.FirstOrDefault(o => o.Value == id);
-		if (!string.IsNullOrEmpty(fromLocal.Key)) return fromLocal.Key;
-
-		return id;
-	}
-
-	private void EnsureOption(KeyValuePair<string,string> opt)
-	{
-		if (!Options.Any(o => o.Value == opt.Value))
-			Options.Insert(0, opt);
-
-		if (OnSearch is not null && !_remote.Any(r => r.Value == opt.Value))
-			_remote.Insert(0, opt);
-	}
-
-	private async Task OnSingleChanged(ChangeEventArgs e)
-	{
-		var v = e.Value?.ToString();
-		ValueSingle = string.IsNullOrWhiteSpace(v) ? null : v;
-		await ValueSingleChanged.InvokeAsync(ValueSingle);
-	}
-
-	private async Task AddMany(string id)
-	{
-		if (!ValueMany.Contains(id))
-		{
-			ValueMany.Add(id);
-			await ValueManyChanged.InvokeAsync(ValueMany);
-		}
-	}
-
-	private async Task RemoveMany(string id)
-	{
-		if (ValueMany.Remove(id))
-			await ValueManyChanged.InvokeAsync(ValueMany);
-	}
+			<div class="dialog-actions">
+				<button type="button" class="btn" @onclick="Cancel">@CancelText</button>
+				<button type="button" class="btn primary" @onclick="Confirm">@ConfirmText</button>
+			</div>
+		</div>
+	</div>
 }
 === ./Pages/Shared/EditHost.razor ===
 @using CMC.Web.Services
@@ -1898,17 +1597,19 @@ public sealed class RequestBuildContext
 		return sb.ToString();
 	}
 
-	private async Task RequestEdit(TItem item)
-	{
-		if (OnEdit.HasDelegate)
-			await OnEdit.InvokeAsync(item);
-	}
+  private async Task RequestEdit(TItem item)
+  {
+    Console.WriteLine($"AutoTable: RequestEdit -> {typeof(TItem).Name}");
+    if (OnEdit.HasDelegate)
+      await OnEdit.InvokeAsync(item);
+  }
 
-	private async Task RequestCreate()
-	{
-		if (OnCreate.HasDelegate)
-			await OnCreate.InvokeAsync();
-	}
+  private async Task RequestCreate()
+  {
+    Console.WriteLine($"AutoTable: RequestCreate -> {typeof(TItem).Name}");
+    if (OnCreate.HasDelegate)
+      await OnCreate.InvokeAsync();
+  }
 }
 === ./Pages/Shared/MainFooter.razor ===
 @using System.Security.Claims
@@ -1941,123 +1642,411 @@ public sealed class RequestBuildContext
         Navigation.NavigateTo("/login");
     }
 }
+=== ./Pages/Shared/EditContextAdapter.cs ===
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Reflection;
+using System.Runtime.Serialization;
+using System.Runtime.CompilerServices;
+using CMC.Web.Services;
+
+namespace CMC.Web.Shared;
+
+public sealed class EditContextAdapter
+{
+	public EditDrawerRequest Request { get; }
+	public object Model { get; }
+	private readonly Dictionary<string, object?> _overrides;
+
+	public EditContextAdapter(EditDrawerRequest request, object model)
+	{
+		Request = request ?? throw new ArgumentNullException(nameof(request));
+		Model = model ?? throw new ArgumentNullException(nameof(model));
+		_overrides = new(StringComparer.OrdinalIgnoreCase);
+	}
+
+	public EditContextAdapter(EditDrawerRequest request, object model, IDictionary<string, object?>? overrides)
+	{
+		Request = request ?? throw new ArgumentNullException(nameof(request));
+		Model = model ?? throw new ArgumentNullException(nameof(model));
+		_overrides = overrides as Dictionary<string, object?>
+			?? (overrides != null
+				? new Dictionary<string, object?>(overrides, StringComparer.OrdinalIgnoreCase)
+				: new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase));
+	}
+
+	/// <summary>Optional: einzelne Feldwerte setzen/überschreiben (falls dein FormRenderer das nutzt).</summary>
+	public void Set(string name, object? value)
+	{
+		if (string.IsNullOrWhiteSpace(name)) return;
+		_overrides[name] = value;
+	}
+
+	/// <summary>
+	/// Baut per Konvention den Request-Typ:
+	/// Kandidaten: {action}{ModelName}Request, {action}{ModelName}, {ModelName}{action}Request, {ModelName}{action}
+	/// Beispiel: Model = UserDto, action="Register" -> RegisterUserRequest
+	/// </summary>
+	public object Build(string action)
+	{
+		if (Request.ContractsAssembly == null)
+			throw new InvalidOperationException("ContractsAssembly ist nicht gesetzt.");
+
+		var modelName = StripSuffix(Model.GetType().Name, "Dto");
+		var candidates = new[]
+		{
+			$"{action}{modelName}Request",
+			$"{action}{modelName}",
+			$"{modelName}{action}Request",
+			$"{modelName}{action}"
+		};
+
+		var targetType = Request.ContractsAssembly
+			.GetTypes()
+			.FirstOrDefault(t => candidates.Any(c => string.Equals(t.Name, c, StringComparison.OrdinalIgnoreCase)));
+
+		if (targetType == null)
+			throw new InvalidOperationException($"Kein Request-Typ für Aktion '{action}' und Model '{modelName}' gefunden (gesucht: {string.Join(", ", candidates)}).");
+
+		// ---------------- Wert-Vorrat zusammenstellen (Model -> ExtraFields -> Overrides) ----------------
+		var bag = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+
+		foreach (var sp in Model.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance))
+		{
+			if (!sp.CanRead) continue;
+			bag[sp.Name] = sp.GetValue(Model);
+		}
+
+		if (Request.ExtraFields is { Count: > 0 })
+		{
+			foreach (var ef in Request.ExtraFields)
+				bag[ef.Name] = ef.Value;
+		}
+
+		if (_overrides.Count > 0)
+		{
+			foreach (var kv in _overrides)
+				bag[kv.Key] = kv.Value;
+		}
+
+		// ---------------- Instanz anlegen ----------------
+		object? instance = TryCreateWithParameterlessCtor(targetType)
+						   ?? TryCreateWithBestMatchingCtor(targetType, bag)
+						   ?? FormatterServices.GetUninitializedObject(targetType); // letzter Ausweg
+
+		// ---------------- Properties nachziehen (nur schreibbar & nicht init-only) ----------------
+		MapByName(bag, instance);
+
+		return instance!;
+	}
+
+	// ========================= Erzeugungs-Strategien =========================
+
+	private static object? TryCreateWithParameterlessCtor(Type targetType)
+	{
+		var hasDefault = targetType.GetConstructors(BindingFlags.Public | BindingFlags.Instance)
+								   .Any(c => c.GetParameters().Length == 0);
+		return hasDefault ? Activator.CreateInstance(targetType) : null;
+	}
+
+	private object? TryCreateWithBestMatchingCtor(Type targetType, IDictionary<string, object?> bag)
+	{
+		var ctors = targetType.GetConstructors(BindingFlags.Public | BindingFlags.Instance);
+		if (ctors.Length == 0) return null;
+
+		// Score: wie viele Parameter können wir befüllen (oder haben Default)?
+		var best = ctors
+			.Select(c =>
+			{
+				var ps = c.GetParameters();
+				int matched = 0;
+				bool allBindable = true;
+
+				foreach (var p in ps)
+				{
+					if (bag.ContainsKey(p.Name!)) { matched++; continue; }
+					if (p.HasDefaultValue) continue;
+
+					// Werttypen ohne Default sind nicht bindbar
+					if (Nullable.GetUnderlyingType(p.ParameterType) is null && p.ParameterType.IsValueType)
+					{
+						allBindable = false;
+						break;
+					}
+				}
+
+				return new { Ctor = c, Params = ps, Matched = matched, AllBindable = allBindable };
+			})
+			// nur die, die wir vollständig befüllen können (oder Defaults/Nulle zulassen)
+			.Where(x => x.AllBindable)
+			.OrderByDescending(x => x.Matched)
+			.ThenBy(x => x.Params.Length)
+			.FirstOrDefault();
+
+		if (best is null) return null;
+
+		var args = new object?[best.Params.Length];
+		for (int i = 0; i < best.Params.Length; i++)
+		{
+			var p = best.Params[i];
+			if (bag.TryGetValue(p.Name!, out var raw))
+			{
+				args[i] = ConvertToType(raw, p.ParameterType);
+			}
+			else if (p.HasDefaultValue)
+			{
+				args[i] = p.DefaultValue;
+			}
+			else
+			{
+				// null oder default(T) für nicht-bindbare optionale
+				args[i] = GetNullDefault(p.ParameterType);
+			}
+		}
+
+		return best.Ctor.Invoke(args);
+	}
+
+	// ========================= Mapping Helpers =========================
+
+	/// <summary>
+	/// Werte aus Bag per Name auf das Zielobjekt mappen (nur schreibbare & nicht init-only Properties).
+	/// </summary>
+	private static void MapByName(IDictionary<string, object?> sourceBag, object target)
+	{
+		var tgtProps = target.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance)
+			.Where(p => p.CanWrite && !IsInitOnly(p))
+			.ToDictionary(p => p.Name, p => p, StringComparer.OrdinalIgnoreCase);
+
+		foreach (var (name, val) in sourceBag)
+		{
+			if (!tgtProps.TryGetValue(name, out var tp)) continue;
+			var converted = ConvertToType(val, tp.PropertyType);
+			tp.SetValue(target, converted);
+		}
+	}
+
+	private static bool TrySet(object target, string propName, object? value)
+	{
+		var p = target.GetType().GetProperty(propName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+		if (p == null || !p.CanWrite || IsInitOnly(p)) return false;
+
+		var converted = ConvertToType(value, p.PropertyType);
+		p.SetValue(target, converted);
+		return true;
+	}
+
+	private static bool IsInitOnly(PropertyInfo p)
+	{
+		var set = p.SetMethod;
+		if (set is null) return true;
+		// init-only: hat den Modifizierer IsExternalInit
+		var mods = set.ReturnParameter?.GetRequiredCustomModifiers() ?? Type.EmptyTypes;
+		return mods.Contains(typeof(IsExternalInit));
+	}
+
+	private static object? ConvertToType(object? value, Type targetType)
+	{
+		if (value == null) return GetNullDefault(targetType);
+
+		var nonNullTarget = Nullable.GetUnderlyingType(targetType) ?? targetType;
+
+		// Bereits passend?
+		if (nonNullTarget.IsInstanceOfType(value)) return value;
+
+		// String-Quelle?
+		if (value is string s)
+		{
+			if (nonNullTarget == typeof(Guid))
+				return Guid.TryParse(s, out var g) ? g : GetNullDefault(targetType);
+
+			if (nonNullTarget == typeof(DateTime))
+				return DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var dt) ? dt : GetNullDefault(targetType);
+
+			if (nonNullTarget.IsEnum)
+				return Enum.TryParse(nonNullTarget, s, true, out var ev) ? ev : GetNullDefault(targetType);
+
+			// Zahlen / bool
+			try
+			{
+				return System.Convert.ChangeType(s, nonNullTarget, CultureInfo.InvariantCulture);
+			}
+			catch { /* fallthrough */ }
+		}
+
+		// IEnumerable<string> -> List<Guid> / List<int> / ...
+		if (IsGenericList(nonNullTarget, out var itemType))
+		{
+			if (value is IEnumerable enumerable)
+			{
+				var list = (IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(itemType))!;
+				foreach (var obj in enumerable)
+				{
+					var elem = obj;
+					if (obj is string es)
+					{
+						elem = ConvertStringTo(es, itemType);
+					}
+					else if (obj != null && !itemType.IsInstanceOfType(obj))
+					{
+						elem = System.Convert.ChangeType(obj, itemType, CultureInfo.InvariantCulture);
+					}
+					list.Add(elem!);
+				}
+				return list;
+			}
+		}
+
+		// Alles andere: ChangeType versuchen
+		try
+		{
+			return System.Convert.ChangeType(value, nonNullTarget, CultureInfo.InvariantCulture);
+		}
+		catch
+		{
+			return GetNullDefault(targetType);
+		}
+	}
+
+	private static object? ConvertStringTo(string s, Type itemType)
+	{
+		var nn = Nullable.GetUnderlyingType(itemType) ?? itemType;
+
+		if (nn == typeof(Guid))
+			return Guid.TryParse(s, out var g) ? g : GetNullDefault(itemType);
+
+		if (nn == typeof(DateTime))
+			return DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var dt) ? dt : GetNullDefault(itemType);
+
+		if (nn.IsEnum)
+			return Enum.TryParse(nn, s, true, out var ev) ? ev : GetNullDefault(itemType);
+
+		try
+		{
+			return System.Convert.ChangeType(s, nn, CultureInfo.InvariantCulture);
+		}
+		catch
+		{
+			return GetNullDefault(itemType);
+		}
+	}
+
+	private static bool IsGenericList(Type t, out Type itemType)
+	{
+		itemType = typeof(object);
+		if (!t.IsGenericType) return false;
+		if (t.GetGenericTypeDefinition() != typeof(List<>)) return false;
+		itemType = t.GetGenericArguments()[0];
+		return true;
+	}
+
+	private static object? GetNullDefault(Type t)
+	{
+		var nn = Nullable.GetUnderlyingType(t) ?? t;
+		if (nn.IsValueType && Nullable.GetUnderlyingType(t) == null)
+		{
+			// non-nullable value type -> default(T)
+			return Activator.CreateInstance(nn);
+		}
+		return null;
+	}
+
+	private static string StripSuffix(string name, string suffix)
+	{
+		return name.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)
+			? name[..^suffix.Length]
+			: name;
+	}
+}
 === ./Pages/Shared/DialogHost.razor ===
-@* Host component for managing confirmation dialog state and lifecycle *@
-@using CMC.Web.Services
-@inject DialogService ConfirmService
+@inject CMC.Web.Services.DialogService Dialogs
 @implements IDisposable
 
-<Dialog
-    IsOpen="@_isOpen"
-    Title="@(_currentRequest?.Title ?? string.Empty)"
-    Message="@(_currentRequest?.Message ?? string.Empty)"
-    DetailMessage="@(_currentRequest?.DetailMessage)"
-    ConfirmText="@(_currentRequest?.ConfirmText ?? string.Empty)"
-    CancelText="@(_currentRequest?.CancelText ?? string.Empty)"
-    OnConfirm="HandleConfirm"
-    OnCancel="HandleCancel" />
+<Dialog IsOpen="@_dlgOpen"
+        Title="@(_dlgReq?.Title ?? "")"
+        Message="@(_dlgReq?.Message ?? "")"
+        ConfirmText="@(_dlgReq?.ConfirmText ?? "OK")"
+        CancelText="@_dlgReq?.CancelText"
+        OnConfirm="HandleDlgConfirm"
+        OnCancel="HandleDlgCancel" />
+
+<ChoiceDialog
+    IsOpen="@_choiceOpen"
+    Title="@(_choiceReq?.Title ?? string.Empty)"
+    Message="@(_choiceReq?.Message ?? string.Empty)"
+    ConfirmText="@(_choiceReq?.ConfirmText ?? "Übernehmen")"
+    CancelText="@(_choiceReq?.CancelText ?? "Abbrechen")"
+    Options="@_choiceOptions"
+    MultiSelect="@(_choiceReq?.MultiSelect ?? false)"
+    OnConfirmKeys="HandleChoiceConfirm"
+    OnCancel="HandleChoiceCancel" />
 
 @code {
-    private bool _isOpen;
-    private DialogRequest? _currentRequest;
+    // --- Confirm/Info Dialog ---
+    private bool _dlgOpen;
+    private DialogRequest? _dlgReq;
 
-    /// <summary>
-    /// Initializes event handlers for dialog service events.
-    /// </summary>
+    // --- Choice Dialog (dein bestehendes) ---
+    private bool _choiceOpen;
+    private ChoiceRequest? _choiceReq;
+    private List<DialogOption> _choiceOptions = new();
+
     protected override void OnInitialized()
     {
-        ConfirmService.OnOpen += HandleOpen;
-        ConfirmService.OnClose += HandleClose;
+        Dialogs.OnOpen += OpenDialog;
+        Dialogs.OnOpenChoice += OpenChoice;
     }
 
-    /// <summary>
-    /// Handles dialog open requests from the service.
-    /// </summary>
-    /// <param name="request">Dialog configuration</param>
-    private void HandleOpen(DialogRequest request)
+    private void OpenDialog(DialogRequest req)
     {
-        _currentRequest = request;
-        _isOpen = true;
-        InvokeAsync(StateHasChanged);
+        _dlgReq = req;
+        _dlgOpen = true;
+        StateHasChanged();
     }
 
-    /// <summary>
-    /// Handles dialog close requests from the service.
-    /// </summary>
-    private void HandleClose()
+    private async Task HandleDlgConfirm()
     {
-        _isOpen = false;
-        _currentRequest = null;
-        InvokeAsync(StateHasChanged);
+        var cb = _dlgReq?.OnConfirm;
+        _dlgOpen = false; StateHasChanged();
+        if (cb is not null) await cb();
     }
 
-    /// <summary>
-    /// Handles user confirmation and executes the callback.
-    /// </summary>
-    private async Task HandleConfirm()
+    private async Task HandleDlgCancel()
     {
-        if (_currentRequest?.OnConfirm != null)
-        {
-            await _currentRequest.OnConfirm();
-        }
-        HandleClose();
+        var cb = _dlgReq?.OnCancel;
+        _dlgOpen = false; StateHasChanged();
+        if (cb is not null) await cb();
     }
 
-    /// <summary>
-    /// Handles user cancellation and executes the callback.
-    /// </summary>
-    private async Task HandleCancel()
+    private void OpenChoice(ChoiceRequest req)
     {
-        if (_currentRequest?.OnCancel != null)
-            await _currentRequest.OnCancel();
-
-        HandleClose();
+        _choiceReq = req;
+        _choiceOptions = req.Options?.ToList() ?? new();
+        _choiceOpen = true;
+        StateHasChanged();
     }
 
-    /// <summary>
-    /// Cleans up event handlers to prevent memory leaks.
-    /// </summary>
+    private async Task HandleChoiceConfirm(IReadOnlyList<string> keys)
+    {
+        var cb = _choiceReq?.OnConfirm;
+        _choiceOpen = false; StateHasChanged();
+        if (cb is not null) await cb(keys);
+    }
+
+    private async Task HandleChoiceCancel()
+    {
+        var cb = _choiceReq?.OnCancel;
+        _choiceOpen = false; StateHasChanged();
+        if (cb is not null) await cb();
+    }
+
     public void Dispose()
     {
-        ConfirmService.OnOpen -= HandleOpen;
-        ConfirmService.OnClose -= HandleClose;
-    }
-}
-=== ./Pages/Debug.razor ===
-@page "/debug"
-
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Debug Page</title>
-</head>
-<body style="padding: 20px; font-family: Arial;">
-    <h1>Debug Page</h1>
-    <p>Time: @DateTime.Now</p>
-
-    <button @onclick="ClickMe" style="padding: 10px; font-size: 16px;">
-        Click Me (@clickCount)
-    </button>
-
-    @if (clickCount > 0)
-    {
-        <p style="color: green;">Clicked @clickCount times!</p>
-    }
-</body>
-</html>
-
-@code {
-    private int clickCount = 0;
-
-    protected override void OnInitialized()
-    {
-        Console.WriteLine("🚀 Debug page initialized!");
-    }
-
-    private void ClickMe()
-    {
-        clickCount++;
-        Console.WriteLine($"🔥 Button clicked {clickCount} times");
+        Dialogs.OnOpen -= OpenDialog;
+        Dialogs.OnOpenChoice -= OpenChoice;
     }
 }
 === ./Pages/Index.razor ===
@@ -2712,7 +2701,7 @@ public sealed class RequestBuildContext
                     {
                         try
                         {
-                            await CustomerService.DeleteAsync(model.Id);
+                            await CustomerService.DeleteAsync(new DeleteCustomerRequest(model.Id));
                             await Reload();
                             DrawerService.Close();
                         }
@@ -2778,237 +2767,161 @@ public sealed class RequestBuildContext
     }
 }
 === ./Pages/CockpitPages/CockpitUsers.razor ===
-
 @using System.Linq
 @using CMC.Contracts.Users
-@using CMC.Contracts.Customers
 @using CMC.Web.Shared
 @using CMC.Web.Services
+@using CMC.Domain.Entities
+
 @inject CMC.Application.Services.UserService UserService
-@inject CMC.Application.Services.CustomerService CustomerService
 @inject EditDrawerService DrawerService
 @inject DialogService ConfirmService
 
 <div class="card">
-    <AutoTable TItem="UserDto"
-               Items="_users"
-               AllowEdit="true"
-               OnEdit="StartEdit"
-               AllowCreate="true"
-               OnCreate="StartCreate" />
+	<AutoTable TItem="UserDto"
+			   Items="_users"
+			   AllowEdit="true"
+			   OnEdit="StartEdit"
+			   AllowCreate="true"
+			   OnCreate="StartCreate" />
 </div>
 
 @code {
-    private List<UserDto> _users = new();
-    private List<CustomerDto> _customers = new();
+	private List<UserDto> _users = new();
 
-    protected override async Task OnInitializedAsync()
-    {
-        _users = await UserService.GetAllAsync();
-        _customers = await CustomerService.GetAllAsync();
-    }
+	protected override async Task OnInitializedAsync()
+	{
+		_users = await UserService.GetAllAsync();
+	}
 
-    private async Task ReloadAsync()
-    {
-        _users = await UserService.GetAllAsync();
-        _customers = await CustomerService.GetAllAsync();
-        StateHasChanged();
-    }
+	private async Task ReloadAsync()
+	{
+		_users = await UserService.GetAllAsync();
+		StateHasChanged();
+	}
 
-    // ---------- Drawer Builder (einheitlich für Create/Edit) ----------
-    private async Task<EditDrawerRequest> BuildUserDrawer(UserDto model, bool isCreate)
-    {
-        if (_customers.Count == 0)
-            _customers = await CustomerService.GetAllAsync();
+	private async Task<EditDrawerRequest> BuildUserDrawer(UserDto model, bool isCreate)
+	{
+		var req = new EditDrawerRequest
+		{
+			Title = isCreate ? "Benutzer anlegen" : "Benutzer bearbeiten",
+			Model = model,
+			ContractsAssembly = typeof(UserDto).Assembly,
+			IsCreate = isCreate,
 
-        var req = new EditDrawerRequest
-        {
-            Title = isCreate ? "Benutzer anlegen" : "Benutzer bearbeiten",
-            Model = model,
-            ContractsAssembly = typeof(UserDto).Assembly, // CMC.Contracts.Users
-            IsCreate = isCreate,
-            OnSave = async ctx =>
-            {
-                try
-                {
-                    if (isCreate)
-                    {
-                        // Register: Passwort-Feld existiert nur im Create-Flow
-                        var reg = (RegisterUserRequest)ctx.Build("Register");
-                        _ = await UserService.RegisterAsync(reg);
-                        await ReloadAsync();
-                    }
-                    else
-                    {
-                        var up = (UpdateUserRequest)ctx.Build("Update");
-                        await UserService.UpdateAsync(up);
-                        await ReloadAsync();
-                    }
+			// Für relation-auto (FormRenderer lädt Optionen via Rels + EfParentType)
+			EfParentType = typeof(User),
+			GetParentKey = m => ((UserDto)m).Id,
 
-                    DrawerService.Close();
-                }
-                catch (Exception ex)
-                {
-                    ConfirmService.Open(new DialogRequest
-                    {
-                        Title = "Fehler",
-                        Message = ex.Message,
-                        ConfirmText = "Okay",
-                        OnConfirm = () => Task.CompletedTask
-                    });
-                }
-            },
-            OnDelete = async ctx =>
-            {
-                var m = (UserDto)ctx.Model;
-                ConfirmService.Open(new DialogRequest
-                {
-                    Title = "Löschen bestätigen",
-                    Message = $"Benutzer „{m.FirstName} {m.LastName}“ wirklich löschen?",
-                    ConfirmText = "Löschen",
-                    OnConfirm = async () =>
-                    {
-                        try
-                        {
-                            await UserService.DeleteAsync(new DeleteUserRequest(m.Id));
-                            await ReloadAsync();
-                            DrawerService.Close();
-                        }
-                        catch (Exception ex)
-                        {
-                            ConfirmService.Open(new DialogRequest
-                            {
-                                Title = "Löschen fehlgeschlagen",
-                                Message = ex.Message,
-                                ConfirmText = "Okay",
-                                OnConfirm = () => Task.CompletedTask
-                            });
-                        }
-                    }
-                });
-            }
-        };
+			OnSave = async ctx =>
+			{
+				try
+				{
+					if (isCreate)
+					{
+						var reg = (RegisterUserRequest)ctx.Build("Register");
+						_ = await UserService.RegisterAsync(reg);
+					}
+					else
+					{
+						var up = (UpdateUserRequest)ctx.Build("Update");
+						await UserService.UpdateAsync(up);
+					}
 
-        // ----- Relation: Firma (1:1) -----
-        // Options füttern den Dropdown im FormRenderer; der liefert beim Speichern über
-        // CompositeValueProvider den Wert "CustomerId" zurück (Guid? als string -> Guid).
+					await ReloadAsync();
+					DrawerService.Close();
+				}
+				catch (Exception ex)
+				{
+					ConfirmService.Open(new DialogRequest
+					{
+						Title = "Fehler",
+						Message = ex.Message,
+						ConfirmText = "Okay",
+						OnConfirm = () => Task.CompletedTask
+					});
+				}
+			},
+
+			OnDelete = async ctx =>
+			{
+				var m = (UserDto)ctx.Model;
+
+				ConfirmService.Open(new DialogRequest
+				{
+					Title = "Löschen bestätigen",
+					Message = $"Benutzer „{m.FirstName} {m.LastName}“ wirklich löschen?",
+					ConfirmText = "Löschen",
+					OnConfirm = async () =>
+					{
+						try
+						{
+							await UserService.DeleteAsync(new DeleteUserRequest(m.Id));
+							await ReloadAsync();
+							DrawerService.Close();
+						}
+						catch (Exception ex)
+						{
+							ConfirmService.Open(new DialogRequest
+							{
+								Title = "Löschen fehlgeschlagen",
+								Message = ex.Message,
+								ConfirmText = "Okay",
+								OnConfirm = () => Task.CompletedTask
+							});
+						}
+					}
+				});
+			}
+		};
+
+		// Passwort nur bei Create
+		if (isCreate)
+		{
+			req.ExtraFields.Add(new ExtraField(
+				Name: "Password",
+				Label: "Passwort",
+				Type: typeof(string),
+				ReadOnly: false,
+				Hint: "Mindestens 8 Zeichen",
+				DataType: "password"
+			));
+		}
+
+		// Firma als relation-auto -> FormRenderer rendert <select> aus Rels.LoadOptions()
 		req.ExtraFields.Add(new ExtraField(
 			Name: "CustomerId",
 			Label: "Firma",
 			Type: typeof(Guid?),
 			ReadOnly: false,
-			Hint: "Firma suchen oder neu anlegen.",
-			DataType: "relation-single",
-			Value: model.CustomerId,
-			Options: new(), // optional: initial leer
-			OnCreateNew: CreateCustomerInline,
-			OnSearch: async (term) =>
-			{
-				var all = await CustomerService.GetAllAsync();
-				var filtered = string.IsNullOrWhiteSpace(term)
-					? all
-					: all.Where(c => c.Name.Contains(term, StringComparison.OrdinalIgnoreCase));
-				return filtered
-					.Select(c => new KeyValuePair<string,string>(c.Name, c.Id.ToString()))
-					.ToList();
-			},
-			DebounceMs: 300
+			Hint: "Aus Liste wählen.",
+			DataType: "relation-auto"
 		));
 
-        // ----- Passwort NUR bei Create zeigen -----
-        if (isCreate)
-        {
-            req.ExtraFields.Add(new ExtraField(
-                Name: "Password",
-                Label: "Passwort",
-                Type: typeof(string),
-                ReadOnly: false,
-                Hint: "Mindestens 8 Zeichen",
-                DataType: "password" // Wird aktuell wie Text gerendert; Maskierung kannst du im FormRenderer leicht ergänzen.
-            ));
-        }
+		return req;
+	}
 
-        return req;
-    }
+	private async Task StartEdit(UserDto u)
+		=> DrawerService.Open(await BuildUserDrawer(u, isCreate: false));
 
-    private async Task StartEdit(UserDto u)
-        => DrawerService.Open(await BuildUserDrawer(u, isCreate: false));
+	private async Task StartCreate()
+	{
+		var empty = new UserDto(
+			Id: Guid.Empty,
+			Email: "",
+			FirstName: "",
+			LastName: "",
+			Role: "",
+			Department: "",
+			IsEmailConfirmed: false,
+			CreatedAt: DateTime.UtcNow,
+			LastLoginAt: null,
+			CustomerId: null,
+			CustomerName: null
+		);
 
-    private async Task StartCreate()
-    {
-        var empty = new UserDto(
-            Id: Guid.Empty,
-            Email: "",
-            FirstName: "",
-            LastName: "",
-            Role: "",
-            Department: "",
-            IsEmailConfirmed: false,
-            CreatedAt: DateTime.UtcNow,
-            LastLoginAt: null,
-            CustomerId: null,
-            CustomerName: null
-        );
-
-        DrawerService.Open(await BuildUserDrawer(empty, isCreate: true));
-    }
-
-    // ---------- Optional: Inline Create Firma (separater Drawer) ----------
-    // Diese Methode bleibt verfügbar – einen UI-Trigger (z.B. Button neben dem Dropdown)
-    // kannst du später ergänzen. Der FormRenderer selbst unterstützt aktuell keinen
-    // OnCreateNew-Hook.
-    private async Task<KeyValuePair<string, string>?> CreateCustomerInline()
-    {
-        var tcs = new TaskCompletionSource<KeyValuePair<string, string>?>();
-
-        var empty = new CustomerDto(
-            Id: Guid.Empty,
-            Name: "",
-            Industry: "",
-            EmployeeCount: 0,
-            RevenuePerYear: 0m,
-            IsActive: true,
-            CreatedAt: DateTime.UtcNow,
-            UpdatedAt: DateTime.UtcNow,
-            UserCount: 0
-        );
-
-        DrawerService.Open(new EditDrawerRequest
-        {
-            Title = "Firma anlegen",
-            Model = empty,
-            ContractsAssembly = typeof(CustomerDto).Assembly,
-            IsCreate = true,
-            OnSave = async ctx =>
-            {
-                try
-                {
-                    var req = (CreateCustomerRequest)ctx.Build("Create");
-                    var created = await CustomerService.CreateAsync(req);
-
-                    // Liste refreshen (für den Firmen-Dropdown)
-                    _customers = await CustomerService.GetAllAsync();
-
-                    tcs.TrySetResult(new KeyValuePair<string, string>(created.Name, created.Id.ToString()));
-                    DrawerService.Close();
-                }
-                catch (Exception ex)
-                {
-                    tcs.TrySetResult(null);
-                    ConfirmService.Open(new DialogRequest
-                    {
-                        Title = "Fehler beim Anlegen",
-                        Message = ex.Message,
-                        ConfirmText = "Okay",
-                        OnConfirm = () => Task.CompletedTask
-                    });
-                }
-            },
-            OnDelete = _ => Task.CompletedTask
-        });
-
-        return await tcs.Task;
-    }
+		DrawerService.Open(await BuildUserDrawer(empty, isCreate: true));
+	}
 }
 === ./Pages/_Host.cshtml ===
 @page "/"
@@ -3647,36 +3560,305 @@ public sealed class RequestBuildContext
     "UseHsts": false
   }
 }
-=== ./Services/Relations.cs ===
-// src/CMC.Web/Services/Relations.cs
+=== ./Services/RelationDialogService.cs ===
+using System.Linq;
+
 namespace CMC.Web.Services;
 
-public enum RelationKind
+public sealed class RelationDialogService
 {
-    Reference,   // n:1 oder 1:1 -> Single Select
-    OneToMany,   // 1:n -> meist read-only Liste (ableitbar)
-    ManyToMany   // n:m -> Multi Select
+    private readonly DialogService _dialogs;
+    private readonly IRelationshipManager _rels;
+
+    public RelationDialogService(DialogService dialogs, IRelationshipManager rels)
+    {
+        _dialogs = dialogs;
+        _rels = rels;
+    }
+
+    public async Task OpenForAsync(object parent, string relationName)
+    {
+        var desc = _rels.GetDescriptor(parent.GetType(), relationName);
+        if (desc.Kind == RelationKind.OneToMany)
+        {
+            _dialogs.Open(new DialogRequest
+            {
+                Title = relationName,
+                Message = "Diese Relation ist 1:n und wird als Liste angezeigt."
+            });
+            return;
+        }
+
+        var options = (await desc.LoadOptions()).Select(o => new DialogOption(o.Value, o.Label)).ToList();
+        var current = (await desc.LoadCurrentKeys(parent)).ToHashSet();
+
+        _dialogs.Open(new ChoiceRequest
+        {
+            Title = relationName,
+            Message = desc.Kind == RelationKind.Reference ? "Bitte auswählen" : "Mehrfachauswahl möglich",
+            MultiSelect = desc.Kind == RelationKind.ManyToMany,
+            Options = options.Select(o => o with { Selected = current.Contains(o.Key) }).ToList(),
+            OnConfirm = async keys =>
+            {
+                if (desc.Kind == RelationKind.Reference && desc.SetReference != null)
+                {
+                    var key = keys.FirstOrDefault();
+                    if (key != null) await desc.SetReference(parent, key);
+                    return;
+                }
+
+                if (desc.Kind == RelationKind.ManyToMany && desc.AddMany != null && desc.RemoveMany != null)
+                {
+                    var newSet = keys.ToHashSet();
+                    var toAdd = newSet.Except(current).ToArray();
+                    var toRem = current.Except(newSet).ToArray();
+                    if (toAdd.Length > 0) await desc.AddMany(parent, toAdd);
+                    if (toRem.Length > 0) await desc.RemoveMany(parent, toRem);
+                }
+            }
+        });
+    }
+
+    public async Task OpenForAsync(Type parentType, object parentKey, string relationName)
+    {
+        var parent = await _rels.FindParentAsync(parentType, parentKey);
+        await OpenForAsync(parent, relationName);
+    }
 }
-
-public sealed record RelationOption(string Label, string Value);
-
-public sealed class RelationDescriptor
+=== ./Services/Relations.cs ===
+using System.Reflection;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
+namespace CMC.Web.Services
 {
-    public required string Name { get; init; }
-    public required RelationKind Kind { get; init; }
-    public required string FieldKey { get; init; }
+	public enum RelationKind { Reference, OneToMany, ManyToMany }
 
-    public required Func<Task<IEnumerable<RelationOption>>> LoadOptions { get; init; }
-    public required Func<object, Task<object?>> LoadCurrentSelection { get; init; }
+	public sealed record RelationOption(string Label, string Value);
 
-    // Reference
-    public Func<object, string?, Task>? SetReference { get; init; }
+	public sealed class RelationDescriptor
+	{
+		public required string Name { get; init; }
+		public required RelationKind Kind { get; init; }
+		public required Type ParentType { get; init; }
+		public required Type TargetType { get; init; }
+		public required Func<Task<IEnumerable<RelationOption>>> LoadOptions { get; init; }
+		public required Func<object, Task<IEnumerable<string>>> LoadCurrentKeys { get; init; }
+		public Func<object, string, Task>? SetReference { get; init; }
+		public Func<object, IEnumerable<string>, Task>? AddMany { get; init; }
+		public Func<object, IEnumerable<string>, Task>? RemoveMany { get; init; }
+	}
 
-    // ManyToMany
-    public Func<object, IEnumerable<string>, Task>? AddMany { get; init; }
-    public Func<object, IEnumerable<string>, Task>? RemoveMany { get; init; }
+	public interface IRelationshipManager
+	{
+		RelationDescriptor GetDescriptor(Type parentType, string relationName);
+		RelationDescriptor GetDescriptor<TParent>(string relationName) where TParent : class;
+		Task<object> FindParentAsync(Type parentType, object key);
+	}
 
-    public Func<object, Task>? OnChanged { get; init; }
+	public sealed class RelationshipManager<TDbContext> : IRelationshipManager where TDbContext : DbContext
+	{
+		private readonly TDbContext _db;
+
+		public RelationshipManager(TDbContext db) { _db = db; }
+
+		public RelationDescriptor GetDescriptor<TParent>(string relationName) where TParent : class
+			=> GetDescriptor(typeof(TParent), relationName);
+
+		public RelationDescriptor GetDescriptor(Type parentType, string relationName)
+		{
+			var model = _db.Model;
+			var parentEt = model.FindEntityType(parentType)
+				?? throw new InvalidOperationException($"EntityType not found: {parentType.Name}");
+
+			var nav = parentEt.FindNavigation(relationName);
+			if (nav is not null)
+			{
+				var targetEt = nav.TargetEntityType;
+				return nav.IsCollection
+					? BuildOneToMany(parentType, relationName, targetEt)
+					: BuildReference(parentType, relationName, targetEt);
+			}
+
+			var skip = parentEt.FindSkipNavigation(relationName);
+			if (skip is not null)
+			{
+				return BuildManyToMany(parentType, relationName, skip.TargetEntityType);
+			}
+
+			throw new InvalidOperationException($"Relation '{relationName}' not found on {parentType.Name}");
+		}
+
+		public async Task<object> FindParentAsync(Type parentType, object key)
+		{
+			var set = GetSetNonGeneric(parentType);
+			var pk = _db.Model.FindEntityType(parentType)!.FindPrimaryKey()!;
+			var keyProp = pk.Properties.Single().PropertyInfo!;
+			var typed = Convert.ChangeType(key, keyProp.PropertyType);
+			var findAsync = set.GetType().GetMethod("FindAsync", new[] { typeof(object[]) })!;
+			var vt = (ValueTask<object?>)findAsync.Invoke(set, new object[] { new object?[] { typed! } })!;
+			var entity = await vt;
+			if (entity is null) throw new InvalidOperationException($"{parentType.Name}({key}) not found");
+			return entity;
+		}
+
+		private RelationDescriptor BuildReference(Type parentType, string rel, IEntityType targetEt)
+		{
+			var targetClr = targetEt.ClrType;
+			return new RelationDescriptor
+			{
+				Name = rel,
+				Kind = RelationKind.Reference,
+				ParentType = parentType,
+				TargetType = targetClr,
+				LoadOptions = async () =>
+				{
+					var set = GetSetNonGeneric(targetClr);
+					var list = await ToListAsync(set);
+					return list.Select(e => new RelationOption(GetDisplay(e), GetKey(e)!));
+				},
+				LoadCurrentKeys = async parent =>
+				{
+					await _db.Entry(parent).Reference(rel).LoadAsync();
+					var obj = _db.Entry(parent).Reference(rel).CurrentValue;
+					return obj is null ? Array.Empty<string>() : new[] { GetKey(obj)! };
+				},
+				SetReference = async (parent, key) =>
+				{
+					var entity = await FindByKey(targetClr, key);
+					_db.Entry(parent).Reference(rel).CurrentValue = entity;
+					await _db.SaveChangesAsync();
+				}
+			};
+		}
+
+		private RelationDescriptor BuildOneToMany(Type parentType, string rel, IEntityType targetEt)
+		{
+			return new RelationDescriptor
+			{
+				Name = rel,
+				Kind = RelationKind.OneToMany,
+				ParentType = parentType,
+				TargetType = targetEt.ClrType,
+				LoadOptions = () => Task.FromResult<IEnumerable<RelationOption>>(Array.Empty<RelationOption>()),
+				LoadCurrentKeys = async parent =>
+				{
+					await _db.Entry(parent).Collection(rel).LoadAsync();
+					var children = (IEnumerable<object>)(_db.Entry(parent).Collection(rel).CurrentValue ?? Array.Empty<object>());
+					return children.Select(GetKey!).Where(k => k is not null)!;
+				}
+			};
+		}
+
+		private RelationDescriptor BuildManyToMany(Type parentType, string rel, IEntityType targetEt)
+		{
+			var targetClr = targetEt.ClrType;
+			return new RelationDescriptor
+			{
+				Name = rel,
+				Kind = RelationKind.ManyToMany,
+				ParentType = parentType,
+				TargetType = targetClr,
+				LoadOptions = async () =>
+				{
+					var set = GetSetNonGeneric(targetClr);
+					var list = await ToListAsync(set);
+					return list.Select(e => new RelationOption(GetDisplay(e), GetKey(e)!));
+				},
+				LoadCurrentKeys = async parent =>
+				{
+					await _db.Entry(parent).Collection(rel).LoadAsync();
+					var curr = (IEnumerable<object>)(_db.Entry(parent).Collection(rel).CurrentValue ?? Array.Empty<object>());
+					return curr.Select(GetKey!).Where(k => k is not null)!;
+				},
+				AddMany = async (parent, keys) =>
+				{
+					await _db.Entry(parent).Collection(rel).LoadAsync();
+					var coll = (IList<object>)_db.Entry(parent).Collection(rel).CurrentValue!;
+					foreach (var k in keys)
+					{
+						var entity = await FindByKey(targetClr, k);
+						if (!coll.Contains(entity)) coll.Add(entity);
+					}
+					await _db.SaveChangesAsync();
+				},
+				RemoveMany = async (parent, keys) =>
+				{
+					await _db.Entry(parent).Collection(rel).LoadAsync();
+					var coll = (IList<object>)_db.Entry(parent).Collection(rel).CurrentValue!;
+					foreach (var k in keys.ToList())
+					{
+						var entity = await FindByKey(targetClr, k);
+						if (coll.Contains(entity)) coll.Remove(entity);
+					}
+					await _db.SaveChangesAsync();
+				}
+			};
+		}
+
+        private static async Task<List<object>> ToListAsync(object set)
+        {
+            // DbSet<TEntity> implementiert IQueryable<TEntity>
+            var entityClr = set.GetType().GetGenericArguments()[0];
+
+            var toListAsync = typeof(EntityFrameworkQueryableExtensions)
+                .GetMethods()
+                .First(m => m.Name == "ToListAsync"
+                    && m.IsGenericMethodDefinition
+                    && m.GetParameters().Length == 2)
+                .MakeGenericMethod(entityClr);
+
+            var query = (IQueryable)set;
+            var task = (Task)toListAsync.Invoke(null, new object[] { query, CancellationToken.None })!;
+            await task.ConfigureAwait(false);
+
+            var resultProp = task.GetType().GetProperty("Result")!;
+            return ((IEnumerable<object>)resultProp.GetValue(task)!).ToList();
+        }
+
+		private async Task<object> FindByKey(Type clr, string key)
+		{
+			var set = GetSetNonGeneric(clr);
+			var pk = _db.Model.FindEntityType(clr)!.FindPrimaryKey()!;
+			var keyProp = pk.Properties.Single().PropertyInfo!;
+			var typed = Convert.ChangeType(key, keyProp.PropertyType);
+			var findAsync = set.GetType().GetMethod("FindAsync", new[] { typeof(object[]) })!;
+			var vt = (ValueTask<object?>)findAsync.Invoke(set, new object[] { new object?[] { typed! } })!;
+			var e = await vt;
+			if (e is null) throw new InvalidOperationException($"{clr.Name}({key}) not found");
+			return e;
+		}
+
+		private static string? GetKey(object e)
+		{
+			var idProp = e.GetType().GetProperties().FirstOrDefault(p => string.Equals(p.Name, "Id", StringComparison.OrdinalIgnoreCase));
+			return idProp?.GetValue(e)?.ToString();
+		}
+
+		private static string GetDisplay(object e)
+		{
+			var p = e.GetType().GetProperty("Name") ?? e.GetType().GetProperty("Title");
+			var val = p?.GetValue(e)?.ToString();
+			return string.IsNullOrWhiteSpace(val) ? e.ToString() ?? "(?)" : val!;
+		}
+        private object GetSetNonGeneric(Type clr)
+        {
+            // 1) Versuche non-generic DbContext.Set(Type) (falls vorhanden)
+            var miNonGeneric = typeof(DbContext).GetMethod("Set", new[] { typeof(Type) });
+            if (miNonGeneric != null)
+            {
+                var set = miNonGeneric.Invoke(_db, new object[] { clr });
+                if (set != null) return set;
+            }
+
+            // 2) Fallback: generische Definition DbContext.Set<TEntity>() schließen
+            var miGeneric = typeof(DbContext).GetMethods(BindingFlags.Public | BindingFlags.Instance)
+                .First(m => m.Name == "Set" && m.IsGenericMethodDefinition && m.GetParameters().Length == 0);
+
+            var closed = miGeneric.MakeGenericMethod(clr);
+            return closed.Invoke(_db, null)!;
+        }
+	}
 }
 === ./Services/EditDrawerService.cs ===
 using System.Collections.Concurrent;
@@ -3686,22 +3868,18 @@ using CMC.Web.Shared;
 namespace CMC.Web.Services;
 public sealed class EditDrawerRequest
 {
-    public required string Title { get; init; }
-    public required object Model { get; init; }
-    public required Assembly ContractsAssembly { get; init; }
-    public bool IsCreate { get; init; } = false;
-    public string Action { get; init; } = "Update";
+	public string Title { get; init; } = "";
+	public object Model { get; init; } = default!;
+	public Assembly ContractsAssembly { get; init; } = default!;
+	public bool IsCreate { get; init; }
+	public Func<EditContextAdapter, Task> OnSave { get; init; } = _ => Task.CompletedTask;
+	public Func<EditContextAdapter, Task>? OnDelete { get; init; }
 
-    public Func<RequestBuildContext, Task>? OnSave { get; init; }
-    public Func<RequestBuildContext, Task>? OnDelete { get; init; }
+	// NEU: Für relation-auto
+	public Type? EfParentType { get; init; }          // z.B. typeof(User)
+	public Func<object, object>? GetParentKey { get; init; } // z.B. m => ((UserDto)m).Id
 
-    public Func<RequestBuildContext, Task>? OnBeforeSave { get; set; }
-    public Func<RequestBuildContext, Task>? OnAfterSave  { get; set; }
-
-    public List<ExtraField> ExtraFields { get; } = new();
-
-    // NEU: generische Relationen
-    public List<RelationDescriptor> Relations { get; } = new();
+	public List<ExtraField> ExtraFields { get; } = new();
 }
 public sealed class EditDrawerService
 {
@@ -3746,133 +3924,553 @@ public sealed class EditDrawerService
 		StackChanged?.Invoke();
 	}
 }
-=== ./Services/EditSession.cs ===
-using CMC.Web.Shared;
-using CMC.Web.Util;
+=== ./Services/EntityManager.cs ===
+// src/CMC.Web/Services/EntityManager.cs
 using System.Reflection;
+using CMC.Web.Shared;
 
 namespace CMC.Web.Services;
 
-public sealed class EditSession
-{
-    public object Model { get; }
-    public Assembly ContractsAssembly { get; }
-    public string Action { get; }
-    public List<RelationDescriptor> Relations { get; } = new();
-    public List<ExtraField> ExtraFields { get; } = new();
-    private readonly Dictionary<string, object?> _accumulatedChanges = new(StringComparer.OrdinalIgnoreCase);
-
-    public EditSession(object model, Assembly contracts, string action = "Update")
-    {
-        Model = model;
-        ContractsAssembly = contracts;
-        Action = action;
-    }
-
-    public void ApplyLocalChanges(IReadOnlyDictionary<string, object?> changes)
-    {
-        foreach (var kv in changes) _accumulatedChanges[kv.Key] = kv.Value;
-    }
-
-    public IValueProvider BuildProvider()
-        => new CompositeValueProvider(Model, _accumulatedChanges);
-
-    public RequestBuildContext BuildCtx()
-        => new RequestBuildContext(Model, ContractsAssembly, BuildProvider(), Action);
-
-}
-=== ./Services/DialogService.cs ===
-namespace CMC.Web.Services;
 /// <summary>
-/// Service for managing confirmation dialogs throughout the application.
-/// Provides a centralized way to show confirmation prompts for critical actions.
+///  entity manager that works with any entity type using reflection and conventions
 /// </summary>
-public class DialogService
+public class EntityManager
 {
-    /// <summary>
-    /// Event triggered when a confirmation dialog should be opened.
-    /// </summary>
-    public event Action<DialogRequest>? OnOpen;
+    private readonly IServiceProvider _serviceProvider;
+    private readonly Assembly _contractsAssembly;
+    private readonly EditDrawerService _drawerService;
+    private readonly DialogService _dialogService;
 
-    /// <summary>
-    /// Event triggered when the confirmation dialog should be closed.
-    /// </summary>
-    public event Action? OnClose;
-
-    /// <summary>
-    /// Opens a confirmation dialog with the specified request parameters.
-    /// </summary>
-    /// <param name="request">Dialog configuration and callbacks</param>
-    public void Open(DialogRequest request) => OnOpen?.Invoke(request);
-
-    /// <summary>
-    /// Closes the currently open confirmation dialog.
-    /// </summary>
-    public void Close() => OnClose?.Invoke();
-
-    /// <summary>
-    /// Convenience method for delete confirmations with standard messaging.
-    /// </summary>
-    /// <param name="itemName">Name of the item being deleted</param>
-    /// <param name="onConfirm">Action to execute when deletion is confirmed</param>
-    /// <param name="itemType">Type of item (default: "item")</param>
-    public void ConfirmDelete(string itemName, Func<Task> onConfirm, string itemType = "item")
+    public EntityManager(IServiceProvider serviceProvider, EditDrawerService drawerService, DialogService dialogService)
     {
-        Open(new DialogRequest
+        _serviceProvider = serviceProvider;
+        _contractsAssembly = typeof(CMC.Contracts.Users.UserDto).Assembly;
+        _drawerService = drawerService;
+        _dialogService = dialogService;
+    }
+
+    /// <summary>
+    /// Generic edit method that works for any entity type
+    /// </summary>
+    public void StartEdit<TDto>(TDto item, Func<Task> onSuccess, List<ExtraField>? extraFields = null) where TDto : class
+    {
+        var entityName = GetEntityDisplayName<TDto>();
+
+        var req = new EditDrawerRequest
         {
-            Title = $"Delete {itemType}",
-            Message = $"Are you sure you want to delete '{itemName}'?",
-            DetailMessage = "This action cannot be undone.",
-            ConfirmText = "Delete",
-            OnConfirm = onConfirm,
-            OnCancel  = () =>
+            Title = $"{entityName} bearbeiten",
+            Model = item,
+            ContractsAssembly = _contractsAssembly,
+            IsCreate = false,
+            OnSave = async ctx =>
             {
-                Close();
-                return Task.CompletedTask; // einfache No-Op-Task
+                try
+                {
+                    var updateRequest = ctx.Build("Update");
+                    await CallServiceMethod<TDto>("UpdateAsync", updateRequest);
+                    await onSuccess();
+                    _drawerService.Close();
+                }
+                catch (Exception ex)
+                {
+                    ShowError("Fehler beim Speichern", ex.Message);
+                }
+            },
+            OnDelete = async ctx =>
+            {
+                await HandleDelete(item, onSuccess);
             }
+        };
+
+        // Add entity-specific extra fields
+        if (extraFields != null)
+            req.ExtraFields.AddRange(extraFields);
+        else
+            req.ExtraFields.AddRange(GenerateDefaultExtraFields<TDto>(item));
+
+        _drawerService.Open(req);
+    }
+
+    /// <summary>
+    /// Generic create method that works for any entity type
+    /// </summary>
+    public void StartCreate<TDto>(TDto emptyItem, Func<Task> onSuccess, List<ExtraField>? extraFields = null) where TDto : class
+    {
+        var entityName = GetEntityDisplayName<TDto>();
+
+        var req = new EditDrawerRequest
+        {
+            Title = $"{entityName} anlegen",
+            Model = emptyItem,
+            ContractsAssembly = _contractsAssembly,
+            IsCreate = true,
+            OnSave = async ctx =>
+            {
+                try
+                {
+                    var createRequest = ctx.Build("Create");
+                    await CallServiceMethod<TDto>("CreateAsync", createRequest);
+                    await onSuccess();
+                    _drawerService.Close();
+                }
+                catch (Exception ex)
+                {
+                    ShowError("Fehler beim Anlegen", ex.Message);
+                }
+            }
+        };
+
+        if (extraFields != null)
+            req.ExtraFields.AddRange(extraFields);
+        else
+            req.ExtraFields.AddRange(GenerateDefaultExtraFields<TDto>(emptyItem, true));
+
+        _drawerService.Open(req);
+    }
+
+    /// <summary>
+    /// Handles delete with automatic relationship detection
+    /// </summary>
+    private async Task HandleDelete<TDto>(TDto item, Func<Task> onSuccess) where TDto : class
+    {
+        var itemId = GetEntityId(item);
+        var itemName = GetEntityDisplayName(item);
+        var entityTypeName = GetEntityDisplayName<TDto>();
+
+        // Try to get dependent count
+        var dependentCount = await GetDependentCount<TDto>(itemId);
+
+        if (dependentCount == 0)
+        {
+            // Simple delete
+            _dialogService.ConfirmDelete(itemName, async () =>
+            {
+                try
+                {
+                    await CallServiceMethod<TDto>("DeleteAsync", itemId);
+                    await onSuccess();
+                    _drawerService.Close();
+                }
+                catch (Exception ex)
+                {
+                    ShowError("Löschen fehlgeschlagen", ex.Message);
+                }
+            }, entityTypeName);
+        }
+        else
+        {
+            // Delete with dependencies - use enhanced choice dialog
+            _dialogService.ConfirmDeleteWithRelations(itemName, dependentCount, async (strategy) =>
+            {
+                try
+                {
+                    switch (strategy)
+                    {
+                        case "cascade":
+                            await CallServiceMethod<TDto>("DeleteCascadeAsync", itemId);
+                            break;
+                        case "detach":
+                            await CallServiceMethod<TDto>("DetachAndDeleteAsync", itemId);
+                            break;
+                        default:
+                            return; // Cancel
+                    }
+                    await onSuccess();
+                    _drawerService.Close();
+                }
+                catch (Exception ex)
+                {
+                    ShowError("Löschen fehlgeschlagen", ex.Message);
+                }
+            }, entityTypeName);
+        }
+    }
+
+    /// <summary>
+    /// Automatically generates extra fields based on conventions
+    /// </summary>
+    private List<ExtraField> GenerateDefaultExtraFields<TDto>(TDto item, bool isCreate = false) where TDto : class
+    {
+        var extraFields = new List<ExtraField>();
+        var itemType = typeof(TDto);
+
+        // Add password field for user creation
+        if (isCreate && itemType.Name.Contains("User"))
+        {
+            extraFields.Add(new ExtraField(
+                Name: "Password",
+                Label: "Passwort",
+                Type: typeof(string),
+                ReadOnly: false,
+                Hint: "Mindestens 8 Zeichen",
+                DataType: "password"
+            ));
+        }
+
+        // Auto-detect foreign key relationships
+        var foreignKeyProps = itemType.GetProperties()
+            .Where(p => p.Name.EndsWith("Id") && p.PropertyType == typeof(Guid?))
+            .Where(p => p.Name != "Id"); // Exclude primary key
+
+        foreach (var fkProp in foreignKeyProps)
+        {
+            var relationName = fkProp.Name.Substring(0, fkProp.Name.Length - 2); // Remove "Id"
+            var currentValue = fkProp.GetValue(item);
+
+            extraFields.Add(CreateRelationField(relationName, currentValue));
+        }
+
+        return extraFields;
+    }
+
+    /// <summary>
+    /// Creates a relation field automatically
+    /// </summary>
+    private ExtraField CreateRelationField(string relationName, object? currentValue)
+    {
+        return new ExtraField(
+            Name: $"{relationName}Id",
+            Label: GetDisplayName(relationName),
+            Type: typeof(Guid?),
+            ReadOnly: false,
+            Hint: $"{GetDisplayName(relationName)} suchen oder neu anlegen.",
+            DataType: "relation-single",
+            Value: currentValue,
+            Options: new(),
+            OnCreateNew: () => CreateRelatedEntityInline(relationName),
+            OnSearch: (term) => SearchRelatedEntities(relationName, term),
+            DebounceMs: 300
+        );
+    }
+
+    /// <summary>
+    /// Search for related entities by convention
+    /// </summary>
+    private async Task<List<KeyValuePair<string, string>>> SearchRelatedEntities(string relationName, string term)
+    {
+        try
+        {
+            var serviceType = GetServiceType(relationName);
+            if (serviceType == null) return new();
+
+            var service = _serviceProvider.GetRequiredService(serviceType);
+            var method = serviceType.GetMethod("GetAllAsync");
+            if (method == null) return new();
+
+            var result = method.Invoke(service, new object[] { CancellationToken.None });
+            if (result is not Task task) return new();
+
+            await task;
+
+            var items = task.GetType().GetProperty("Result")?.GetValue(task) as System.Collections.IEnumerable;
+            if (items == null) return new();
+
+            var filteredItems = new List<KeyValuePair<string, string>>();
+
+            foreach (var item in items)
+            {
+                var id = GetEntityId(item).ToString();
+                var name = GetEntityDisplayName(item);
+
+                if (string.IsNullOrWhiteSpace(term) ||
+                    name.Contains(term, StringComparison.OrdinalIgnoreCase))
+                {
+                    filteredItems.Add(new KeyValuePair<string, string>(name, id));
+                }
+            }
+
+            return filteredItems;
+        }
+        catch
+        {
+            return new();
+        }
+    }
+
+    /// <summary>
+    /// Create related entity inline
+    /// </summary>
+    private async Task<KeyValuePair<string, string>?> CreateRelatedEntityInline(string relationName)
+    {
+        try
+        {
+            // This would need to be implemented based on your specific entities
+            // For now, return null to indicate no inline creation
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Gets service type by convention
+    /// </summary>
+    private Type? GetServiceType(string entityName)
+    {
+        var serviceName = $"CMC.Application.Services.{entityName}Service";
+        return AppDomain.CurrentDomain.GetAssemblies()
+            .SelectMany(a => a.GetTypes())
+            .FirstOrDefault(t => t.FullName == serviceName);
+    }
+
+    /// <summary>
+    /// Gets service type for a DTO
+    /// </summary>
+    private Type? GetServiceType<TDto>()
+    {
+        var dtoName = typeof(TDto).Name;
+        if (dtoName.EndsWith("Dto"))
+            dtoName = dtoName.Substring(0, dtoName.Length - 3);
+
+        return GetServiceType(dtoName);
+    }
+
+    /// <summary>
+    /// Calls service method dynamically
+    /// </summary>
+    private async Task CallServiceMethod<TDto>(string methodName, object parameter)
+    {
+        var serviceType = GetServiceType<TDto>();
+        if (serviceType == null)
+            throw new InvalidOperationException($"No service found for {typeof(TDto).Name}");
+
+        var service = _serviceProvider.GetRequiredService(serviceType);
+        var method = serviceType.GetMethod(methodName);
+        if (method == null)
+            throw new InvalidOperationException($"Method {methodName} not found on {serviceType.Name}");
+
+        var result = method.Invoke(service, new[] { parameter });
+        if (result is Task task)
+            await task;
+    }
+
+    /// <summary>
+    /// Gets dependent count for an entity
+    /// </summary>
+    private async Task<int> GetDependentCount<TDto>(Guid entityId)
+    {
+        try
+        {
+            var serviceType = GetServiceType<TDto>();
+            if (serviceType == null) return 0;
+
+            var service = _serviceProvider.GetRequiredService(serviceType);
+            var method = serviceType.GetMethod("GetDependentCountAsync");
+            if (method == null) return 0;
+
+            var result = method.Invoke(service, new object[] { entityId });
+            if (result is Task<int> task)
+                return await task;
+        }
+        catch
+        {
+            // Ignore errors, return 0 as default
+        }
+        return 0;
+    }
+
+    /// <summary>
+    /// Gets entity display name
+    /// </summary>
+    private string GetEntityDisplayName<TDto>()
+    {
+        var typeName = typeof(TDto).Name;
+        if (typeName.EndsWith("Dto"))
+            typeName = typeName.Substring(0, typeName.Length - 3);
+
+        return typeName switch
+        {
+            "Customer" => "Kunde",
+            "User" => "Benutzer",
+            _ => typeName
+        };
+    }
+
+    /// <summary>
+    /// Gets display name for an entity instance
+    /// </summary>
+    private string GetEntityDisplayName(object entity)
+    {
+        var nameProps = new[] { "Name", "FirstName", "Email", "Title" };
+        foreach (var propName in nameProps)
+        {
+            var prop = entity.GetType().GetProperty(propName);
+            if (prop?.GetValue(entity) is string value && !string.IsNullOrEmpty(value))
+            {
+                if (propName == "FirstName")
+                {
+                    var lastNameProp = entity.GetType().GetProperty("LastName");
+                    if (lastNameProp?.GetValue(entity) is string lastName && !string.IsNullOrEmpty(lastName))
+                        return $"{value} {lastName}";
+                }
+                return value;
+            }
+        }
+
+        var id = GetEntityId(entity);
+        return $"{GetEntityDisplayName(entity.GetType())} {id}";
+    }
+
+    /// <summary>
+    /// Gets display name for a string
+    /// </summary>
+    private string GetDisplayName(string name)
+    {
+        return name switch
+        {
+            "Customer" => "Firma",
+            "User" => "Benutzer",
+            _ => name
+        };
+    }
+
+    /// <summary>
+    /// Gets entity ID using reflection
+    /// </summary>
+    private Guid GetEntityId(object entity)
+    {
+        var idProp = entity.GetType().GetProperty("Id");
+        if (idProp?.GetValue(entity) is Guid id)
+            return id;
+        throw new InvalidOperationException($"No Id property found on {entity.GetType().Name}");
+    }
+
+    /// <summary>
+    /// Gets entity display name from type
+    /// </summary>
+    private string GetEntityDisplayName(Type type)
+    {
+        var typeName = type.Name;
+        if (typeName.EndsWith("Dto"))
+            typeName = typeName.Substring(0, typeName.Length - 3);
+
+        return typeName switch
+        {
+            "Customer" => "Kunde",
+            "User" => "Benutzer",
+            _ => typeName
+        };
+    }
+
+    /// <summary>
+    /// Shows error dialog
+    /// </summary>
+    private void ShowError(string title, string message)
+    {
+        _dialogService.Open(new DialogRequest
+        {
+            Title = title,
+            Message = message,
+            ConfirmText = "OK",
+            OnConfirm = () => Task.CompletedTask
         });
     }
 }
+=== ./Services/DialogServiceExtensions.cs ===
+namespace CMC.Web.Services;
 
-/// <summary>
-/// Request object for configuring confirmation dialogs.
-/// </summary>
-public class DialogRequest
+public static class DialogServiceExtensions
 {
-    /// <summary>
-    /// Dialog title displayed in the header.
-    /// </summary>
-    public string Title { get; init; } = "Confirm Action";
+	// Overload, der zu: ConfirmDelete(title, async () => { ... }, entityTypeName) passt
+	public static void ConfirmDelete(this DialogService dialogs, string title, Func<Task> onConfirm, string? entityTypeName = null)
+	{
+		var message = string.IsNullOrWhiteSpace(entityTypeName)
+			? "Wirklich löschen?"
+			: $"{entityTypeName} wirklich löschen?";
 
-    /// <summary>
-    /// Main confirmation message.
-    /// </summary>
-    public string Message { get; init; } = "Are you sure you want to proceed?";
+		dialogs.Open(new DialogRequest
+		{
+			Title = title,
+			Message = message,
+			ConfirmText = "Löschen",
+			OnConfirm = onConfirm,
+			CancelText = "Abbrechen",
+			OnCancel = () => Task.CompletedTask
+		});
+	}
 
-    /// <summary>
-    /// Optional detailed message for additional context.
-    /// </summary>
-    public string? DetailMessage { get; init; }
+	// Klassischer Overload (falls woanders genutzt)
+	public static void ConfirmDelete(this DialogService dialogs, string title, string message, Func<Task> onConfirm)
+	{
+		dialogs.Open(new DialogRequest
+		{
+			Title = title,
+			Message = message,
+			ConfirmText = "Löschen",
+			OnConfirm = onConfirm,
+			CancelText = "Abbrechen",
+			OnCancel = () => Task.CompletedTask
+		});
+	}
 
-    /// <summary>
-    /// Text for the confirmation button.
-    /// </summary>
-    public string ConfirmText { get; init; } = "Confirm";
+	// Passt zu: ConfirmDeleteWithRelations(title, dependentCount, async (strategy) => { ... }, entityTypeName)
+	public static void ConfirmDeleteWithRelations(this DialogService dialogs, string title, int dependentCount, Func<string, Task> onDecision, string? entityTypeName = null)
+	{
+		var msg = (dependentCount <= 0)
+			? "Es existieren verknüpfte Daten."
+			: $"Es existieren {dependentCount} verknüpfte Einträge.";
 
-    /// <summary>
-    /// Text for the cancel button.
-    /// </summary>
-    public string CancelText { get; init; } = "Cancel";
+		var options = new List<DialogOption>
+		{
+			new("cascade", "Alles löschen (Kaskade)"),
+			new("detach",  "Verknüpfungen lösen, dann löschen"),
+			new("cancel",  "Abbrechen")
+		};
 
-    /// <summary>
-    /// Action to execute when user confirms.
-    /// </summary>
-	public Func<Task>? OnConfirm { get; init; }
+		dialogs.Open(new ChoiceRequest
+		{
+			Title = string.IsNullOrWhiteSpace(entityTypeName) ? title : $"{title} – {entityTypeName}",
+			Message = msg,
+			MultiSelect = false,
+			Options = options,
+			OnConfirm = async keys =>
+			{
+				var k = keys.FirstOrDefault() ?? "cancel";
+				if (k == "cancel") return;
+				await onDecision(k);
+			},
+			OnCancel = () => Task.CompletedTask,
+			ConfirmText = "Übernehmen",
+			CancelText = "Abbrechen"
+		});
+	}
+}
+=== ./Services/DialogService.cs ===
+namespace CMC.Web.Services;
 
-    /// <summary>
-    /// Action to execute when user cancels.
-    /// </summary>
-	public Func<Task>? OnCancel  { get; init; }
+public sealed record DialogOption(string Key, string Label, bool Selected = false);
+
+public sealed class DialogRequest
+{
+    public string Title { get; init; } = "";
+    public string Message { get; init; } = "";
+    public string ConfirmText { get; init; } = "OK";
+    public Func<Task>? OnConfirm { get; init; }
+    public string? CancelText { get; init; }
+    public Func<Task>? OnCancel { get; init; }
+}
+
+public sealed class ChoiceRequest
+{
+    public string Title { get; init; } = "Auswahl";
+    public string Message { get; init; } = "";
+    public bool MultiSelect { get; init; } = false;
+    public IReadOnlyList<DialogOption> Options { get; init; } = Array.Empty<DialogOption>();
+    public Func<IReadOnlyList<string>, Task>? OnConfirm { get; init; }
+    public Func<Task>? OnCancel { get; init; }
+    public string? ConfirmText { get; init; } = "Übernehmen";
+    public string? CancelText { get; init; } = "Abbrechen";
+}
+
+public class DialogService
+{
+    public event Action<DialogRequest>? OnOpen;
+    public event Action<ChoiceRequest>? OnOpenChoice;
+
+    public void Open(DialogRequest req) => OnOpen?.Invoke(req);
+    public void Open(ChoiceRequest req) => OnOpenChoice?.Invoke(req);
 }
 === ./Program.cs ===
 // src/CMC.Web/Program.cs
@@ -3882,7 +4480,6 @@ using Microsoft.EntityFrameworkCore;
 using CMC.Application.Services;
 using CMC.Web.Services;
 using CMC.Web.Shared;
-using CMC.Web.Util;
 using CMC.Web.Auth; // CookieEvents
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -3924,10 +4521,10 @@ builder.Services.AddHttpClient("default", client =>
 });
 
 // App-Services (DI)
-builder.Services.AddSingleton<DialogService>();
-builder.Services.AddSingleton<IRelationshipManager, RelationshipManager>();
+builder.Services.AddScoped<DialogService>();
+builder.Services.AddScoped<RelationDialogService>();
 builder.Services.AddScoped<EditDrawerService>();
-builder.Services.AddScoped<EditSessionFactory>();
+builder.Services.AddScoped<IRelationshipManager, RelationshipManager<AppDbContext>>();
 
 // Authentication + Cookie Setup (Events ausgelagert)
 builder.Services.AddScoped<CookieEvents>();

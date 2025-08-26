@@ -2,140 +2,153 @@
 @using Microsoft.AspNetCore.Components
 @using CMC.Web.Services
 @using CMC.Web.Shared
-@using CMC.Web.Util
 @implements IDisposable
 @inject EditDrawerService EditDrawerService
 
 @if (_isOpen && _request is not null)
 {
-    <!-- Backdrop -->
-    <div class="ed-backdrop ed-backdrop--open" style="z-index:@ZIndex" aria-hidden="true"></div>
+	<!-- Backdrop -->
+	<div class="ed-backdrop ed-backdrop--open" style="z-index:@ZIndex" aria-hidden="true"></div>
 
-    <!-- Panel -->
-    <aside class="ed-wrap ed-wrap--open" style="z-index:@(ZIndex+1)" role="dialog" aria-modal="true" aria-labelledby="ed-title" @onclick:stopPropagation>
-        <header class="ed-header">
-            <h3 id="ed-title">@_request.Title</h3>
-            <button class="btn flat" @onclick="Cancel" aria-label="Schließen">×</button>
-        </header>
+	<!-- Panel -->
+	<aside class="ed-wrap ed-wrap--open" style="z-index:@(ZIndex+1)" role="dialog" aria-modal="true" aria-labelledby="ed-title" @onclick:stopPropagation>
+		<header class="ed-header">
+			<h3 id="ed-title">@_request.Title</h3>
+			<button class="btn flat" @onclick="Cancel" aria-label="Schließen">×</button>
+		</header>
 
-        <section class="ed-body">
-            <CascadingValue Value="_ctx">
-                <FormRenderer @ref="_form"
-                              Model="_request.Model"
-                              ExtraFields="_request.ExtraFields"
-                              OnFieldChanged="OnFieldChanged" />
-            </CascadingValue>
-        </section>
+		<section class="ed-body">
+			<FormRenderer @ref="_form"
+						  Model="_request.Model"
+						  Request="_request"
+						  Ctx="_adapter"
+						  ExtraFields="_request.ExtraFields"
+						  OnFieldChanged="OnFieldChanged" />
+		</section>
 
-        <footer class="ed-body" style="border-top:1px solid #eee; padding-top:.5rem;">
-            <div class="btn-group">
-                <button class="btn primary" @onclick="SaveAsync">Speichern</button>
-                @if (_request.OnDelete is not null && !_request.IsCreate)
-                {
-                    <button class="btn danger" @onclick="DeleteAsync">Löschen</button>
-                }
-                <button class="btn flat" @onclick="Cancel">Abbrechen</button>
-            </div>
-        </footer>
-    </aside>
+<footer class="ed-body" style="border-top:1px solid #eee; padding-top:.5rem;">
+  <div class="btn-group">
+    <button type="button" class="btn primary" @onclick="SaveAsync">Speichern</button>
+    @if (_request.OnDelete is not null && !_request.IsCreate)
+    {
+      <button type="button" class="btn danger" @onclick="DeleteAsync">Löschen</button>
+    }
+    <button type="button" class="btn flat" @onclick="Cancel">Abbrechen</button>
+  </div>
+</footer>
+
+	</aside>
 }
 
 @code {
-    [Parameter] public int ZIndex { get; set; } = 1000;
+	[Parameter] public int ZIndex { get; set; } = 1000;
 
-    // --- Parameter-Modus (Stacked) ---
-    [Parameter] public EditDrawerRequest? Request { get; set; }
-    private bool _openedByParameter;
-    private bool _useServiceEvents;
+	// --- Parameter-Modus (Stacked) ---
+	[Parameter] public EditDrawerRequest? Request { get; set; }
+	private bool _openedByParameter;
+	private bool _useServiceEvents;
 
-    protected override void OnInitialized()
-    {
-        // Nur wenn KEIN Parameter-Request gesetzt ist -> Service-Modus (einzelner Drawer)
-        _useServiceEvents = Request is null;
-        if (_useServiceEvents)
-        {
-            EditDrawerService.OpenRequested += HandleOpen;
-            EditDrawerService.CloseRequested += HandleClose;
-        }
-    }
+	protected override void OnInitialized()
+	{
+	}
 
-    protected override void OnParametersSet()
-    {
-        if (Request is not null)
-        {
-            // Nur öffnen, wenn sich die Instanz wirklich geändert hat
-            if (!ReferenceEquals(Request, _request))
-            {
-                HandleOpen(Request);
-            }
-            _openedByParameter = true;
-        }
-        else if (_openedByParameter)
-        {
-            HandleClose();
-            _openedByParameter = false;
-        }
-    }
+	protected override void OnParametersSet()
+	{
+		var wantServiceMode = Request is null;
 
-    // --- State ---
-    private bool _isOpen;
-    private EditDrawerRequest? _request;
-    private FormRenderer? _form;
-    private RequestBuildContext? _ctx;
-    private readonly Dictionary<string, object?> _changes = new(StringComparer.OrdinalIgnoreCase);
+		if (wantServiceMode && !_useServiceEvents)
+		{
+			EditDrawerService.OpenRequested += HandleOpen;
+			EditDrawerService.CloseRequested += HandleClose;
+			_useServiceEvents = true;
+		}
+		else if (!wantServiceMode && _useServiceEvents)
+		{
+			EditDrawerService.OpenRequested -= HandleOpen;
+			EditDrawerService.CloseRequested -= HandleClose;
+			_useServiceEvents = false;
+		}
 
-    private void HandleOpen(EditDrawerRequest req)
-    {
-        Console.WriteLine($"EditDrawer: OPEN -> {req.Title}");
-        _request = req;
-        _changes.Clear();
-        var provider = new CompositeValueProvider(req.Model, _changes);
-        _ctx = new RequestBuildContext(req.Model, req.ContractsAssembly, provider, req.IsCreate ? "Create" : "Update");
-        _isOpen = true;
-        StateHasChanged();
-    }
+		if (Request is not null && !ReferenceEquals(Request, _request))
+		{
+			HandleOpen(Request);
+			_openedByParameter = true;
+		}
+		else if (Request is null && _openedByParameter)
+		{
+			HandleClose();
+			_openedByParameter = false;
+		}
+	}
 
-    private void HandleClose()
-    {
-        Console.WriteLine("EditDrawer: CLOSE");
-        _isOpen = false;
-        _request = null;
-        _ctx = null;
-        _changes.Clear();
-        StateHasChanged();
-    }
 
-    private void OnFieldChanged((string Name, object? Value) change) => _changes[change.Name] = change.Value;
+	// --- State ---
+	private bool _isOpen;
+	private EditDrawerRequest? _request;
+	private FormRenderer? _form;
 
-    private async Task SaveAsync()
-    {
-        if (_request is null || _ctx is null) return;
+	// Neues Build/Mapping-Objekt (ersetzt RequestBuildContext)
+	private EditContextAdapter? _adapter;
 
-        // OnSave soll selbst entscheiden, ob/was geschlossen wird (Top-Frame)
-        if (_request.OnSave is not null)
-            await _request.OnSave.Invoke(_ctx);
-    }
+	// Änderungen, die der FormRenderer via OnFieldChanged meldet (werden in Adapter gemappt)
+	private readonly Dictionary<string, object?> _changes = new(StringComparer.OrdinalIgnoreCase);
 
-    private async Task DeleteAsync()
-    {
-        _changes.Clear();
-        if (_request?.OnDelete is not null && _ctx is not null)
-            await _request.OnDelete.Invoke(_ctx);
-        // OnDelete entscheidet i. d. R. selbst über Close (z. B. nach Confirm)
-    }
+	private void HandleOpen(EditDrawerRequest req)
+	{
+		Console.WriteLine($"EditDrawer: OPEN -> {req.Title}");
+		_request = req;
+		_changes.Clear();
 
-    private void Cancel()
-    {
-        // Immer nur den obersten Drawer schließen
-        EditDrawerService.Close();
-    }
+		// Adapter inkl. Overrides (damit ExtraFields/OnFieldChanged in Build(...) landen)
+		_adapter = new EditContextAdapter(req, req.Model, _changes);
 
-    public void Dispose()
-    {
-        if (_useServiceEvents)
-        {
-            EditDrawerService.OpenRequested -= HandleOpen;
-            EditDrawerService.CloseRequested -= HandleClose;
-        }
-    }
+		_isOpen = true;
+		StateHasChanged();
+	}
+
+	private void HandleClose()
+	{
+		Console.WriteLine("EditDrawer: CLOSE");
+		_isOpen = false;
+		_request = null;
+		_adapter = null;
+		_changes.Clear();
+		StateHasChanged();
+	}
+
+	private void OnFieldChanged((string Name, object? Value) change) => _changes[change.Name] = change.Value;
+
+	private async Task SaveAsync()
+	{
+		if (_request is null) return;
+
+		// Adapter frisch mit *aktuellen* Änderungen bauen
+		_adapter = new EditContextAdapter(_request, _request.Model, _changes);
+
+		if (_request.OnSave is not null)
+			await _request.OnSave.Invoke(_adapter);
+	}
+
+	private async Task DeleteAsync()
+	{
+		_changes.Clear();
+		if (_request?.OnDelete is not null && _adapter is not null)
+			await _request.OnDelete.Invoke(_adapter);
+		// OnDelete entscheidet i. d. R. selbst über Close (z. B. nach Confirm)
+	}
+
+	private void Cancel()
+	{
+		// Immer nur den obersten Drawer schließen
+		EditDrawerService.Close();
+	}
+
+	public void Dispose()
+	{
+		if (_useServiceEvents)
+		{
+			EditDrawerService.OpenRequested -= HandleOpen;
+			EditDrawerService.CloseRequested -= HandleClose;
+		}
+	}
 }

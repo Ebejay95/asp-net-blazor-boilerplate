@@ -1,81 +1,87 @@
-@* Host component for managing confirmation dialog state and lifecycle *@
-@using CMC.Web.Services
-@inject DialogService ConfirmService
+@inject CMC.Web.Services.DialogService Dialogs
 @implements IDisposable
 
-<Dialog
-    IsOpen="@_isOpen"
-    Title="@(_currentRequest?.Title ?? string.Empty)"
-    Message="@(_currentRequest?.Message ?? string.Empty)"
-    DetailMessage="@(_currentRequest?.DetailMessage)"
-    ConfirmText="@(_currentRequest?.ConfirmText ?? string.Empty)"
-    CancelText="@(_currentRequest?.CancelText ?? string.Empty)"
-    OnConfirm="HandleConfirm"
-    OnCancel="HandleCancel" />
+<Dialog IsOpen="@_dlgOpen"
+        Title="@(_dlgReq?.Title ?? "")"
+        Message="@(_dlgReq?.Message ?? "")"
+        ConfirmText="@(_dlgReq?.ConfirmText ?? "OK")"
+        CancelText="@_dlgReq?.CancelText"
+        OnConfirm="HandleDlgConfirm"
+        OnCancel="HandleDlgCancel" />
+
+<ChoiceDialog
+    IsOpen="@_choiceOpen"
+    Title="@(_choiceReq?.Title ?? string.Empty)"
+    Message="@(_choiceReq?.Message ?? string.Empty)"
+    ConfirmText="@(_choiceReq?.ConfirmText ?? "Übernehmen")"
+    CancelText="@(_choiceReq?.CancelText ?? "Abbrechen")"
+    Options="@_choiceOptions"
+    MultiSelect="@(_choiceReq?.MultiSelect ?? false)"
+    OnConfirmKeys="HandleChoiceConfirm"
+    OnCancel="HandleChoiceCancel" />
 
 @code {
-    private bool _isOpen;
-    private DialogRequest? _currentRequest;
+    // --- Confirm/Info Dialog ---
+    private bool _dlgOpen;
+    private DialogRequest? _dlgReq;
 
-    /// <summary>
-    /// Initializes event handlers for dialog service events.
-    /// </summary>
+    // --- Choice Dialog (dein bestehendes) ---
+    private bool _choiceOpen;
+    private ChoiceRequest? _choiceReq;
+    private List<DialogOption> _choiceOptions = new();
+
     protected override void OnInitialized()
     {
-        ConfirmService.OnOpen += HandleOpen;
-        ConfirmService.OnClose += HandleClose;
+        Dialogs.OnOpen += OpenDialog;
+        Dialogs.OnOpenChoice += OpenChoice;
     }
 
-    /// <summary>
-    /// Handles dialog open requests from the service.
-    /// </summary>
-    /// <param name="request">Dialog configuration</param>
-    private void HandleOpen(DialogRequest request)
+    private void OpenDialog(DialogRequest req)
     {
-        _currentRequest = request;
-        _isOpen = true;
-        InvokeAsync(StateHasChanged);
+        _dlgReq = req;
+        _dlgOpen = true;
+        StateHasChanged();
     }
 
-    /// <summary>
-    /// Handles dialog close requests from the service.
-    /// </summary>
-    private void HandleClose()
+    private async Task HandleDlgConfirm()
     {
-        _isOpen = false;
-        _currentRequest = null;
-        InvokeAsync(StateHasChanged);
+        var cb = _dlgReq?.OnConfirm;
+        _dlgOpen = false; StateHasChanged();
+        if (cb is not null) await cb();
     }
 
-    /// <summary>
-    /// Handles user confirmation and executes the callback.
-    /// </summary>
-    private async Task HandleConfirm()
+    private async Task HandleDlgCancel()
     {
-        if (_currentRequest?.OnConfirm != null)
-        {
-            await _currentRequest.OnConfirm();
-        }
-        HandleClose();
+        var cb = _dlgReq?.OnCancel;
+        _dlgOpen = false; StateHasChanged();
+        if (cb is not null) await cb();
     }
 
-    /// <summary>
-    /// Handles user cancellation and executes the callback.
-    /// </summary>
-    private async Task HandleCancel()
+    private void OpenChoice(ChoiceRequest req)
     {
-        if (_currentRequest?.OnCancel != null)
-            await _currentRequest.OnCancel();
-
-        HandleClose();
+        _choiceReq = req;
+        _choiceOptions = req.Options?.ToList() ?? new();
+        _choiceOpen = true;
+        StateHasChanged();
     }
 
-    /// <summary>
-    /// Cleans up event handlers to prevent memory leaks.
-    /// </summary>
+    private async Task HandleChoiceConfirm(IReadOnlyList<string> keys)
+    {
+        var cb = _choiceReq?.OnConfirm;
+        _choiceOpen = false; StateHasChanged();
+        if (cb is not null) await cb(keys);
+    }
+
+    private async Task HandleChoiceCancel()
+    {
+        var cb = _choiceReq?.OnCancel;
+        _choiceOpen = false; StateHasChanged();
+        if (cb is not null) await cb();
+    }
+
     public void Dispose()
     {
-        ConfirmService.OnOpen -= HandleOpen;
-        ConfirmService.OnClose -= HandleClose;
+        Dialogs.OnOpen -= OpenDialog;
+        Dialogs.OnOpenChoice -= OpenChoice;
     }
 }

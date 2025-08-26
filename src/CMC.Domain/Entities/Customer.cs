@@ -1,5 +1,4 @@
 using System;
-using System.ComponentModel.DataAnnotations;
 
 namespace CMC.Domain.Entities;
 
@@ -103,8 +102,8 @@ public class Customer
             throw new ArgumentException("Revenue cannot be negative", nameof(revenuePerYear));
 
         Id = Guid.NewGuid();
-        Name = name;
-        Industry = industry;
+        Name = name.Trim();
+        Industry = industry.Trim();
         EmployeeCount = employeeCount;
         RevenuePerYear = revenuePerYear;
         CreatedAt = DateTime.UtcNow;
@@ -134,8 +133,8 @@ public class Customer
         if (revenuePerYear < 0)
             throw new ArgumentException("Revenue cannot be negative", nameof(revenuePerYear));
 
-        Name = name;
-        Industry = industry;
+        Name = name.Trim();
+        Industry = industry.Trim();
         EmployeeCount = employeeCount;
         RevenuePerYear = revenuePerYear;
         UpdatedAt = DateTime.UtcNow;

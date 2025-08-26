@@ -1,92 +1,34 @@
 namespace CMC.Web.Services;
-/// <summary>
-/// Service for managing confirmation dialogs throughout the application.
-/// Provides a centralized way to show confirmation prompts for critical actions.
-/// </summary>
-public class DialogService
+
+public sealed record DialogOption(string Key, string Label, bool Selected = false);
+
+public sealed class DialogRequest
 {
-    /// <summary>
-    /// Event triggered when a confirmation dialog should be opened.
-    /// </summary>
-    public event Action<DialogRequest>? OnOpen;
-
-    /// <summary>
-    /// Event triggered when the confirmation dialog should be closed.
-    /// </summary>
-    public event Action? OnClose;
-
-    /// <summary>
-    /// Opens a confirmation dialog with the specified request parameters.
-    /// </summary>
-    /// <param name="request">Dialog configuration and callbacks</param>
-    public void Open(DialogRequest request) => OnOpen?.Invoke(request);
-
-    /// <summary>
-    /// Closes the currently open confirmation dialog.
-    /// </summary>
-    public void Close() => OnClose?.Invoke();
-
-    /// <summary>
-    /// Convenience method for delete confirmations with standard messaging.
-    /// </summary>
-    /// <param name="itemName">Name of the item being deleted</param>
-    /// <param name="onConfirm">Action to execute when deletion is confirmed</param>
-    /// <param name="itemType">Type of item (default: "item")</param>
-    public void ConfirmDelete(string itemName, Func<Task> onConfirm, string itemType = "item")
-    {
-        Open(new DialogRequest
-        {
-            Title = $"Delete {itemType}",
-            Message = $"Are you sure you want to delete '{itemName}'?",
-            DetailMessage = "This action cannot be undone.",
-            ConfirmText = "Delete",
-            OnConfirm = onConfirm,
-            OnCancel  = () =>
-            {
-                Close();
-                return Task.CompletedTask; // einfache No-Op-Task
-            }
-        });
-    }
+    public string Title { get; init; } = "";
+    public string Message { get; init; } = "";
+    public string ConfirmText { get; init; } = "OK";
+    public Func<Task>? OnConfirm { get; init; }
+    public string? CancelText { get; init; }
+    public Func<Task>? OnCancel { get; init; }
 }
 
-/// <summary>
-/// Request object for configuring confirmation dialogs.
-/// </summary>
-public class DialogRequest
+public sealed class ChoiceRequest
 {
-    /// <summary>
-    /// Dialog title displayed in the header.
-    /// </summary>
-    public string Title { get; init; } = "Confirm Action";
+    public string Title { get; init; } = "Auswahl";
+    public string Message { get; init; } = "";
+    public bool MultiSelect { get; init; } = false;
+    public IReadOnlyList<DialogOption> Options { get; init; } = Array.Empty<DialogOption>();
+    public Func<IReadOnlyList<string>, Task>? OnConfirm { get; init; }
+    public Func<Task>? OnCancel { get; init; }
+    public string? ConfirmText { get; init; } = "Übernehmen";
+    public string? CancelText { get; init; } = "Abbrechen";
+}
 
-    /// <summary>
-    /// Main confirmation message.
-    /// </summary>
-    public string Message { get; init; } = "Are you sure you want to proceed?";
+public class DialogService
+{
+    public event Action<DialogRequest>? OnOpen;
+    public event Action<ChoiceRequest>? OnOpenChoice;
 
-    /// <summary>
-    /// Optional detailed message for additional context.
-    /// </summary>
-    public string? DetailMessage { get; init; }
-
-    /// <summary>
-    /// Text for the confirmation button.
-    /// </summary>
-    public string ConfirmText { get; init; } = "Confirm";
-
-    /// <summary>
-    /// Text for the cancel button.
-    /// </summary>
-    public string CancelText { get; init; } = "Cancel";
-
-    /// <summary>
-    /// Action to execute when user confirms.
-    /// </summary>
-	public Func<Task>? OnConfirm { get; init; }
-
-    /// <summary>
-    /// Action to execute when user cancels.
-    /// </summary>
-	public Func<Task>? OnCancel  { get; init; }
+    public void Open(DialogRequest req) => OnOpen?.Invoke(req);
+    public void Open(ChoiceRequest req) => OnOpenChoice?.Invoke(req);
 }

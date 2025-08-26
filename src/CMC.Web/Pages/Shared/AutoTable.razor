@@ -136,15 +136,17 @@
 		return sb.ToString();
 	}
 
-	private async Task RequestEdit(TItem item)
-	{
-		if (OnEdit.HasDelegate)
-			await OnEdit.InvokeAsync(item);
-	}
+  private async Task RequestEdit(TItem item)
+  {
+    Console.WriteLine($"AutoTable: RequestEdit -> {typeof(TItem).Name}");
+    if (OnEdit.HasDelegate)
+      await OnEdit.InvokeAsync(item);
+  }
 
-	private async Task RequestCreate()
-	{
-		if (OnCreate.HasDelegate)
-			await OnCreate.InvokeAsync();
-	}
+  private async Task RequestCreate()
+  {
+    Console.WriteLine($"AutoTable: RequestCreate -> {typeof(TItem).Name}");
+    if (OnCreate.HasDelegate)
+      await OnCreate.InvokeAsync();
+  }
 }

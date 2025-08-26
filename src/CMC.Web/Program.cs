@@ -5,8 +5,8 @@ using Microsoft.EntityFrameworkCore;
 using CMC.Application.Services;
 using CMC.Web.Services;
 using CMC.Web.Shared;
-using CMC.Web.Util;
-using CMC.Web.Auth; // CookieEvents
+using CMC.Web.Auth;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -47,12 +47,15 @@ builder.Services.AddHttpClient("default", client =>
 });
 
 // App-Services (DI)
-builder.Services.AddSingleton<DialogService>();
-builder.Services.AddSingleton<IRelationshipManager, RelationshipManager>();
+builder.Services.AddScoped<DialogService>();
+builder.Services.AddScoped<RelationDialogService>();
 builder.Services.AddScoped<EditDrawerService>();
-builder.Services.AddScoped<EditSessionFactory>();
+builder.Services.AddScoped<IRelationshipManager, RelationshipManager<AppDbContext>>();
 
-// Authentication + Cookie Setup (Events ausgelagert)
+// ✅ DB-gestützte Claims-Aktualisierung
+builder.Services.AddScoped<IClaimsTransformation, DbBackedClaimsTransformation>();
+
+// Authentication + Cookie Setup
 builder.Services.AddScoped<CookieEvents>();
 builder.Services
     .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -73,7 +76,6 @@ builder.Services
         options.LogoutPath = "/api/auth/logout";
         options.AccessDeniedPath = "/login";
 
-        // Keine Inline-Lambdas -> verhindert MissingMethodException bei Hot Reload
         options.EventsType = typeof(CookieEvents);
     });
 
@@ -91,7 +93,6 @@ var fwdOptions = new ForwardedHeadersOptions
 {
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
 };
-// klarer & compilierbar: explizit listen leeren
 fwdOptions.KnownNetworks.Clear();
 fwdOptions.KnownProxies.Clear();
 app.UseForwardedHeaders(fwdOptions);
@@ -116,7 +117,9 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
 app.MapBlazorHub();
+
 app.MapRazorPages();
 app.MapFallbackToPage("/_Host");
 

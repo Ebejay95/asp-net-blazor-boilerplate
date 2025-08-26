@@ -1,5 +1,5 @@
 using System;
-using System.ComponentModel.DataAnnotations;
+using CMC.Domain.ValueObjects;
 
 namespace CMC.Domain.Entities;
 
@@ -18,10 +18,10 @@ public class User
     public Guid Id { get; private set; }
 
     /// <summary>
-    /// User's email address. Serves as unique identifier for authentication.
-    /// Must be unique across the system and is used for all communications.
+    /// User's email address as a validated value object.
+    /// Serves as unique identifier for authentication.
     /// </summary>
-    public string Email { get; private set; } = string.Empty;
+    public Email Email { get; private set; } = new Email("placeholder@example.invalid");
 
     /// <summary>
     /// BCrypt hashed password for secure authentication.
@@ -123,34 +123,33 @@ public class User
     /// Creates a new user with the specified details.
     /// Initializes the user in an unconfirmed state requiring email verification.
     /// </summary>
-    /// <param name="email">User's email address (must be unique)</param>
+    /// <param name="email">User's email address (validated value object; implicit cast from string möglich)</param>
     /// <param name="passwordHash">BCrypt hashed password</param>
     /// <param name="firstName">User's first name</param>
     /// <param name="lastName">User's last name</param>
     /// <param name="role">User's role (optional)</param>
     /// <param name="department">User's department (optional)</param>
     /// <exception cref="ArgumentException">Thrown when any required parameter is null or empty</exception>
-    public User(string email, string passwordHash, string firstName, string lastName, string role = "", string department = "")
+    public User(Email email, string passwordHash, string firstName, string lastName, string role = "", string department = "")
     {
-        if (string.IsNullOrWhiteSpace(email)) throw new ArgumentException("Email cannot be null or empty", nameof(email));
         if (string.IsNullOrWhiteSpace(passwordHash)) throw new ArgumentException("Password hash cannot be null or empty", nameof(passwordHash));
         if (string.IsNullOrWhiteSpace(firstName)) throw new ArgumentException("First name cannot be null or empty", nameof(firstName));
         if (string.IsNullOrWhiteSpace(lastName)) throw new ArgumentException("Last name cannot be null or empty", nameof(lastName));
 
         Id = Guid.NewGuid();
-        Email = email;
+        Email = email ?? throw new ArgumentNullException(nameof(email));
         PasswordHash = passwordHash;
-        FirstName = firstName;
-        LastName = lastName;
-        Role = role ?? string.Empty;
-        Department = department ?? string.Empty;
+        FirstName = firstName.Trim();
+        LastName = lastName.Trim();
+        Role = (role ?? string.Empty).Trim();
+        Department = (department ?? string.Empty).Trim();
         IsEmailConfirmed = false;
         CreatedAt = DateTime.UtcNow;
     }
 
     #endregion
 
-    #region Domain Methods - Email Verification
+    #region Domain Methods - Email
 
     /// <summary>
     /// Confirms the user's email address after successful verification.
@@ -159,6 +158,17 @@ public class User
     public void ConfirmEmail()
     {
         IsEmailConfirmed = true;
+    }
+
+    /// <summary>
+    /// Changes the user's email address (validated by value object).
+    /// </summary>
+    /// <param name="newEmail">New email (value object; implicit cast from string möglich)</param>
+    public void ChangeEmail(Email newEmail)
+    {
+        Email = newEmail ?? throw new ArgumentNullException(nameof(newEmail));
+        // Optional: Beim E-Mail-Wechsel könnte man IsEmailConfirmed zurücksetzen, falls gewünscht:
+        // IsEmailConfirmed = false;
     }
 
     #endregion
@@ -190,16 +200,16 @@ public class User
         if (string.IsNullOrWhiteSpace(firstName)) throw new ArgumentException("First name cannot be null or empty", nameof(firstName));
         if (string.IsNullOrWhiteSpace(lastName)) throw new ArgumentException("Last name cannot be null or empty", nameof(lastName));
 
-        FirstName = firstName;
-        LastName = lastName;
+        FirstName = firstName.Trim();
+        LastName = lastName.Trim();
 
-        if (role != null) Role = role;
-        if (department != null) Department = department;
+        if (role != null) Role = role.Trim();
+        if (department != null) Department = department.Trim();
     }
 
     #endregion
 
-#region Domain Methods - Customer Association
+    #region Domain Methods - Customer Association
 
     /// <summary>
     /// Assigns the user to a customer (company).

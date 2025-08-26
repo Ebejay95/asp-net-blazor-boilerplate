@@ -60,16 +60,8 @@
 
 html {
 	@apply bg-fixed;
-	background: var(--audicius-blue);
 }
 
 body {
-	@apply h-full bg-[var(--main-bg)] bg-no-repeat bg-cover m-0 p-0;
-	background-image:
-		radial-gradient(circle at top left,
-			#00609c38,
-			transparent 70%),
-		radial-gradient(circle at bottom right,
-			#00609c38,
-			transparent 70%);
+	@apply h-full bg-slate-50 bg-no-repeat bg-cover m-0 p-0;
 }

@@ -6,8 +6,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+	  <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
     <ProjectReference Include="..\CMC.Application\CMC.Application.csproj"/>
     <ProjectReference Include="..\CMC.Infrastructure\CMC.Infrastructure.csproj"/>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.10"/>
+		<PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.*" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="8.*" />
   </ItemGroup>
 </Project>

@@ -28,7 +28,6 @@ public record CustomerDto(
     [property: Display(Name = "Aktualisiert am"), DisplayFormat(DataFormatString = "{0:dd.MM.yyyy HH:mm}")]
     DateTime UpdatedAt,
 
-    // Nicht im Edit-Form anzeigen:
     [property: ScaffoldColumn(false), Display(Name = "Anzahl Nutzer")]
     int UserCount
 );

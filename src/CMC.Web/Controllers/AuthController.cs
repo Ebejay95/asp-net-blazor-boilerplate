@@ -77,7 +77,7 @@ namespace CMC.Web.Controllers
                     {
                         var user = await _userService.GetByIdAsync(userId);
                         if (user is null) return NotFound();
-                        return Ok(user); // user ist bereits ein UserDto in deinem Service-Design
+                        return Ok(user);
                     }
                 }
                 return Unauthorized();
@@ -102,6 +102,14 @@ namespace CMC.Web.Controllers
                     new(ClaimTypes.Surname, user.LastName ?? string.Empty)
                 };
 
+                // 🔑 Rolle ins Cookie (ohne dem Cookie „zu vertrauen“ – es ist serverseitig signiert).
+                var role = (user.Role ?? string.Empty).Trim();
+                if (!string.IsNullOrWhiteSpace(role))
+                {
+                    claims.Add(new Claim(ClaimTypes.Role, role));                    // z.B. "Super-Admin" oder "User"
+                    claims.Add(new Claim(ClaimTypes.Role, role.ToLowerInvariant())); // tolerant für Vergleiche
+                }
+
                 var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
                 var authProps = new AuthenticationProperties
                 {
@@ -116,7 +124,9 @@ namespace CMC.Web.Controllers
                     authProps
                 );
 
-                _logger.LogInformation("✅ Authentication cookie set for: {Email}", user.Email);
+                _logger.LogInformation("✅ Auth cookie set for {Email}. Claims: {Claims}",
+                    user.Email,
+                    string.Join(", ", claims.Select(c => $"{c.Type}={c.Value}")));
             }
             catch (Exception ex)
             {
