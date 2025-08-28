@@ -6,7 +6,7 @@ namespace CMC.Contracts.Users
 	/// <summary>
 	/// Zentrale Options-Quelle für Select-Felder (Labels & Tags).
 	/// </summary>
-	public static class UserOptions
+	public static class UserRoles
 	{
 		/// <summary>
 		/// Rollen: Label (deutsch) + Tag (englisch, DB-Wert)

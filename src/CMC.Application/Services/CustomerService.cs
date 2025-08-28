@@ -1,11 +1,11 @@
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using CMC.Application.Ports;
 using CMC.Contracts.Customers;
 using CMC.Domain.Common;
 using CMC.Domain.Entities;
-using System.Linq;
 
 namespace CMC.Application.Services;
 
@@ -136,6 +136,12 @@ public class CustomerService
 
     #region Private Helper Methods
 
+    // --- Time conversions: domain may use DateTime or DateTimeOffset; DTO expects DateTime (UTC) ---
+    private static DateTime ToUtc(DateTime dt) => dt.Kind == DateTimeKind.Utc ? dt : dt.ToUniversalTime();
+    private static DateTime? ToUtc(DateTime? dt) => dt.HasValue ? ToUtc(dt.Value) : (DateTime?)null;
+    private static DateTime ToUtc(DateTimeOffset dto) => dto.UtcDateTime;
+    private static DateTime? ToUtc(DateTimeOffset? dto) => dto.HasValue ? dto.Value.UtcDateTime : (DateTime?)null;
+
     private static CustomerDto MapToReadDto(Customer customer) => new(
         customer.Id,
         customer.Name,
@@ -143,8 +149,8 @@ public class CustomerService
         customer.EmployeeCount,
         customer.RevenuePerYear,
         customer.IsActive,
-        customer.CreatedAt,
-        customer.UpdatedAt,
+        ToUtc(customer.CreatedAt),
+        ToUtc(customer.UpdatedAt),
         customer.Users?.Count ?? 0
     );
 

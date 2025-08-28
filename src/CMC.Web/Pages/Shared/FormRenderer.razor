@@ -3,9 +3,9 @@
 @using System.Linq
 @using Microsoft.AspNetCore.Components
 @using Microsoft.AspNetCore.Components.Web
-@using CMC.Web.Shared
 @using CMC.Web.Pages.Shared
 @using CMC.Web.Services
+@using CMC.Web.Util
 @using CMC.Contracts.Common
 
 @inject IRelationshipManager Rels
@@ -270,11 +270,10 @@
 </div>
 
 @code {
-
-	[Parameter, EditorRequired] public object Model { get; set; } = default!;
+    [Parameter] public object? Model { get; set; }
 	[Parameter] public List<ExtraField> ExtraFields { get; set; } = new();
 	[Parameter] public EventCallback<(string Name, object? Value)> OnFieldChanged { get; set; }
-	[Parameter] public EditDrawerRequest Request { get; set; } = default!;
+	[Parameter] public EFEditRequest Request { get; set; } = default!;
 	[Parameter] public EditContextAdapter Ctx { get; set; } = default!;
 
 	// --- Relation-Cache/State ---
@@ -314,15 +313,6 @@
 			if (hideIfs is { Count: > 0 } &&
 				hideIfs.Any(h => propNames.Contains(h.OtherProperty) || extraNames.Contains(h.OtherProperty)))
 				continue;
-
-			if ((hideIfs is null || hideIfs.Count == 0) &&
-				p.PropertyType == typeof(string) &&
-				p.Name.EndsWith("Name", StringComparison.OrdinalIgnoreCase))
-			{
-				var root = p.Name[..^"Name".Length];
-				if (propNames.Contains(root + "Id") || extraNames.Contains(root + "Id"))
-					continue;
-			}
 
 			yield return p;
 		}

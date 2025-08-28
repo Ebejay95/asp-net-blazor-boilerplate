@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,7 +10,6 @@ using CMC.Contracts.Users;
 using CMC.Domain.Common;
 using CMC.Domain.Entities;
 using CMC.Domain.ValueObjects;
-using System.Linq;
 
 namespace CMC.Application.Services;
 
@@ -16,7 +17,8 @@ namespace CMC.Application.Services;
 /// Application service for managing user-related business operations.
 /// Handles user registration, authentication, password management, user data retrieval, and customer associations.
 /// </summary>
-public class UserService {
+public class UserService
+{
   #region Fields
 
   private readonly IUserRepository _userRepository;
@@ -27,7 +29,8 @@ public class UserService {
 
   #region Constructor
 
-  public UserService(IUserRepository userRepository, ICustomerRepository customerRepository, IEmailService emailService) {
+  public UserService(IUserRepository userRepository, ICustomerRepository customerRepository, IEmailService emailService)
+  {
     _userRepository = userRepository ?? throw new ArgumentNullException(nameof(userRepository));
     _customerRepository = customerRepository ?? throw new ArgumentNullException(nameof(customerRepository));
     _emailService = emailService ?? throw new ArgumentNullException(nameof(emailService));
@@ -40,7 +43,8 @@ public class UserService {
   /// <summary>
   /// Registers a new user in the system with email verification and welcome notification.
   /// </summary>
-  public async Task<UserDto> RegisterAsync(RegisterUserRequest request, CancellationToken cancellationToken = default) {
+  public async Task<UserDto> RegisterAsync(RegisterUserRequest request, CancellationToken cancellationToken = default)
+  {
     if (request == null)
       throw new ArgumentNullException(nameof(request));
 
@@ -58,7 +62,7 @@ public class UserService {
         throw new DomainException("Specified customer does not exist");
     }
 
-    // Create new user with hashed password (Email as VO; implizite Konvertierung deckt beide Signaturen ab)
+    // Create new user with hashed password (Email as VO; implicit conversion supported)
     var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
     var user = new User((Email)request.Email, passwordHash, request.FirstName, request.LastName, request.Role, request.Department);
 
@@ -77,11 +81,12 @@ public class UserService {
 
   public async Task<UserDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
   {
-      var user = await _userRepository.GetByIdAsync(id, cancellationToken);
-      return user != null ? await MapToReadDtoAsync(user, cancellationToken) : null;
+    var user = await _userRepository.GetByIdAsync(id, cancellationToken);
+    return user != null ? await MapToReadDtoAsync(user, cancellationToken) : null;
   }
 
-  public async Task<List<UserDto>> GetAllAsync(CancellationToken cancellationToken = default) {
+  public async Task<List<UserDto>> GetAllAsync(CancellationToken cancellationToken = default)
+  {
     var users = await _userRepository.GetAllAsync(cancellationToken);
     var userDtos = new List<UserDto>();
     foreach (var user in users)
@@ -207,7 +212,8 @@ public class UserService {
 
   #region Authentication Operations
 
-  public async Task<UserDto?> LoginAsync(LoginRequest request, CancellationToken cancellationToken = default) {
+  public async Task<UserDto?> LoginAsync(LoginRequest request, CancellationToken cancellationToken = default)
+  {
     if (request == null)
       throw new ArgumentNullException(nameof(request));
 
@@ -225,7 +231,8 @@ public class UserService {
 
   #region Password Reset Operations
 
-  public async Task RequestPasswordResetAsync(string email, CancellationToken cancellationToken = default) {
+  public async Task RequestPasswordResetAsync(string email, CancellationToken cancellationToken = default)
+  {
     if (string.IsNullOrWhiteSpace(email))
       throw new ArgumentException("Email cannot be null or empty", nameof(email));
 
@@ -241,7 +248,8 @@ public class UserService {
     await _emailService.SendPasswordResetEmailAsync(email, token, cancellationToken);
   }
 
-  public async Task<bool> ResetPasswordAsync(ResetPasswordRequest request, CancellationToken cancellationToken = default) {
+  public async Task<bool> ResetPasswordAsync(ResetPasswordRequest request, CancellationToken cancellationToken = default)
+  {
     if (request == null)
       throw new ArgumentNullException(nameof(request));
 
@@ -260,26 +268,33 @@ public class UserService {
 
   #region Private Helper Methods
 
-  private static string GenerateSecureToken() {
+  private static string GenerateSecureToken()
+  {
     var bytes = new byte[32];
     using var rng = RandomNumberGenerator.Create();
     rng.GetBytes(bytes);
     return Convert.ToBase64String(bytes).Replace("/", "_").Replace("+", "-").TrimEnd('=');
   }
 
+  // --- Time conversions: work for both DateTime and DateTimeOffset domains ---
+  private static DateTime ToUtc(DateTime dt) => dt.Kind == DateTimeKind.Utc ? dt : dt.ToUniversalTime();
+  private static DateTime? ToUtc(DateTime? dt) => dt.HasValue ? ToUtc(dt.Value) : (DateTime?)null;
+  private static DateTime ToUtc(DateTimeOffset dto) => dto.UtcDateTime;
+  private static DateTime? ToUtc(DateTimeOffset? dto) => dto.HasValue ? dto.Value.UtcDateTime : (DateTime?)null;
+
   private static UserDto ToDto(Domain.Entities.User u) => new UserDto
   {
-      Id = u.Id,
-      Email = u.Email,
-      FirstName = u.FirstName,
-      LastName = u.LastName,
-      Role = u.Role,
-      Department = u.Department,
-      IsEmailConfirmed = u.IsEmailConfirmed,
-      CreatedAt = u.CreatedAt,
-      LastLoginAt = u.LastLoginAt,
-      CustomerId = u.CustomerId,
-      CustomerName = u.Customer?.Name
+    Id = u.Id,
+    Email = u.Email,
+    FirstName = u.FirstName,
+    LastName = u.LastName,
+    Role = u.Role,
+    Department = u.Department,
+    IsEmailConfirmed = u.IsEmailConfirmed,
+    CreatedAt = ToUtc(u.CreatedAt),
+    LastLoginAt = ToUtc(u.LastLoginAt),
+    CustomerId = u.CustomerId,
+    CustomerName = u.Customer?.Name
   };
 
   /// <summary>
@@ -298,17 +313,17 @@ public class UserService {
 
     return new UserDto
     {
-        Id = user.Id,
-        Email = user.Email,          // Email VO -> string via implicit operator
-        FirstName = user.FirstName,
-        LastName = user.LastName,
-        Role = user.Role,
-        Department = user.Department,
-        IsEmailConfirmed = user.IsEmailConfirmed,
-        CreatedAt = user.CreatedAt,
-        LastLoginAt = user.LastLoginAt,
-        CustomerId = user.CustomerId,
-        CustomerName = customerName
+      Id = user.Id,
+      Email = user.Email,          // Email VO -> string via implicit operator
+      FirstName = user.FirstName,
+      LastName = user.LastName,
+      Role = user.Role,
+      Department = user.Department,
+      IsEmailConfirmed = user.IsEmailConfirmed,
+      CreatedAt = ToUtc(user.CreatedAt),
+      LastLoginAt = ToUtc(user.LastLoginAt),
+      CustomerId = user.CustomerId,
+      CustomerName = customerName
     };
   }
 

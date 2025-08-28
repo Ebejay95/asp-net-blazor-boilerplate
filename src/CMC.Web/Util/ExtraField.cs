@@ -1,4 +1,4 @@
-namespace CMC.Web.Shared;
+namespace CMC.Web.Util;
 
 /// <summary>
 /// Beschreibt ein zusätzliches Formularfeld (z.B. Relation-Picker oder Passwort),

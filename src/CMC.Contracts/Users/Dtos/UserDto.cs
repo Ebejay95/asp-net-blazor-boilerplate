@@ -22,11 +22,11 @@ namespace CMC.Contracts.Users
 		public string LastName { get; set; } = string.Empty;
 
 		[Display(Name = "Rolle")]
-		[SelectFrom("CMC.Contracts.Users.UserOptions.Roles")]
+		[SelectFrom("CMC.Contracts.Users.UserRoles.Roles")]
 		public string Role { get; set; } = string.Empty;
 
 		[ScaffoldColumn(false), Display(Name = "Abteilung")]
-		[SelectFrom("CMC.Contracts.Users.UserOptions.Departments")]
+		[SelectFrom("CMC.Contracts.Users.UserRoles.Departments")]
 		public string Department { get; set; } = string.Empty;
 
 		[Display(Name = "E-Mail bestätigt")]

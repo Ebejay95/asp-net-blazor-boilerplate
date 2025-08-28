@@ -197,6 +197,15 @@
 				Component = typeof(Evidences)
 			});
 
+			n.Add(new MenuNode
+			{
+				Id = "recycle-bin",
+				Text = "Papierkorb",
+				Href = "/cockpit/recycle-bin",
+				Match = NavLinkMatch.All,
+				Component = typeof(RecycleBin)
+			});
+
 			_open.Add("libraries");
 		}
 		else if (_isUser)

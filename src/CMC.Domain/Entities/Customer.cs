@@ -2,94 +2,46 @@ using System;
 
 namespace CMC.Domain.Entities;
 
-/// <summary>
-/// Domain entity representing a Customer (Company) in the CMC system.
-/// Implements domain-driven design principles with encapsulated state and behavior.
-/// Represents business customers that can have multiple users associated with them.
-/// </summary>
 public class Customer
 {
     #region Properties - Identity
 
-    /// <summary>
-    /// Unique identifier for the Customer. Generated automatically upon creation.
-    /// </summary>
     public Guid Id { get; private set; }
 
-    /// <summary>
-    /// Company/Customer name for identification and display purposes.
-    /// </summary>
     public string Name { get; private set; } = string.Empty;
 
     #endregion
 
     #region Properties - Business Information
 
-    /// <summary>
-    /// Industry sector the customer operates in (e.g., "Technology", "Healthcare", "Manufacturing").
-    /// </summary>
     public string Industry { get; private set; } = string.Empty;
 
-    /// <summary>
-    /// Number of employees working at the customer company.
-    /// Used for customer segmentation and service planning.
-    /// </summary>
     public int EmployeeCount { get; private set; }
 
-    /// <summary>
-    /// Annual revenue of the customer company in the base currency.
-    /// Used for customer segmentation and pricing strategies.
-    /// </summary>
     public decimal RevenuePerYear { get; private set; }
 
     #endregion
 
     #region Properties - Account Status & Tracking
 
-    /// <summary>
-    /// Indicates whether the customer account is active and in good standing.
-    /// </summary>
     public bool IsActive { get; private set; } = true;
 
-    /// <summary>
-    /// UTC timestamp when the customer account was created.
-    /// Immutable after creation for audit purposes.
-    /// </summary>
-    public DateTime CreatedAt { get; private set; }
+    public DateTimeOffset CreatedAt { get; private set; }
 
-    /// <summary>
-    /// UTC timestamp when the customer information was last updated.
-    /// </summary>
-    public DateTime UpdatedAt { get; private set; }
+    public DateTimeOffset UpdatedAt { get; private set; }
 
     #endregion
 
     #region Navigation Properties
 
-    /// <summary>
-    /// Collection of users associated with this customer.
-    /// Represents employees or contacts working for this customer company.
-    /// </summary>
     public virtual ICollection<User> Users { get; private set; } = new List<User>();
 
     #endregion
 
     #region Constructors
 
-    /// <summary>
-    /// Private parameterless constructor for Entity Framework.
-    /// Prevents direct instantiation without required parameters.
-    /// </summary>
     private Customer() { }
 
-    /// <summary>
-    /// Creates a new customer with the specified business details.
-    /// </summary>
-    /// <param name="name">Company name</param>
-    /// <param name="industry">Industry sector</param>
-    /// <param name="employeeCount">Number of employees</param>
-    /// <param name="revenuePerYear">Annual revenue</param>
-    /// <exception cref="ArgumentException">Thrown when any parameter is invalid</exception>
     public Customer(string name, string industry, int employeeCount, decimal revenuePerYear)
     {
         if (string.IsNullOrWhiteSpace(name))

@@ -1,13 +1,13 @@
 @using CMC.Web.Services
 @inherits Microsoft.AspNetCore.Components.ComponentBase
-@inject EditDrawerService DrawerService
+@inject EFEditService DrawerService
 @implements IDisposable
 
-<!-- Wir geben den Request als Parameter an EditDrawer weiter -->
-<EditDrawer Request="@_currentRequest" />
+<!-- Wir geben den Request als Parameter an EFEdit weiter -->
+<EFEdit Request="@_currentRequest" />
 
 @code {
-    private EditDrawerRequest? _currentRequest;
+    private EFEditRequest? _currentRequest;
 
     protected override void OnInitialized()
     {
@@ -15,7 +15,7 @@
         DrawerService.CloseRequested += OnCloseRequested;
     }
 
-    private void OnOpenRequested(EditDrawerRequest req)
+    private void OnOpenRequested(EFEditRequest req)
     {
         // direkte Parameterversorgung -> Drawer rendert sofort auf
         _currentRequest = req;

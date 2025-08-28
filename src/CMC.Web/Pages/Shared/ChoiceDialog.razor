@@ -1,6 +1,7 @@
 @using CMC.Web.Services
 
 @code {
+	[Parameter] public int ZIndex { get; set; } = 20;
 	[Parameter] public bool IsOpen { get; set; }
 	[Parameter] public string Title { get; set; } = "Auswahl";
 	[Parameter] public string Message { get; set; } = "";
@@ -34,7 +35,7 @@
 @if (!IsOpen) { <text></text>; }
 else
 {
-	<div class="dialog-backdrop" @onclick="Cancel">
+	<div class="dialog-backdrop" @onclick="Cancel" style="z-index:@ZIndex">
 		<div class="dialog" @onclick:stopPropagation="true">
 			<h3>@Title</h3>
 			@if (!string.IsNullOrWhiteSpace(Message))

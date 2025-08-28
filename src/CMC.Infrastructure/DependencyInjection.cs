@@ -13,18 +13,26 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        // Database
-        services.AddDbContext<AppDbContext>(options =>
-            options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
+        // Revisions/Soft-Delete Support (IHttpContextAccessor + Interceptor)
+        services.AddRevisionsSupport();
+
+        // Database mit Interceptor
+        services.AddDbContext<AppDbContext>((sp, options) =>
+        {
+            options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"));
+            options.UseRevisionsInterceptor(sp);
+        });
 
         // Repositories
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<ICustomerRepository, CustomerRepository>();
+        services.AddScoped<ILibraryFrameworkRepository, LibraryFrameworkRepository>();
 
         // Services
         services.AddScoped<IEmailService, EmailService>();
         services.AddScoped<UserService>();
         services.AddScoped<CustomerService>();
+        services.AddScoped<LibraryFrameworkService>();
 
         return services;
     }

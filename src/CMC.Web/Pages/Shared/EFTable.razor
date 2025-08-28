@@ -138,14 +138,14 @@
 
   private async Task RequestEdit(TItem item)
   {
-    Console.WriteLine($"AutoTable: RequestEdit -> {typeof(TItem).Name}");
+    Console.WriteLine($"EFTable: RequestEdit -> {typeof(TItem).Name}");
     if (OnEdit.HasDelegate)
       await OnEdit.InvokeAsync(item);
   }
 
   private async Task RequestCreate()
   {
-    Console.WriteLine($"AutoTable: RequestCreate -> {typeof(TItem).Name}");
+    Console.WriteLine($"EFTable: RequestCreate -> {typeof(TItem).Name}");
     if (OnCreate.HasDelegate)
       await OnCreate.InvokeAsync();
   }

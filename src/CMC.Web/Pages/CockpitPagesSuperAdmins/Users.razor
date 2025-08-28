@@ -1,16 +1,16 @@
 @attribute [Authorize(Roles = "super-admin")]
 @using System.Linq
 @using CMC.Contracts.Users
-@using CMC.Web.Shared
 @using CMC.Web.Services
+@using CMC.Web.Util
 @using CMC.Domain.Entities
 
 @inject CMC.Application.Services.UserService UserService
-@inject EditDrawerService DrawerService
+@inject EFEditService EFEditService
 @inject DialogService ConfirmService
 
 <div class="card">
-	<AutoTable TItem="UserDto"
+	<EFTable TItem="UserDto"
 			   Items="_users"
 			   AllowEdit="true"
 			   OnEdit="StartEdit"
@@ -32,9 +32,9 @@
 		StateHasChanged();
 	}
 
-	private async Task<EditDrawerRequest> BuildUserDrawer(UserDto model, bool isCreate)
+	private async Task<EFEditRequest> BuildUserDrawer(UserDto model, bool isCreate)
 	{
-		var req = new EditDrawerRequest
+		var req = new EFEditRequest
 		{
 			Title = isCreate ? "Benutzer anlegen" : "Benutzer bearbeiten",
 			Model = model,
@@ -61,7 +61,7 @@
 					}
 
 					await ReloadAsync();
-					DrawerService.Close();
+					EFEditService.Close();
 				}
 				catch (Exception ex)
 				{
@@ -90,7 +90,7 @@
 						{
 							await UserService.DeleteAsync(new DeleteUserRequest(m.Id));
 							await ReloadAsync();
-							DrawerService.Close();
+							EFEditService.Close();
 						}
 						catch (Exception ex)
 						{
@@ -135,7 +135,7 @@
 	}
 
 	private async Task StartEdit(UserDto u)
-		=> DrawerService.Open(await BuildUserDrawer(u, isCreate: false));
+		=> EFEditService.Open(await BuildUserDrawer(u, isCreate: false));
 
 	private async Task StartCreate()
 	{
@@ -153,6 +153,6 @@
 			CustomerName: null
 		);
 
-		DrawerService.Open(await BuildUserDrawer(empty, isCreate: true));
+		EFEditService.Open(await BuildUserDrawer(empty, isCreate: true));
 	}
 }

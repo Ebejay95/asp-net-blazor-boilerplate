@@ -8,22 +8,22 @@ using System.Runtime.Serialization;
 using System.Runtime.CompilerServices;
 using CMC.Web.Services;
 
-namespace CMC.Web.Shared;
+namespace CMC.Web.Util;
 
 public sealed class EditContextAdapter
 {
-	public EditDrawerRequest Request { get; }
+	public EFEditRequest Request { get; }
 	public object Model { get; }
 	private readonly Dictionary<string, object?> _overrides;
 
-	public EditContextAdapter(EditDrawerRequest request, object model)
+	public EditContextAdapter(EFEditRequest request, object model)
 	{
 		Request = request ?? throw new ArgumentNullException(nameof(request));
 		Model = model ?? throw new ArgumentNullException(nameof(model));
 		_overrides = new(StringComparer.OrdinalIgnoreCase);
 	}
 
-	public EditContextAdapter(EditDrawerRequest request, object model, IDictionary<string, object?>? overrides)
+	public EditContextAdapter(EFEditRequest request, object model, IDictionary<string, object?>? overrides)
 	{
 		Request = request ?? throw new ArgumentNullException(nameof(request));
 		Model = model ?? throw new ArgumentNullException(nameof(model));

@@ -85,13 +85,13 @@ public class User
     /// UTC timestamp when the user account was created.
     /// Immutable after creation for audit purposes.
     /// </summary>
-    public DateTime CreatedAt { get; private set; }
+    public DateTimeOffset CreatedAt { get; private set; }
 
     /// <summary>
     /// UTC timestamp of the user's most recent successful login.
     /// Null if the user has never logged in.
     /// </summary>
-    public DateTime? LastLoginAt { get; private set; }
+    public DateTimeOffset? LastLoginAt { get; private set; }
 
     #endregion
 
@@ -107,7 +107,7 @@ public class User
     /// UTC expiry time for the password reset token.
     /// Null when no password reset is in progress.
     /// </summary>
-    public DateTime? PasswordResetTokenExpiry { get; private set; }
+    public DateTimeOffset? PasswordResetTokenExpiry { get; private set; }
 
     #endregion
 

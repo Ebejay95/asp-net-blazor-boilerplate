@@ -4,8 +4,9 @@ using CMC.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using CMC.Application.Services;
 using CMC.Web.Services;
-using CMC.Web.Shared;
 using CMC.Web.Auth;
+using CMC.Web.Services;
+using CMC.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -49,8 +50,13 @@ builder.Services.AddHttpClient("default", client =>
 // App-Services (DI)
 builder.Services.AddScoped<DialogService>();
 builder.Services.AddScoped<RelationDialogService>();
-builder.Services.AddScoped<EditDrawerService>();
+builder.Services.AddScoped<EFEditService>();
 builder.Services.AddScoped<IRelationshipManager, RelationshipManager<AppDbContext>>();
+builder.Services.AddScoped<IRevisionKeyResolver, DefaultRevisionKeyResolver>();
+builder.Services.AddScoped<IRevisionsClient, EfRevisionsClient>();
+builder.Services.AddScoped<CMC.Infrastructure.Services.RevisionService>();
+builder.Services.AddScoped<RecycleBinService>();
+builder.Services.AddScoped<IRecycleBinClient, RecycleBinClient>();
 
 // ✅ DB-gestützte Claims-Aktualisierung
 builder.Services.AddScoped<IClaimsTransformation, DbBackedClaimsTransformation>();
@@ -85,6 +91,7 @@ builder.Services.AddHttpContextAccessor();
 
 // Infrastruktur (ConnectionString via Config/Env)
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddRevisionsSupport();
 
 var app = builder.Build();
 

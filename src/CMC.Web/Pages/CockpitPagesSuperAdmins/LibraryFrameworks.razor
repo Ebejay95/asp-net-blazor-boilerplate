@@ -1,5 +1,144 @@
 @attribute [Authorize(Roles = "super-admin")]
-@* CockpitPages/CockpitOverview.razor *@
+@using System
+@using System.Linq
+@using CMC.Contracts.LibraryFrameworks
+@using CMC.Web.Services
+@inject CMC.Application.Services.LibraryFrameworkService LibraryFrameworkService
+@inject EFEditService EFEditService
+@inject DialogService ConfirmService
+
 <div class="card">
-    <h2>Vorlagen: Framework</h2>
+	<EFTable TItem="LibraryFrameworkDto"
+			   Items="_library_frameworks"
+			   AllowEdit="true"
+			   OnEdit="StartEdit"
+			   AllowCreate="true"
+			   OnCreate="StartCreate" />
 </div>
+
+@code {
+	private List<LibraryFrameworkDto> _library_frameworks = new();
+
+	protected override async Task OnInitializedAsync()
+		=> _library_frameworks = await LibraryFrameworkService.GetAllAsync();
+
+	private async Task Reload()
+	{
+		_library_frameworks = await LibraryFrameworkService.GetAllAsync();
+		StateHasChanged();
+	}
+
+	private void StartEdit(LibraryFrameworkDto f)
+	{
+		var req = new EFEditRequest
+		{
+			Title = "Framework bearbeiten",
+			Model = f,
+			ContractsAssembly = typeof(LibraryFrameworkDto).Assembly,
+			IsCreate = false,
+			OnSave = async ctx =>
+			{
+				try
+				{
+					var up = (UpdateLibraryFrameworkRequest)ctx.Build("Update");
+					_ = await LibraryFrameworkService.UpdateAsync(up);
+					await Reload();
+					EFEditService.Close();
+				}
+				catch (Exception ex)
+				{
+					ConfirmService.Open(new DialogRequest
+					{
+						Title = "Fehler beim Speichern",
+						Message = ex.Message,
+						ConfirmText = "Okay",
+						OnConfirm = () => Task.CompletedTask
+					});
+				}
+			},
+			OnDelete = async ctx =>
+			{
+				var model = (LibraryFrameworkDto)ctx.Model;
+
+				ConfirmService.Open(new DialogRequest
+				{
+					Title = "Löschen bestätigen",
+					Message = $"Framework „{model.Name} {model.Version}“ wirklich löschen?",
+					ConfirmText = "Löschen",
+					CancelText = "Abbrechen",
+					OnConfirm = async () =>
+					{
+						try
+						{
+							await LibraryFrameworkService.DeleteAsync(new DeleteLibraryFrameworkRequest(model.Id));
+							await Reload();
+							EFEditService.Close();
+						}
+						catch (Exception ex)
+						{
+							ConfirmService.Open(new DialogRequest
+							{
+								Title = "Löschen fehlgeschlagen",
+								Message = ex.Message,
+								ConfirmText = "Okay",
+								OnConfirm = () => Task.CompletedTask
+							});
+						}
+					}
+				});
+			},
+
+			// optional – nur falls du EFEditRequest.OnAfterRestore ergänzt hast
+			OnAfterRestore = async () =>
+			{
+				await Reload();
+				EFEditService.Close();
+			}
+		};
+
+		EFEditService.Open(req);
+	}
+
+	private void StartCreate()
+	{
+		// record: positional ctor muss komplett befüllt werden
+		var empty = new LibraryFrameworkDto(
+			Id: Guid.Empty,
+			Name: string.Empty,
+			Version: string.Empty,
+			Industry: string.Empty,
+			CreatedAt: DateTime.UtcNow,
+			UpdatedAt: DateTime.UtcNow
+		);
+
+		var req = new EFEditRequest
+		{
+			Title = "Framework anlegen",
+			Model = empty,
+			ContractsAssembly = typeof(LibraryFrameworkDto).Assembly,
+			IsCreate = true,
+			OnSave = async ctx =>
+			{
+				try
+				{
+					var create = (CreateLibraryFrameworkRequest)ctx.Build("Create");
+					_ = await LibraryFrameworkService.CreateAsync(create);
+					await Reload();
+					EFEditService.Close();
+				}
+				catch (Exception ex)
+				{
+					ConfirmService.Open(new DialogRequest
+					{
+						Title = "Fehler beim Anlegen",
+						Message = ex.Message,
+						ConfirmText = "Okay",
+						OnConfirm = () => Task.CompletedTask
+					});
+				}
+			}
+		};
+
+		EFEditService.Open(req);
+	}
+}

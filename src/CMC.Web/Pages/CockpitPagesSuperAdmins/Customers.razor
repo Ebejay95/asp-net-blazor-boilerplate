@@ -3,11 +3,11 @@
 @using CMC.Contracts.Customers
 @using CMC.Web.Services
 @inject CMC.Application.Services.CustomerService CustomerService
-@inject EditDrawerService DrawerService
+@inject EFEditService EFEditService
 @inject DialogService ConfirmService
 
 <div class="card">
-    <AutoTable TItem="CustomerDto"
+    <EFTable TItem="CustomerDto"
                Items="_customers"
                AllowEdit="true"
                OnEdit="StartEdit"
@@ -29,7 +29,7 @@
 
     private void StartEdit(CustomerDto c)
     {
-        var req = new EditDrawerRequest
+        var req = new EFEditRequest
         {
             Title = "Kunde bearbeiten",
             Model = c,
@@ -42,7 +42,7 @@
                     var up = (UpdateCustomerRequest)ctx.Build("Update");
                     _ = await CustomerService.UpdateAsync(up);
                     await Reload();
-                    DrawerService.Close();
+                    EFEditService.Close();
                 }
                 catch (Exception ex)
                 {
@@ -64,13 +64,14 @@
                     Title = "Löschen bestätigen",
                     Message = $"Firma „{model.Name}“ wirklich löschen?",
                     ConfirmText = "Löschen",
+                    CancelText = "Abbrechen",
                     OnConfirm = async () =>
                     {
                         try
                         {
                             await CustomerService.DeleteAsync(new DeleteCustomerRequest(model.Id));
                             await Reload();
-                            DrawerService.Close();
+                            EFEditService.Close();
                         }
                         catch (Exception ex)
                         {
@@ -87,7 +88,7 @@
             }
         };
 
-        DrawerService.Open(req);
+        EFEditService.Open(req);
     }
 
     private void StartCreate()
@@ -104,7 +105,7 @@
             UserCount: 0
         );
 
-        DrawerService.Open(new EditDrawerRequest
+        EFEditService.Open(new EFEditRequest
         {
             Title = "Firma anlegen",
             Model = empty,
@@ -117,7 +118,7 @@
                     var req = (CreateCustomerRequest)ctx.Build("Create");
                     _ = await CustomerService.CreateAsync(req);
                     await Reload();
-                    DrawerService.Close();
+                    EFEditService.Close();
                 }
                 catch (Exception ex)
                 {

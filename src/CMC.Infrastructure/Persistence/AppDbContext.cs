@@ -1,3 +1,4 @@
+// src/CMC.Infrastructure/Persistence/AppDbContext.cs
 using CMC.Domain.Entities;
 using CMC.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;
@@ -11,69 +12,88 @@ public class AppDbContext : DbContext
 
     public DbSet<User> Users => Set<User>();
     public DbSet<Customer> Customers => Set<Customer>();
+    public DbSet<LibraryFramework> LibraryFrameworks => Set<LibraryFramework>();
+    public DbSet<LibraryControl> LibraryControls => Set<LibraryControl>();
+    public DbSet<Revision> Revisions => Set<Revision>();
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
+protected override void ConfigureConventions(ModelConfigurationBuilder cb)
+{
+	// vorhandene:
+	cb.Properties<DateTimeOffset>().HaveColumnType("timestamp with time zone");
+	cb.Properties<DateTimeOffset?>().HaveColumnType("timestamp with time zone");
+	cb.Properties<decimal>().HavePrecision(18, 2);
+
+	// ❌ Entfernt: Email-Lambda-Conversions per HaveConversion(...),
+	// die verursachen CS1660, weil hier nur Typ-/Converter-Overloads erlaubt sind.
+}
+
+protected override void OnModelCreating(ModelBuilder modelBuilder)
+{
+	modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+
+	// Revisions-Modell registrieren
+	CMC.Infrastructure.RevisionsRegistration.ConfigureRevisionsModel(modelBuilder);
+
+	// ❌ Entfernt: Doppeltes Mapping als Owned Type kollidiert mit HasConversion in UserConfiguration
+	// modelBuilder.Entity<User>(b =>
+	// {
+	// 	b.OwnsOne(u => u.Email, nb =>
+	// 	{
+	// 		nb.Property(e => e.Value)
+	// 		  .HasColumnName("Email")
+	// 		  .IsRequired();
+	// 	});
+	// });
+}
+
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        // --- ValueConverter & ValueComparer für Email (VO <-> string) ---
-        var emailComparer = new ValueComparer<Email>(
-            (l, r) => l.Value == r.Value,
-            v => v.Value.GetHashCode(),
-            v => new Email(v.Value)
-        );
+        var now = DateTimeOffset.UtcNow;
 
-        modelBuilder.Entity<User>(entity =>
+        foreach (var entry in ChangeTracker.Entries())
         {
-            entity.HasKey(u => u.Id);
+            if (entry.State == EntityState.Added)
+            {
+                SetIfExists(entry, "CreatedAt", now);
+                SetIfExists(entry, "UpdatedAt", now);
+            }
+            else if (entry.State == EntityState.Modified)
+            {
+                SetIfExists(entry, "UpdatedAt", now);
+            }
+        }
 
-            // Email als ValueObject -> DB-Spalte string(255), unique
-            entity.Property(u => u.Email)
-                  .HasConversion(
-                      toProvider => toProvider.Value,
-                      fromProvider => new Email(fromProvider)
-                  )
-                  .Metadata.SetValueComparer(emailComparer);
-            entity.Property(u => u.Email).IsRequired().HasMaxLength(255);
-            entity.HasIndex(u => u.Email).IsUnique();
+        return base.SaveChangesAsync(cancellationToken);
+    }
 
-            entity.Property(u => u.PasswordHash).IsRequired();
-            entity.Property(u => u.FirstName).IsRequired().HasMaxLength(100);
-            entity.Property(u => u.LastName).IsRequired().HasMaxLength(100);
-            entity.Property(u => u.Role).HasMaxLength(100);
-            entity.Property(u => u.Department).HasMaxLength(100);
-            entity.Property(u => u.CreatedAt).IsRequired();
+    // ACHTUNG: Signatur auf DateTimeOffset, damit wir zentral normalisieren können.
+    private static void SetIfExists(EntityEntry entry, string propName, DateTimeOffset value)
+    {
+        var prop = entry.Properties
+            .FirstOrDefault(p => string.Equals(p.Metadata.Name, propName, StringComparison.OrdinalIgnoreCase));
+        if (prop is null) return;
 
-            // Foreign Key Relationship to Customer
-            entity.HasOne(u => u.Customer)
-                  .WithMany(c => c.Users)
-                  .HasForeignKey(u => u.CustomerId)
-                  .OnDelete(DeleteBehavior.SetNull);
-        });
+        var t = prop.Metadata.ClrType;
 
-        // Customer Entity Configuration
-        modelBuilder.Entity<Customer>(entity =>
+        // Bevorzugt DateTimeOffset (timestamptz)
+        if (t == typeof(DateTimeOffset) || t == typeof(DateTimeOffset?))
         {
-            entity.HasKey(c => c.Id);
-            entity.Property(c => c.Name).IsRequired().HasMaxLength(200);
-            entity.HasIndex(c => c.Name).IsUnique();
-            entity.Property(c => c.Industry).IsRequired().HasMaxLength(100);
-            entity.Property(c => c.EmployeeCount).IsRequired();
-            entity.Property(c => c.RevenuePerYear).IsRequired().HasColumnType("decimal(18,2)");
-            entity.Property(c => c.IsActive).IsRequired().HasDefaultValue(true);
-            entity.Property(c => c.CreatedAt).IsRequired();
-            entity.Property(c => c.UpdatedAt).IsRequired();
-        });
+            prop.CurrentValue = value;
+            return;
+        }
 
-        // Zusätzliche Indizes
-        modelBuilder.Entity<Customer>()
-            .HasIndex(c => c.Industry)
-            .HasDatabaseName("IX_Customers_Industry");
+        // Legacy-Felder als DateTime (timestamp without time zone)
+        if (t == typeof(DateTime) || t == typeof(DateTime?))
+        {
+            // explizit UTC-Kind setzen
+            prop.CurrentValue = DateTime.SpecifyKind(value.UtcDateTime, DateTimeKind.Utc);
+            return;
+        }
 
-        modelBuilder.Entity<Customer>()
-            .HasIndex(c => c.IsActive)
-            .HasDatabaseName("IX_Customers_IsActive");
-
-        modelBuilder.Entity<User>()
-            .HasIndex(u => u.CustomerId)
-            .HasDatabaseName("IX_Users_CustomerId");
+        // Optional: String-Fallback, falls jemand CreatedAt als string gespeichert hat
+        if (t == typeof(string))
+        {
+            prop.CurrentValue = value.UtcDateTime.ToString("O");
+        }
     }
 }

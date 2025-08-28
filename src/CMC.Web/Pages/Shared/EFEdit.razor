@@ -1,0 +1,280 @@
+@using System.Reflection
+@using Microsoft.AspNetCore.Components
+@using CMC.Web.Services
+@using CMC.Web.Util
+@implements IDisposable
+@inject EFEditService EFEditService
+@inject IRevisionKeyResolver RevisionKeyResolver
+@inject IRevisionsClient RevisionsClient
+
+@if (_isOpen && _request is not null)
+{
+	<!-- Backdrop -->
+	<div class="ed-backdrop ed-backdrop--open" style="z-index:@ZIndex" aria-hidden="true"></div>
+
+	<!-- Panel -->
+	<aside class="ed-wrap ed-wrap--open" style="z-index:@(ZIndex+1)" role="dialog" aria-modal="true" aria-labelledby="ed-title" @onclick:stopPropagation>
+		<header class="ed-header">
+			<h3 id="ed-title">@_request.Title</h3>
+			<button class="btn flat" @onclick="Cancel" aria-label="Schließen">×</button>
+		</header>
+
+		<section class="ed-body">
+			<FormRenderer @ref="_form"
+						  Model="_request.Model"
+						  Request="_request"
+						  Ctx="_adapter"
+						  ExtraFields="_request.ExtraFields"
+						  OnFieldChanged="OnFieldChanged" />
+		</section>
+
+		<footer class="ed-body">
+			<div class="btn-group">
+				<button type="button" class="btn primary" @onclick="SaveAsync">Speichern</button>
+				@if (_request?.OnDelete is not null && !_request.IsCreate)
+				{
+					<button type="button" class="btn danger" @onclick="DeleteAsync">Löschen</button>
+				}
+				<button type="button" class="btn flat" @onclick="Cancel">Abbrechen</button>
+			</div>
+		</footer>
+
+		@* --- GENERISCHES Revisions-Panel (nur wenn Schlüssel auflösbar & nicht im Create-Mode) --- *@
+		@if (_revKeyResolved && _request is not null && !_request.IsCreate)
+		{
+			<div>
+				<div>
+					<button class="btn flat" @onclick="ToggleRevisions">
+						@( _revVisible ? "Revisionen ausblenden" : "Revisionen anzeigen")
+						@if (_revisionsLoaded) { <span>(@_revisions.Count)</span> }
+					</button>
+					<span>Tabelle: <code>@_revTable</code>, Asset: <code>@_revAssetId</code></span>
+					@if (_revLoading)
+					{
+						<span>Lade…</span>
+					}
+				</div>
+
+				@if (_revVisible)
+				{
+					@if (!_revLoading && _revisionsLoaded && _revisions.Count == 0)
+					{
+						<p>Keine Revisionen vorhanden.</p>
+					}
+					else if (_revLoading)
+					{
+						<p>Bitte warten…</p>
+					}
+					else if (_revisionsLoaded)
+					{
+						<div style="overflow-y:scroll; max-height:300px">
+							<table class="table">
+								<thead>
+									<tr>
+										<th>Zeitpunkt (UTC)</th>
+										<th>Aktion</th>
+										<th>User</th>
+										<th>Aktionen</th>
+									</tr>
+								</thead>
+								<tbody>
+								@foreach (var r in _revisions)
+								{
+									<tr>
+										<td>@r.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss")</td>
+										<td>@r.Action</td>
+										<td>@(string.IsNullOrWhiteSpace(r.UserEmail) ? "-" : r.UserEmail)</td>
+										<td>
+											<div class="btn-group">
+												<button class="btn flat" @onclick="@(() => Preview(r))">Anzeigen</button>
+												<button class="btn" @onclick="@(() => RestoreAsync(r))">Wiederherstellen</button>
+											</div>
+										</td>
+									</tr>
+								}
+								</tbody>
+							</table>
+						</div>
+
+						@if (!string.IsNullOrEmpty(_previewJson))
+						{
+							<div>
+								<h5>Snapshot</h5>
+								<pre>@_previewJson</pre>
+							</div>
+						}
+					}
+				}
+			</div>
+		}
+	</aside>
+}
+
+@code {
+	[Parameter] public int ZIndex { get; set; } = 10;
+
+	[Parameter] public EFEditRequest? Request { get; set; }
+	private bool _openedByParameter;
+	private bool _useServiceEvents;
+
+	protected override void OnParametersSet()
+	{
+		var wantServiceMode = Request is null;
+
+		if (wantServiceMode && !_useServiceEvents)
+		{
+			EFEditService.OpenRequested += HandleOpen;
+			EFEditService.CloseRequested += HandleClose;
+			_useServiceEvents = true;
+		}
+		else if (!wantServiceMode && _useServiceEvents)
+		{
+			EFEditService.OpenRequested -= HandleOpen;
+			EFEditService.CloseRequested -= HandleClose;
+			_useServiceEvents = false;
+		}
+
+		if (Request is not null && !ReferenceEquals(Request, _request))
+		{
+			HandleOpen(Request);
+			_openedByParameter = true;
+		}
+		else if (Request is null && _openedByParameter)
+		{
+			HandleClose();
+			_openedByParameter = false;
+		}
+	}
+
+	// --- State ---
+	private bool _isOpen;
+	private EFEditRequest? _request;
+	private FormRenderer? _form;
+	private EditContextAdapter? _adapter;
+	private readonly Dictionary<string, object?> _changes = new(StringComparer.OrdinalIgnoreCase);
+
+	// --- Revisions State (generisch) ---
+	private bool _revKeyResolved;
+	private string _revTable = "";
+	private Guid _revAssetId;
+	private bool _revVisible;
+	private bool _revLoading;
+	private bool _revisionsLoaded;
+	private List<EditRevisionItem> _revisions = new();
+	private string? _previewJson;
+
+	private void HandleOpen(EFEditRequest req)
+	{
+		_request = req;
+		_changes.Clear();
+		_adapter = new EditContextAdapter(req, req.Model, _changes);
+
+		// Schlüssel für Revisions generisch ermitteln
+		_revKeyResolved = (req.Model is not null) && RevisionKeyResolver.TryResolve(req.Model, out _revTable, out _revAssetId);
+		_revVisible = false;
+		_revLoading = false;
+		_revisionsLoaded = false;
+		_revisions.Clear();
+		_previewJson = null;
+
+		_isOpen = true;
+		StateHasChanged();
+	}
+
+	private void HandleClose()
+	{
+		_isOpen = false;
+		_request = null;
+		_adapter = null;
+		_changes.Clear();
+
+		_revKeyResolved = false;
+		_revTable = "";
+		_revAssetId = default;
+		_revVisible = false;
+		_revLoading = false;
+		_revisionsLoaded = false;
+		_revisions.Clear();
+		_previewJson = null;
+
+		StateHasChanged();
+	}
+
+	private void OnFieldChanged((string Name, object? Value) change) => _changes[change.Name] = change.Value;
+
+	private async Task SaveAsync()
+	{
+		if (_request is null) return;
+		_adapter = new EditContextAdapter(_request, _request.Model, _changes);
+		if (_request.OnSave is not null)
+			await _request.OnSave.Invoke(_adapter);
+	}
+
+	private async Task DeleteAsync()
+	{
+		_changes.Clear();
+		if (_request?.OnDelete is not null && _adapter is not null)
+			await _request.OnDelete.Invoke(_adapter);
+	}
+
+	private void Cancel() => EFEditService.Close();
+
+	public void Dispose()
+	{
+		if (_useServiceEvents)
+		{
+			EFEditService.OpenRequested -= HandleOpen;
+			EFEditService.CloseRequested -= HandleClose;
+		}
+	}
+
+	// --- Revisions UI ---
+	private async Task ToggleRevisions()
+	{
+		_revVisible = !_revVisible;
+		if (_revVisible && !_revisionsLoaded && _revKeyResolved)
+		{
+			_revLoading = true;
+			StateHasChanged();
+			try
+			{
+				_revisions = await RevisionsClient.GetAsync(_revTable, _revAssetId);
+				_revisionsLoaded = true;
+			}
+			finally
+			{
+				_revLoading = false;
+				StateHasChanged();
+			}
+		}
+	}
+
+	private void Preview(EditRevisionItem r)
+	{
+		try
+		{
+			var doc = System.Text.Json.JsonDocument.Parse(r.Data ?? "{}");
+			_previewJson = System.Text.Json.JsonSerializer.Serialize(
+				doc.RootElement, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+		}
+		catch
+		{
+			_previewJson = r.Data;
+		}
+	}
+
+	private async Task RestoreAsync(EditRevisionItem r)
+	{
+		await RevisionsClient.RestoreAsync(r.Id);
+
+		// Neu: direkt nach Restore reagieren (Reload + Drawer schließen)
+		if (_request?.OnAfterRestore is not null)
+		{
+			await _request.OnAfterRestore.Invoke();
+		}
+		else
+		{
+			EFEditService.Close();
+		}
+	}
+}
