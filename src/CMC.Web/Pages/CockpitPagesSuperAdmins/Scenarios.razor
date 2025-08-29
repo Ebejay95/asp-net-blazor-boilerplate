@@ -1,0 +1,181 @@
+@attribute [Authorize(Roles = "super-admin")]
+@using System.Linq
+@using CMC.Contracts.Scenarios
+@using CMC.Web.Services
+@using CMC.Web.Util
+@using CMC.Domain.Entities
+@inject CMC.Application.Services.ScenarioService ScenarioService
+@inject EFEditService EFEditService
+@inject DialogService ConfirmService
+
+<div class="card">
+    <EFTable TItem="ScenarioDto"
+               Items="_scenarios"
+               AllowEdit="true"
+               OnEdit="StartEdit"
+               AllowCreate="true"
+               OnCreate="StartCreate" />
+</div>
+
+@code {
+    private List<ScenarioDto> _scenarios = new();
+
+    protected override async Task OnInitializedAsync()
+        => _scenarios = await ScenarioService.GetAllAsync();
+
+    private async Task Reload()
+    {
+        _scenarios = await ScenarioService.GetAllAsync();
+        StateHasChanged();
+    }
+
+    private void StartEdit(ScenarioDto scenario)
+    {
+        var req = new EFEditRequest
+        {
+            Title = "Szenario bearbeiten",
+            Model = scenario,
+            ContractsAssembly = typeof(ScenarioDto).Assembly,
+            EfParentType = typeof(Scenario),
+            GetParentKey = m => ((ScenarioDto)m).Id,
+            IsCreate = false,
+            OnSave = async ctx =>
+            {
+                try
+                {
+                    var up = (UpdateScenarioRequest)ctx.Build("Update");
+                    _ = await ScenarioService.UpdateAsync(up);
+                    await Reload();
+                    EFEditService.Close();
+                }
+                catch (Exception ex)
+                {
+                    ConfirmService.Open(new DialogRequest
+                    {
+                        Title = "Fehler beim Speichern",
+                        Message = ex.Message,
+                        ConfirmText = "Okay",
+                        OnConfirm = () => Task.CompletedTask
+                    });
+                }
+            },
+            OnDelete = ctx =>
+            {
+                var model = (ScenarioDto)ctx.Model;
+
+                ConfirmService.Open(new DialogRequest
+                {
+                    Title = "Löschen bestätigen",
+                    Message = "Szenario " + model.Name + " wirklich löschen?",
+                    ConfirmText = "Löschen",
+                    CancelText = "Abbrechen",
+                    OnConfirm = async () =>
+                    {
+                        try
+                        {
+                            await ScenarioService.DeleteAsync(model.Id);
+                            await Reload();
+                            EFEditService.Close();
+                        }
+                        catch (Exception ex)
+                        {
+                            ConfirmService.Open(new DialogRequest
+                            {
+                                Title = "Löschen fehlgeschlagen",
+                                Message = ex.Message,
+                                ConfirmText = "Okay",
+                                OnConfirm = () => Task.CompletedTask
+                            });
+                        }
+                    }
+                });
+
+                return Task.CompletedTask;
+            }
+        };
+
+        // Relation Fields
+        req.ExtraFields.Add(new ExtraField(
+            Name: "CustomerId",
+            Label: "Kunde",
+            Type: typeof(Guid),
+            DataType: "relation-auto",
+            Value: scenario.CustomerId
+        ));
+
+        req.ExtraFields.Add(new ExtraField(
+            Name: "LibraryScenarioId",
+            Label: "Vorlage",
+            Type: typeof(Guid),
+            DataType: "relation-auto",
+            Value: scenario.LibraryScenarioId
+        ));
+
+        EFEditService.Open(req);
+    }
+
+    private void StartCreate()
+    {
+        var empty = new ScenarioDto
+        {
+            Id = Guid.Empty,
+            CustomerId = Guid.Empty,
+            LibraryScenarioId = Guid.Empty,
+            Name = string.Empty,
+            AnnualFrequency = 0m,
+            ImpactPctRevenue = 0m,
+            Tags = string.Empty,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        var req = new EFEditRequest
+        {
+            Title = "Szenario anlegen",
+            Model = empty,
+            ContractsAssembly = typeof(ScenarioDto).Assembly,
+            EfParentType = typeof(Scenario),
+            GetParentKey = m => ((ScenarioDto)m).Id,
+            IsCreate = true,
+            OnSave = async ctx =>
+            {
+                try
+                {
+                    var create = (CreateScenarioRequest)ctx.Build("Create");
+                    _ = await ScenarioService.CreateAsync(create);
+                    await Reload();
+                    EFEditService.Close();
+                }
+                catch (Exception ex)
+                {
+                    ConfirmService.Open(new DialogRequest
+                    {
+                        Title = "Fehler beim Anlegen",
+                        Message = ex.Message,
+                        ConfirmText = "Okay",
+                        OnConfirm = () => Task.CompletedTask
+                    });
+                }
+            }
+        };
+
+        // Relation Fields für neue Scenarios
+        req.ExtraFields.Add(new ExtraField(
+            Name: "CustomerId",
+            Label: "Kunde",
+            Type: typeof(Guid),
+            DataType: "relation-auto",
+            Value: Guid.Empty
+        ));
+
+        req.ExtraFields.Add(new ExtraField(
+            Name: "LibraryScenarioId",
+            Label: "Vorlage",
+            Type: typeof(Guid),
+            DataType: "relation-auto",
+            Value: Guid.Empty
+        ));
+
+        EFEditService.Open(req);
+    }
+}

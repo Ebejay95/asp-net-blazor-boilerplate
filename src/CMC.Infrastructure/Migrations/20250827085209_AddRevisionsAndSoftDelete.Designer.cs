@@ -130,7 +130,7 @@ namespace CMC.Infrastructure.Migrations
                     b.ToTable("LibraryControls");
                 });
 
-            modelBuilder.Entity("CMC.Domain.Entities.LibraryFramework", b =>
+            modelBuilder.Entity("CMC.Domain.Entities.Framework", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -175,7 +175,7 @@ namespace CMC.Infrastructure.Migrations
 
                     b.HasIndex("Name", "Version");
 
-                    b.ToTable("LibraryFrameworks");
+                    b.ToTable("Frameworks");
                 });
 
             modelBuilder.Entity("CMC.Domain.Entities.Revision", b =>

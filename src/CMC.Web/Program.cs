@@ -5,7 +5,6 @@ using Microsoft.EntityFrameworkCore;
 using CMC.Application.Services;
 using CMC.Web.Services;
 using CMC.Web.Auth;
-using CMC.Web.Services;
 using CMC.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -57,6 +56,16 @@ builder.Services.AddScoped<IRevisionsClient, EfRevisionsClient>();
 builder.Services.AddScoped<CMC.Infrastructure.Services.RevisionService>();
 builder.Services.AddScoped<RecycleBinService>();
 builder.Services.AddScoped<IRecycleBinClient, RecycleBinClient>();
+builder.Services.AddScoped<LibraryScenarioService>();
+builder.Services.AddScoped<LibraryControlService>();
+builder.Services.AddScoped<ReportService>();
+builder.Services.AddScoped<ReportDefinitionService>();
+builder.Services.AddScoped<ScenarioService>();
+builder.Services.AddScoped<ControlService>();
+builder.Services.AddScoped<RiskAcceptanceService>();
+builder.Services.AddScoped<ToDoService>();
+builder.Services.AddScoped<EvidenceService>();
+
 
 // ✅ DB-gestützte Claims-Aktualisierung
 builder.Services.AddScoped<IClaimsTransformation, DbBackedClaimsTransformation>();

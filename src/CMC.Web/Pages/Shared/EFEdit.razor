@@ -23,7 +23,6 @@
 			<FormRenderer @ref="_form"
 						  Model="_request.Model"
 						  Request="_request"
-						  Ctx="_adapter"
 						  ExtraFields="_request.ExtraFields"
 						  OnFieldChanged="OnFieldChanged" />
 		</section>
@@ -150,7 +149,6 @@
 	private bool _isOpen;
 	private EFEditRequest? _request;
 	private FormRenderer? _form;
-	private EditContextAdapter? _adapter;
 	private readonly Dictionary<string, object?> _changes = new(StringComparer.OrdinalIgnoreCase);
 
 	// --- Revisions State (generisch) ---
@@ -167,7 +165,6 @@
 	{
 		_request = req;
 		_changes.Clear();
-		_adapter = new EditContextAdapter(req, req.Model, _changes);
 
 		// Schlüssel für Revisions generisch ermitteln
 		_revKeyResolved = (req.Model is not null) && RevisionKeyResolver.TryResolve(req.Model, out _revTable, out _revAssetId);
@@ -185,7 +182,6 @@
 	{
 		_isOpen = false;
 		_request = null;
-		_adapter = null;
 		_changes.Clear();
 
 		_revKeyResolved = false;
@@ -205,16 +201,19 @@
 	private async Task SaveAsync()
 	{
 		if (_request is null) return;
-		_adapter = new EditContextAdapter(_request, _request.Model, _changes);
+		var adapter = new EditContextAdapter(_request, _request.Model, _changes);
 		if (_request.OnSave is not null)
-			await _request.OnSave.Invoke(_adapter);
+			await _request.OnSave.Invoke(adapter);
 	}
 
 	private async Task DeleteAsync()
 	{
 		_changes.Clear();
-		if (_request?.OnDelete is not null && _adapter is not null)
-			await _request.OnDelete.Invoke(_adapter);
+		if (_request?.OnDelete is not null)
+		{
+			var adapter = new EditContextAdapter(_request, _request.Model, _changes);
+			await _request.OnDelete.Invoke(adapter);
+		}
 	}
 
 	private void Cancel() => EFEditService.Close();

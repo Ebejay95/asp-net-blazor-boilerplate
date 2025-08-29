@@ -6,615 +6,433 @@
 @using CMC.Web.Pages.Shared
 @using CMC.Web.Services
 @using CMC.Web.Util
+@using CMC.Web.FormFields
+@using CMC.Web.FormFields.Types
 @using CMC.Contracts.Common
 
-@inject IRelationshipManager Rels
-@inject DialogService Dialogs
-
 <div class="form-grid">
-	@if (Model is not null)
-	{
-		@foreach (var prop in VisibleProps)
-		{
-			var pType = EffectiveType(prop.PropertyType);
-			var label = GetDisplayName(prop) ?? prop.Name;
-			var current = prop.GetValue(Model);
-
-			<div class="form-row">
-				<label class="form-label">@label</label>
-
-				@if (TryGetSelectOptions(prop, out var selectOpts))
-				{
-					var value = current?.ToString() ?? string.Empty;
-					<select class="form-control" @onchange="e => OnChanged(prop.Name, e.Value?.ToString())">
-						<option value="">-- bitte wählen --</option>
-						@foreach (var opt in selectOpts)
-						{
-							var selected = string.Equals(opt.Value, value, StringComparison.OrdinalIgnoreCase);
-							<option value="@opt.Value" selected="@selected">@opt.Key</option>
-						}
-					</select>
-				}
-				else
-				{
-					var relAttr = prop.GetCustomAttribute<RelationFromAttribute>();
-					if (relAttr is not null && Request.EfParentType is not null && Request.ContractsAssembly is not null)
-					{
-						var uiKey = $"prop::{prop.Name}";
-						var relationName = string.IsNullOrWhiteSpace(relAttr.RelationName)
-							? DeriveRelationName(prop.Name)
-							: relAttr.RelationName;
-
-						EnsureRelationLoaded(uiKey, relationName);
-
-						if (_relLoading.Contains(uiKey))
-						{
-							<input class="form-control" type="text" value="Lade Optionen …" disabled />
-						}
-						else if (_relKind.TryGetValue(uiKey, out var kind) && _relOptions.TryGetValue(uiKey, out var opts))
-						{
-							if (!relAttr.IsMany && kind == RelationKind.Reference)
-							{
-								if (!_relSingle.ContainsKey(uiKey))
-									_relSingle[uiKey] = current?.ToString();
-
-								var cur = _relSingle[uiKey] ?? string.Empty;
-								<select class="form-control" @onchange="e => SetRelationSingle(prop.Name, e.Value?.ToString())">
-									<option value="">-- bitte wählen --</option>
-									@foreach (var o in opts)
-									{
-										var sel = string.Equals(o.Value, cur, StringComparison.OrdinalIgnoreCase);
-										<option value="@o.Value" selected="@sel">@o.Key</option>
-									}
-								</select>
-							}
-							else if (relAttr.IsMany && kind == RelationKind.ManyToMany)
-							{
-								var key = prop.Name;
-								if (!_relMany.ContainsKey(key))
-								{
-									var lst = new List<string>();
-									if (current is IEnumerable<string> es) lst = es.ToList();
-									else if (current is string s && !string.IsNullOrWhiteSpace(s))
-										lst = s.Split(',').Select(x => x.Trim()).Where(x => x.Length > 0).ToList();
-									_relMany[key] = lst;
-								}
-
-								@RenderCheckboxList(key, opts)
-							}
-							else
-							{
-								<input class="form-control" type="text" value="(Relation nicht verfügbar)" disabled />
-							}
-						}
-						else
-						{
-							<input class="form-control" type="text" value="(Relation nicht verfügbar)" disabled />
-						}
-					}
-					else
-					{
-						@switch (TypeCodeOf(pType))
-						{
-							case TypeCode.Boolean:
-							{
-								var chk = current as bool? ?? false;
-								<input type="checkbox" checked="@chk" @onchange="e => OnBooleanChanged(prop.Name, e)" />
-								break;
-							}
-							case TypeCode.DateTime:
-							{
-								var dt = current as DateTime? ?? default;
-								var val = dt == default ? "" : ToDateTimeLocalValue(dt);
-								<input class="form-control" type="datetime-local" value="@val" @oninput="e => OnChanged(prop.Name, ParseDateTimeLocal(e.Value?.ToString()))" />
-								break;
-							}
-							case TypeCode.Decimal:
-							{
-								var dec = current as decimal? ?? 0m;
-								<input class="form-control" type="number" step="any" value="@dec" @oninput="e => OnChanged(prop.Name, ParseDecimal(e.Value?.ToString()))" />
-								break;
-							}
-							case TypeCode.Double:
-							case TypeCode.Single:
-							{
-								var dbl = current is double d ? d : current is float f ? (double)f : 0d;
-								<input class="form-control" type="number" step="any" value="@dbl" @oninput="e => OnChanged(prop.Name, ParseDouble(e.Value?.ToString()))" />
-								break;
-							}
-							case TypeCode.Int16:
-							case TypeCode.Int32:
-							case TypeCode.Int64:
-							case TypeCode.UInt16:
-							case TypeCode.UInt32:
-							case TypeCode.UInt64:
-							{
-								var num = current?.ToString() ?? "0";
-								<input class="form-control" type="number" step="1" value="@num" @oninput="e => OnChanged(prop.Name, ParseLongOrInt(pType, e.Value?.ToString()))" />
-								break;
-							}
-							case TypeCode.String:
-							{
-								var txt = current?.ToString() ?? string.Empty;
-								var isPw = prop.Name.Contains("Password", StringComparison.OrdinalIgnoreCase);
-								<input class="form-control" type="@(isPw ? "password" : "text")" autocomplete="@(isPw ? "new-password" : null)" value="@txt" @oninput="e => OnChanged(prop.Name, e.Value?.ToString())" />
-								break;
-							}
-							default:
-							{
-								if (pType == typeof(Guid))
-								{
-									var gtxt = current?.ToString() ?? string.Empty;
-									<input class="form-control" type="text" value="@gtxt" disabled />
-								}
-								else
-								{
-									var raw = current?.ToString() ?? string.Empty;
-									<input class="form-control" type="text" value="@raw" @oninput="e => OnChanged(prop.Name, e.Value?.ToString())" />
-								}
-								break;
-							}
-						}
-					}
-				}
-			</div>
-		}
-	}
-
-	@if (ExtraFields?.Count > 0)
-	{
-		@foreach (var ef in ExtraFields)
-		{
-			var label = string.IsNullOrWhiteSpace(ef.Label) ? ef.Name : ef.Label;
-			var hint = ef.Hint;
-
-			<div class="form-row">
-				<label class="form-label">@label</label>
-
-				@if (string.Equals(ef.DataType, "relation-auto", StringComparison.OrdinalIgnoreCase))
-				{
-					var relationName = DeriveRelationName(ef.Name);
-
-					if (Request.EfParentType is null || Request.ContractsAssembly is null)
-					{
-						<input class="form-control" type="text" value="(Relation nicht konfiguriert)" disabled />
-					}
-					else
-					{
-						EnsureRelationLoaded(ef.Name, relationName);
-
-						if (_relLoading.Contains(ef.Name))
-						{
-							<input class="form-control" type="text" value="Lade Optionen …" disabled />
-						}
-						else if (_relKind.TryGetValue(ef.Name, out var kind) && _relOptions.TryGetValue(ef.Name, out var opts))
-						{
-							if (kind == RelationKind.Reference)
-							{
-								if (!_relSingle.ContainsKey(ef.Name))
-									_relSingle[ef.Name] = ef.Value?.ToString();
-
-								var current = _relSingle[ef.Name] ?? string.Empty;
-								<select class="form-control" @onchange="e => SetRelationSingle(ef.Name, e.Value?.ToString())">
-									<option value="">-- bitte wählen --</option>
-									@foreach (var o in opts)
-									{
-										var sel = string.Equals(o.Value, current, StringComparison.OrdinalIgnoreCase);
-										<option value="@o.Value" selected="@sel">@o.Key</option>
-									}
-								</select>
-							}
-							else if (kind == RelationKind.ManyToMany)
-							{
-								if (!_relMany.ContainsKey(ef.Name))
-								{
-									var lst = new List<string>();
-									if (ef.Value is IEnumerable<string> es) lst = es.ToList();
-									else if (ef.Value is string s && !string.IsNullOrWhiteSpace(s))
-										lst = s.Split(',').Select(x => x.Trim()).Where(x => x.Length > 0).ToList();
-									_relMany[ef.Name] = lst;
-								}
-
-								@RenderCheckboxList(ef.Name, opts)
-							}
-							else
-							{
-								<input class="form-control" type="text" value="(Relationstyp nicht unterstützt)" disabled />
-							}
-						}
-						else
-						{
-							<input class="form-control" type="text" value="(Keine Optionen gefunden)" disabled />
-						}
-					}
-				}
-				else if (string.Equals(ef.DataType, "password", StringComparison.OrdinalIgnoreCase))
-				{
-					var txt = ef.Value?.ToString() ?? string.Empty;
-					<input class="form-control" type="password" autocomplete="new-password" value="@txt" @oninput="e => OnChanged(ef.Name, e.Value?.ToString())" />
-				}
-				else if (ef.Options != null && ef.Options.Any())
-				{
-					var current = ef.Value?.ToString() ?? string.Empty;
-					var isDisabled = ef.ReadOnly;
-
-					<select class="form-control" disabled="@isDisabled" @onchange="e => OnChanged(ef.Name, e.Value?.ToString())">
-						<option value="">-- bitte wählen --</option>
-						@foreach (var opt in ef.Options)
-						{
-							var selected = string.Equals(opt.Value, current, StringComparison.OrdinalIgnoreCase);
-							<option value="@opt.Value" selected="@selected">@opt.Key</option>
-						}
-					</select>
-				}
-				else
-				{
-					var txt = ef.Value?.ToString() ?? string.Empty;
-					if (ef.ReadOnly)
-					{
-						<input class="form-control" type="text" value="@txt" disabled />
-					}
-					else
-					{
-						<input class="form-control" type="text" value="@txt" @oninput="e => OnChanged(ef.Name, e.Value?.ToString())" />
-					}
-				}
-
-				@if (!string.IsNullOrWhiteSpace(hint))
-				{
-					<div class="form-hint">@hint</div>
-				}
-			</div>
-		}
-	}
+    @foreach (var field in GetFormFields())
+    {
+        @RenderFormField(field)
+    }
 </div>
 
 @code {
     [Parameter] public object? Model { get; set; }
-	[Parameter] public List<ExtraField> ExtraFields { get; set; } = new();
-	[Parameter] public EventCallback<(string Name, object? Value)> OnFieldChanged { get; set; }
-	[Parameter] public EFEditRequest Request { get; set; } = default!;
-	[Parameter] public EditContextAdapter Ctx { get; set; } = default!;
-
-	// --- Relation-Cache/State ---
-	private readonly Dictionary<string, RelationKind> _relKind = new(StringComparer.OrdinalIgnoreCase);
-	private readonly Dictionary<string, List<KeyValuePair<string,string>>> _relOptions = new(StringComparer.OrdinalIgnoreCase);
-	private readonly HashSet<string> _relLoading = new(StringComparer.OrdinalIgnoreCase);
-
-	private readonly Dictionary<string, string?> _relSingle = new(StringComparer.OrdinalIgnoreCase);
-	private readonly Dictionary<string, List<string>> _relMany = new(StringComparer.OrdinalIgnoreCase);
-
-	private IEnumerable<PropertyInfo> VisibleProps => GetVisibleProps();
-
-	private IEnumerable<PropertyInfo> GetVisibleProps()
-	{
-		if (Model is null) yield break;
-
-		var type = Model.GetType();
-		var allProps = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
-						   .Where(p => p.CanRead)
-						   .ToList();
-
-		var propNames = new HashSet<string>(allProps.Select(p => p.Name), StringComparer.OrdinalIgnoreCase);
-		var extraNames = new HashSet<string>((ExtraFields ?? new()).Select(ef => ef.Name), StringComparer.OrdinalIgnoreCase);
-
-		foreach (var p in allProps)
-		{
-			var scaffold = p.GetCustomAttribute<ScaffoldColumnAttribute>();
-			if (scaffold is { Scaffold: false }) continue;
-
-			var disp = p.GetCustomAttribute<DisplayAttribute>();
-			if (disp?.GetAutoGenerateField() == false) continue;
-
-			if (p.GetCustomAttribute<EditorHiddenAttribute>() is not null)
-				continue;
-
-			var hideIfs = p.GetCustomAttributes<EditorHideIfExistsAttribute>()?.ToList();
-			if (hideIfs is { Count: > 0 } &&
-				hideIfs.Any(h => propNames.Contains(h.OtherProperty) || extraNames.Contains(h.OtherProperty)))
-				continue;
-
-			yield return p;
-		}
-	}
-
-	private bool TryGetSelectOptions(PropertyInfo p, out List<KeyValuePair<string,string>> options)
-	{
-		options = new();
-		var attr = p.GetCustomAttribute<SelectFromAttribute>();
-		if (attr is null) return false;
-
-		try
-		{
-			var path = attr.SourcePath?.Trim() ?? string.Empty;
-			var lastDot = path.LastIndexOf('.');
-			if (lastDot <= 0 || lastDot >= path.Length - 1) return false;
-
-			var typeName = path[..lastDot];
-			var member = path[(lastDot + 1)..];
-
-			// robuste Typauflösung (erst: Assembly der Property; dann: ContractsAssembly; dann: alle Assemblies)
-			var sourceType = TryResolveType(typeName, p.DeclaringType?.Assembly);
-			if (sourceType is null) return false;
-
-			var flags = BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy;
-			var field = sourceType.GetField(member, flags);
-			var prop = sourceType.GetProperty(member, flags);
-
-			object? raw = field?.GetValue(null) ?? prop?.GetValue(null);
-			if (raw is null) return false;
-
-			options = ToOptions(raw);
-			return options.Count > 0;
-		}
-		catch
-		{
-			return false;
-		}
-	}
-
-	private Type? TryResolveType(string typeName, Assembly? contextAsm)
-	{
-		Type? t = null;
-
-		// 0) Zuerst die Assembly der Property selbst
-		if (contextAsm != null)
-		{
-			try { t = contextAsm.GetType(typeName, throwOnError: false, ignoreCase: false); } catch { }
-			if (t != null) return t;
-		}
-
-		// 1) Dann die mitgegebene Contracts-Assembly
-		if (Request?.ContractsAssembly != null)
-		{
-			try { t = Request.ContractsAssembly.GetType(typeName, throwOnError: false, ignoreCase: false); } catch { }
-			if (t != null) return t;
-		}
-
-		// 2) Alle geladenen Assemblies scannen
-		foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
-		{
-			try
-			{
-				t = asm.GetType(typeName, throwOnError: false, ignoreCase: false);
-				if (t != null) return t;
-			}
-			catch { }
-		}
-
-		// 3) Fallback: assembly-qualified konstruieren (Contracts-Assemblyname)
-		var asmName = Request?.ContractsAssembly?.GetName().Name ?? contextAsm?.GetName().Name;
-		if (!string.IsNullOrWhiteSpace(asmName))
-		{
-			try { t = Type.GetType($"{typeName}, {asmName}", throwOnError: false); } catch { }
-			if (t != null) return t;
-		}
-
-		return null;
-	}
-
-private static List<KeyValuePair<string,string>> ToOptions(object? raw)
-{
-	var result = new List<KeyValuePair<string,string>>();
-	if (raw is not System.Collections.IEnumerable seq) return result;
-
-	foreach (var item in seq)
-	{
-		if (item is KeyValuePair<string,string> kv)
-		{
-			result.Add(kv);
-			continue;
-		}
-
-		// Spezielle Behandlung für (Label, value) Format
-		var itemStr = item.ToString();
-		if (!string.IsNullOrWhiteSpace(itemStr) &&
-			itemStr.StartsWith("(") &&
-			itemStr.EndsWith(")") &&
-			itemStr.Contains(", "))
-		{
-			// Format: "(Super-Admin, super-admin)" -> Label: "Super-Admin", Value: "super-admin"
-			var content = itemStr.Substring(1, itemStr.Length - 2); // Klammern entfernen
-			var parts = content.Split(new[] { ", " }, 2, StringSplitOptions.None); // Nur beim ersten ", " teilen
-
-			if (parts.Length == 2)
-			{
-				var itemLabel = parts[0].Trim();
-				var itemValue = parts[1].Trim();
-				result.Add(new KeyValuePair<string,string>(itemLabel, itemValue));
-				continue;
-			}
-		}
-
-		var t = item.GetType();
-
-		var labelProp = t.GetProperty("Label") ?? t.GetProperty("Name") ?? t.GetProperty("Text") ?? t.GetProperty("Key");
-		var valueProp = t.GetProperty("Tag")   ?? t.GetProperty("Value") ?? t.GetProperty("Id")  ?? t.GetProperty("Key");
-
-		if (labelProp is null && valueProp is null)
-		{
-			labelProp = t.GetProperty("Item1");
-			valueProp = t.GetProperty("Item2");
-		}
-
-		var label = labelProp?.GetValue(item)?.ToString();
-		var value = valueProp?.GetValue(item)?.ToString();
-
-		label ??= item.ToString() ?? "";
-		value ??= label;
-
-		if (!string.IsNullOrWhiteSpace(value))
-			result.Add(new KeyValuePair<string,string>(label, value));
-	}
-
-	return result;
-}
-
-	private void EnsureRelationLoaded(string uiKey, string relationName)
-	{
-		if (_relOptions.ContainsKey(uiKey) || _relLoading.Contains(uiKey))
-			return;
-
-		if (Request.EfParentType is null)
-		{
-			_relOptions[uiKey] = new();
-			return;
-		}
-
-		_relLoading.Add(uiKey);
-
-		try
-		{
-			var desc = Rels.GetDescriptor(Request.EfParentType, relationName);
-			_relKind[uiKey] = desc.Kind;
-
-			_ = Task.Run(async () =>
-			{
-				try
-				{
-					var all = await desc.LoadOptions(); // (Label, Value)
-					var opts = all.Select(o => new KeyValuePair<string,string>(o.Label, o.Value)).ToList();
-					_relOptions[uiKey] = opts;
-				}
-				catch
-				{
-					_relOptions[uiKey] = new();
-				}
-				finally
-				{
-					_relLoading.Remove(uiKey);
-					await InvokeAsync(StateHasChanged);
-				}
-			});
-		}
-		catch
-		{
-			_relOptions[uiKey] = new();
-			_relLoading.Remove(uiKey);
-		}
-	}
-
-	private RenderFragment RenderCheckboxList(string name, IEnumerable<KeyValuePair<string,string>> options) => builder =>
-	{
-		var seq = 0;
-		var selected = _relMany.TryGetValue(name, out var lst) ? lst : new List<string>();
-
-		foreach (var opt in options)
-		{
-			var isChecked = selected.Contains(opt.Value, StringComparer.OrdinalIgnoreCase);
-
-			// Open label element
-			builder.OpenElement(seq++, "label");
-			builder.AddAttribute(seq++, "class", "chk-inline");
-
-			// Open input element
-			builder.OpenElement(seq++, "input");
-			builder.AddAttribute(seq++, "type", "checkbox");
-			builder.AddAttribute(seq++, "checked", isChecked);
-			builder.AddAttribute(seq++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, async e =>
-			{
-				var cur = _relMany.TryGetValue(name, out var existing) ? existing : new List<string>();
-				var nowChecked = e.Value?.ToString() == "on" || (e.Value is bool b && b);
-
-				if (nowChecked)
-				{
-					if (!cur.Contains(opt.Value)) cur.Add(opt.Value);
-				}
-				else
-				{
-					cur = cur.Where(v => !string.Equals(v, opt.Value, StringComparison.OrdinalIgnoreCase)).ToList();
-				}
-				_relMany[name] = cur;
-				await OnChanged(name, cur);
-			}));
-			// Close input element
-			builder.CloseElement();
-
-			// Add label text content
-			builder.AddContent(seq++, $" {opt.Key}");
-
-			// Close label element
-			builder.CloseElement();
-		}
-	};
-
-	private async Task SetRelationSingle(string name, string? value)
-	{
-		_relSingle[name] = value;
-		await OnChanged(name, value);
-	}
-
-	private static string? GetDisplayName(PropertyInfo p)
-		=> p.GetCustomAttribute<DisplayAttribute>()?.GetName();
-
-	private static Type EffectiveType(Type t) => Nullable.GetUnderlyingType(t) ?? t;
-
-	private static TypeCode TypeCodeOf(Type t)
-	{
-		var et = EffectiveType(t);
-		return Type.GetTypeCode(et);
-	}
-
-	private static string ToDateTimeLocalValue(DateTime dt)
-	{
-		var local = dt.Kind == DateTimeKind.Utc ? dt.ToLocalTime() : dt;
-		return local.ToString("yyyy-MM-ddTHH:mm");
-	}
-
-	private static DateTime? ParseDateTimeLocal(string? s)
-		=> DateTime.TryParse(s, out var dt) ? dt : null;
-
-	private static decimal? ParseDecimal(string? s)
-		=> decimal.TryParse(s, System.Globalization.NumberStyles.Any,
-							System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : null;
-
-	private static double? ParseDouble(string? s)
-		=> double.TryParse(s, System.Globalization.NumberStyles.Any,
-						   System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : null;
-
-	private static object? ParseLongOrInt(Type numberType, string? s)
-	{
-		if (!long.TryParse(s, out var l)) return null;
-
-		var et = EffectiveType(numberType);
-		if (et == typeof(int)) return (int)l;
-		if (et == typeof(long)) return l;
-		if (et == typeof(short)) return (short)l;
-		if (et == typeof(uint)) return (uint)Math.Max(0, l);
-		if (et == typeof(ulong)) return (ulong)Math.Max(0, l);
-		if (et == typeof(ushort)) return (ushort)Math.Max(0, l);
-
-		return l;
-	}
-
-	private async Task OnChanged(string name, object? value)
-	{
-		if (OnFieldChanged.HasDelegate)
-			await OnFieldChanged.InvokeAsync((name, value));
-	}
-
-	private async Task OnBooleanChanged(string name, ChangeEventArgs e)
-	{
-		bool? value = null;
-
-		if (e.Value is bool boolValue) value = boolValue;
-		else if (e.Value?.ToString() == "on") value = true;
-		else if (bool.TryParse(e.Value?.ToString(), out var parsedBool)) value = parsedBool;
-
-		await OnChanged(name, value);
-	}
-
-	private static string DeriveRelationName(string fieldName)
-	{
-		if (fieldName.EndsWith("Id", StringComparison.Ordinal))
-			return fieldName.Substring(0, fieldName.Length - 2);
-
-		if (fieldName.EndsWith("Ids", StringComparison.Ordinal))
-			return fieldName.Substring(0, fieldName.Length - 3);
-
-		return fieldName;
-	}
-
-	private void ShowConfigError(string msg)
-		=> Dialogs.Open(new DialogRequest { Title = "Konfiguration", Message = msg, OnConfirm = () => Task.CompletedTask });
+    [Parameter] public List<ExtraField> ExtraFields { get; set; } = new();
+    [Parameter] public EventCallback<(string Name, object? Value)> OnFieldChanged { get; set; }
+    [Parameter] public EFEditRequest Request { get; set; } = default!;
+
+    private List<FormFieldDescriptor> GetFormFields()
+    {
+        var fields = new List<FormFieldDescriptor>();
+
+        // Model Properties
+        if (Model != null)
+        {
+            foreach (var prop in GetVisibleProps())
+            {
+                fields.Add(CreateFieldFromProperty(prop));
+            }
+        }
+
+        // Extra Fields
+        foreach (var extra in ExtraFields ?? new())
+        {
+            fields.Add(CreateFieldFromExtra(extra));
+        }
+
+        return fields;
+    }
+
+    private FormFieldDescriptor CreateFieldFromProperty(PropertyInfo prop)
+    {
+        var pType = EffectiveType(prop.PropertyType);
+        var label = GetDisplayName(prop) ?? prop.Name;
+        var current = prop.GetValue(Model);
+        var hint = GetHint(prop);
+        var readOnly = prop.GetCustomAttribute<EditorHiddenAttribute>() != null;
+
+        // Relation Field?
+        var relAttr = prop.GetCustomAttribute<RelationFromAttribute>();
+        if (relAttr != null && Request.EfParentType != null)
+        {
+            var relationName = string.IsNullOrWhiteSpace(relAttr.RelationName)
+                ? DeriveRelationName(prop.Name)
+                : relAttr.RelationName;
+
+            return new FormFieldDescriptor(
+                Name: prop.Name,
+                Label: label,
+                FieldType: relAttr.IsMany ? typeof(CheckboxListField) : typeof(RelationSelectField),
+                ValueType: prop.PropertyType,
+                ReadOnly: readOnly,
+                Hint: hint,
+                Value: current,
+                Parameters: new Dictionary<string, object>
+                {
+                    ["RelationName"] = relationName,
+                    ["ParentType"] = Request.EfParentType
+                }
+            );
+        }
+
+        // Select Field mit Optionen?
+        if (TryGetSelectOptions(prop, out var selectOpts))
+        {
+            return new FormFieldDescriptor(
+                Name: prop.Name,
+                Label: label,
+                FieldType: typeof(SelectField),
+                ValueType: prop.PropertyType,
+                ReadOnly: readOnly,
+                Hint: hint,
+                Value: current,
+                Parameters: new Dictionary<string, object>
+                {
+                    ["Options"] = selectOpts
+                }
+            );
+        }
+
+        // Standard Field Type bestimmen
+        var fieldType = GetFieldTypeForProperty(pType);
+        var parameters = GetParametersForProperty(pType, prop);
+
+        return new FormFieldDescriptor(
+            Name: prop.Name,
+            Label: label,
+            FieldType: fieldType,
+            ValueType: prop.PropertyType,
+            ReadOnly: readOnly,
+            Hint: hint,
+            Value: current,
+            Parameters: parameters
+        );
+    }
+
+    private FormFieldDescriptor CreateFieldFromExtra(ExtraField extra)
+    {
+        var fieldType = GetFieldTypeForExtra(extra);
+        var parameters = GetParametersForExtra(extra);
+
+        return new FormFieldDescriptor(
+            Name: extra.Name,
+            Label: string.IsNullOrWhiteSpace(extra.Label) ? extra.Name : extra.Label,
+            FieldType: fieldType,
+            ValueType: extra.Type,
+            ReadOnly: extra.ReadOnly,
+            Hint: extra.Hint,
+            Value: extra.Value,
+            Parameters: parameters
+        );
+    }
+
+    private Type GetFieldTypeForProperty(Type propType)
+    {
+        return TypeCodeOf(propType) switch
+        {
+            TypeCode.Boolean => typeof(CheckboxField),
+            TypeCode.DateTime => typeof(DateTimeField),
+            TypeCode.Decimal or TypeCode.Double or TypeCode.Single => typeof(NumberField),
+            TypeCode.Int16 or TypeCode.Int32 or TypeCode.Int64 or
+            TypeCode.UInt16 or TypeCode.UInt32 or TypeCode.UInt64 => typeof(NumberField),
+            _ when propType == typeof(Guid) => typeof(TextField),
+            _ => typeof(TextField)
+        };
+    }
+
+    private Dictionary<string, object> GetParametersForProperty(Type propType, PropertyInfo prop)
+    {
+        var parameters = new Dictionary<string, object>();
+
+        var typeCode = TypeCodeOf(propType);
+        switch (typeCode)
+        {
+            case TypeCode.DateTime:
+                parameters["InputType"] = "datetime-local";
+                break;
+            case TypeCode.Decimal or TypeCode.Double or TypeCode.Single:
+                parameters["InputType"] = "number";
+                parameters["Step"] = "any";
+                break;
+            case TypeCode.Int16 or TypeCode.Int32 or TypeCode.Int64 or
+                 TypeCode.UInt16 or TypeCode.UInt32 or TypeCode.UInt64:
+                parameters["InputType"] = "number";
+                parameters["Step"] = "1";
+                break;
+            case TypeCode.String:
+                if (prop.Name.Contains("Password", StringComparison.OrdinalIgnoreCase))
+                {
+                    parameters["InputType"] = "password";
+                    parameters["Autocomplete"] = "new-password";
+                }
+                break;
+        }
+
+        if (propType == typeof(Guid))
+        {
+            parameters["ReadOnly"] = true;
+        }
+
+        return parameters;
+    }
+
+    private Type GetFieldTypeForExtra(ExtraField extra)
+    {
+        if (string.Equals(extra.DataType, "relation-auto", StringComparison.OrdinalIgnoreCase))
+        {
+            // Ableiten ob Many oder Reference basierend auf Type
+            if (extra.Type.IsGenericType && extra.Type.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+            {
+                return typeof(CheckboxListField);
+            }
+            return typeof(RelationSelectField);
+        }
+
+        if (string.Equals(extra.DataType, "password", StringComparison.OrdinalIgnoreCase))
+        {
+            return typeof(TextField);
+        }
+
+        if (extra.Options?.Any() == true)
+        {
+            return typeof(SelectField);
+        }
+
+        return typeof(TextField);
+    }
+
+    private Dictionary<string, object> GetParametersForExtra(ExtraField extra)
+    {
+        var parameters = new Dictionary<string, object>();
+
+        if (string.Equals(extra.DataType, "relation-auto", StringComparison.OrdinalIgnoreCase))
+        {
+            var relationName = DeriveRelationName(extra.Name);
+            parameters["RelationName"] = relationName;
+            if (Request.EfParentType != null)
+                parameters["ParentType"] = Request.EfParentType;
+        }
+        else if (string.Equals(extra.DataType, "password", StringComparison.OrdinalIgnoreCase))
+        {
+            parameters["InputType"] = "password";
+            parameters["Autocomplete"] = "new-password";
+        }
+        else if (extra.Options?.Any() == true)
+        {
+            parameters["Options"] = extra.Options;
+        }
+
+        return parameters;
+    }
+
+    private RenderFragment RenderFormField(FormFieldDescriptor descriptor) => builder =>
+    {
+        int seq = 0;
+
+        builder.OpenComponent(seq++, descriptor.FieldType);
+        builder.AddAttribute(seq++, nameof(FormFieldBase.Name), descriptor.Name);
+        builder.AddAttribute(seq++, nameof(FormFieldBase.Label), descriptor.Label);
+        builder.AddAttribute(seq++, nameof(FormFieldBase.Value), descriptor.Value);
+        builder.AddAttribute(seq++, nameof(FormFieldBase.ReadOnly), descriptor.ReadOnly);
+        builder.AddAttribute(seq++, nameof(FormFieldBase.Required), descriptor.Required);
+
+        if (!string.IsNullOrWhiteSpace(descriptor.Hint))
+            builder.AddAttribute(seq++, nameof(FormFieldBase.Hint), descriptor.Hint);
+
+        builder.AddAttribute(seq++, nameof(FormFieldBase.OnValueChanged),
+            EventCallback.Factory.Create<object?>(this, value => OnFieldChanged.InvokeAsync((descriptor.Name, value))));
+
+        // Parameter hinzufügen
+        foreach (var param in descriptor.Parameters)
+        {
+            builder.AddAttribute(seq++, param.Key, param.Value);
+        }
+
+        builder.CloseComponent();
+    };
+
+    // Hilfsmethoden (aus original FormRenderer übernommen)
+    private IEnumerable<PropertyInfo> GetVisibleProps()
+    {
+        if (Model is null) yield break;
+
+        var type = Model.GetType();
+        var allProps = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                           .Where(p => p.CanRead)
+                           .ToList();
+
+        var propNames = new HashSet<string>(allProps.Select(p => p.Name), StringComparer.OrdinalIgnoreCase);
+        var extraNames = new HashSet<string>((ExtraFields ?? new()).Select(ef => ef.Name), StringComparer.OrdinalIgnoreCase);
+
+        foreach (var p in allProps)
+        {
+            var scaffold = p.GetCustomAttribute<ScaffoldColumnAttribute>();
+            if (scaffold is { Scaffold: false }) continue;
+
+            var disp = p.GetCustomAttribute<DisplayAttribute>();
+            if (disp?.GetAutoGenerateField() == false) continue;
+
+            if (p.GetCustomAttribute<EditorHiddenAttribute>() is not null)
+                continue;
+
+            var hideIfs = p.GetCustomAttributes<EditorHideIfExistsAttribute>()?.ToList();
+            if (hideIfs is { Count: > 0 } &&
+                hideIfs.Any(h => propNames.Contains(h.OtherProperty) || extraNames.Contains(h.OtherProperty)))
+                continue;
+
+            yield return p;
+        }
+    }
+
+    private bool TryGetSelectOptions(PropertyInfo p, out List<KeyValuePair<string,string>> options)
+    {
+        options = new();
+        var attr = p.GetCustomAttribute<SelectFromAttribute>();
+        if (attr is null) return false;
+
+        try
+        {
+            var path = attr.SourcePath?.Trim() ?? string.Empty;
+            var lastDot = path.LastIndexOf('.');
+            if (lastDot <= 0 || lastDot >= path.Length - 1) return false;
+
+            var typeName = path[..lastDot];
+            var member = path[(lastDot + 1)..];
+
+            var sourceType = TryResolveType(typeName, p.DeclaringType?.Assembly);
+            if (sourceType is null) return false;
+
+            var flags = BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy;
+            var field = sourceType.GetField(member, flags);
+            var prop = sourceType.GetProperty(member, flags);
+
+            object? raw = field?.GetValue(null) ?? prop?.GetValue(null);
+            if (raw is null) return false;
+
+            options = ToOptions(raw);
+            return options.Count > 0;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private Type? TryResolveType(string typeName, Assembly? contextAsm)
+    {
+        Type? t = null;
+
+        if (contextAsm != null)
+        {
+            try { t = contextAsm.GetType(typeName, throwOnError: false, ignoreCase: false); } catch { }
+            if (t != null) return t;
+        }
+
+        if (Request?.ContractsAssembly != null)
+        {
+            try { t = Request.ContractsAssembly.GetType(typeName, throwOnError: false, ignoreCase: false); } catch { }
+            if (t != null) return t;
+        }
+
+        foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            try
+            {
+                t = asm.GetType(typeName, throwOnError: false, ignoreCase: false);
+                if (t != null) return t;
+            }
+            catch { }
+        }
+
+        var asmName = Request?.ContractsAssembly?.GetName().Name ?? contextAsm?.GetName().Name;
+        if (!string.IsNullOrWhiteSpace(asmName))
+        {
+            try { t = Type.GetType($"{typeName}, {asmName}", throwOnError: false); } catch { }
+            if (t != null) return t;
+        }
+
+        return null;
+    }
+
+    private static List<KeyValuePair<string,string>> ToOptions(object? raw)
+    {
+        var result = new List<KeyValuePair<string,string>>();
+        if (raw is not System.Collections.IEnumerable seq) return result;
+
+        foreach (var item in seq)
+        {
+            if (item is KeyValuePair<string,string> kv)
+            {
+                result.Add(kv);
+                continue;
+            }
+
+            var itemStr = item.ToString();
+            if (!string.IsNullOrWhiteSpace(itemStr) &&
+                itemStr.StartsWith("(") &&
+                itemStr.EndsWith(")") &&
+                itemStr.Contains(", "))
+            {
+                var content = itemStr.Substring(1, itemStr.Length - 2);
+                var parts = content.Split(new[] { ", " }, 2, StringSplitOptions.None);
+
+                if (parts.Length == 2)
+                {
+                    var itemLabel = parts[0].Trim();
+                    var itemValue = parts[1].Trim();
+                    result.Add(new KeyValuePair<string,string>(itemLabel, itemValue));
+                    continue;
+                }
+            }
+
+            var t = item.GetType();
+
+            var labelProp = t.GetProperty("Label") ?? t.GetProperty("Name") ?? t.GetProperty("Text") ?? t.GetProperty("Key");
+            var valueProp = t.GetProperty("Tag")   ?? t.GetProperty("Value") ?? t.GetProperty("Id")  ?? t.GetProperty("Key");
+
+            if (labelProp is null && valueProp is null)
+            {
+                labelProp = t.GetProperty("Item1");
+                valueProp = t.GetProperty("Item2");
+            }
+
+            var label = labelProp?.GetValue(item)?.ToString();
+            var value = valueProp?.GetValue(item)?.ToString();
+
+            label ??= item.ToString() ?? "";
+            value ??= label;
+
+            if (!string.IsNullOrWhiteSpace(value))
+                result.Add(new KeyValuePair<string,string>(label, value));
+        }
+
+        return result;
+    }
+
+    private static string? GetDisplayName(PropertyInfo p)
+        => p.GetCustomAttribute<DisplayAttribute>()?.GetName();
+
+    private static string? GetHint(PropertyInfo p)
+        => p.GetCustomAttribute<DisplayAttribute>()?.GetDescription();
+
+    private static Type EffectiveType(Type t) => Nullable.GetUnderlyingType(t) ?? t;
+
+    private static TypeCode TypeCodeOf(Type t)
+    {
+        var et = EffectiveType(t);
+        return Type.GetTypeCode(et);
+    }
+
+    private static string DeriveRelationName(string fieldName)
+    {
+        if (fieldName.EndsWith("Id", StringComparison.Ordinal))
+            return fieldName.Substring(0, fieldName.Length - 2);
+
+        if (fieldName.EndsWith("Ids", StringComparison.Ordinal))
+            return fieldName.Substring(0, fieldName.Length - 3);
+
+        return fieldName;
+    }
 }

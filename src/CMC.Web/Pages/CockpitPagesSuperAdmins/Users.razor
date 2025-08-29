@@ -32,7 +32,7 @@
 		StateHasChanged();
 	}
 
-	private async Task<EFEditRequest> BuildUserDrawer(UserDto model, bool isCreate)
+	private EFEditRequest BuildUserDrawer(UserDto model, bool isCreate)
 	{
 		var req = new EFEditRequest
 		{
@@ -75,20 +75,20 @@
 				}
 			},
 
-			OnDelete = async ctx =>
+			OnDelete = ctx =>
 			{
 				var m = (UserDto)ctx.Model;
 
 				ConfirmService.Open(new DialogRequest
 				{
 					Title = "Löschen bestätigen",
-					Message = $"Benutzer „{m.FirstName} {m.LastName}“ wirklich löschen?",
+					Message = "Benutzer " + m.FirstName + " " + m.LastName + " wirklich löschen?",
 					ConfirmText = "Löschen",
 					OnConfirm = async () =>
 					{
 						try
 						{
-							await UserService.DeleteAsync(new DeleteUserRequest(m.Id));
+							await UserService.DeleteAsync(m.Id);
 							await ReloadAsync();
 							EFEditService.Close();
 						}
@@ -104,6 +104,8 @@
 						}
 					}
 				});
+
+				return Task.CompletedTask;
 			}
 		};
 
@@ -128,16 +130,16 @@
 			ReadOnly: false,
 			Hint: "Aus Liste wählen.",
 			DataType: "relation-auto",
-	        Value: model.CustomerId
+			Value: model.CustomerId
 		));
 
 		return req;
 	}
 
-	private async Task StartEdit(UserDto u)
-		=> EFEditService.Open(await BuildUserDrawer(u, isCreate: false));
+	private void StartEdit(UserDto u)
+		=> EFEditService.Open(BuildUserDrawer(u, isCreate: false));
 
-	private async Task StartCreate()
+	private void StartCreate()
 	{
 		var empty = new UserDto(
 			Id: Guid.Empty,
@@ -153,6 +155,6 @@
 			CustomerName: null
 		);
 
-		EFEditService.Open(await BuildUserDrawer(empty, isCreate: true));
+		EFEditService.Open(BuildUserDrawer(empty, isCreate: true));
 	}
 }

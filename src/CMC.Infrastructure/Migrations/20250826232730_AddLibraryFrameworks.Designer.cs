@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CMC.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250826232730_AddLibraryFrameworks")]
-    partial class AddLibraryFrameworks
+    [Migration("20250826232730_AddFrameworks")]
+    partial class AddFrameworks
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -130,7 +130,7 @@ namespace CMC.Infrastructure.Migrations
                     b.ToTable("LibraryControls");
                 });
 
-            modelBuilder.Entity("CMC.Domain.Entities.LibraryFramework", b =>
+            modelBuilder.Entity("CMC.Domain.Entities.Framework", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -161,7 +161,7 @@ namespace CMC.Infrastructure.Migrations
 
                     b.HasIndex("Name", "Version");
 
-                    b.ToTable("LibraryFrameworks");
+                    b.ToTable("Frameworks");
                 });
 
             modelBuilder.Entity("CMC.Domain.Entities.User", b =>

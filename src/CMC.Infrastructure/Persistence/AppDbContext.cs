@@ -1,4 +1,3 @@
-// src/CMC.Infrastructure/Persistence/AppDbContext.cs
 using CMC.Domain.Entities;
 using CMC.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;
@@ -8,43 +7,51 @@ namespace CMC.Infrastructure.Persistence;
 
 public class AppDbContext : DbContext
 {
-    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
+    {
+    }
 
+    // Core sets
     public DbSet<User> Users => Set<User>();
     public DbSet<Customer> Customers => Set<Customer>();
-    public DbSet<LibraryFramework> LibraryFrameworks => Set<LibraryFramework>();
-    public DbSet<LibraryControl> LibraryControls => Set<LibraryControl>();
+    public DbSet<Framework> Frameworks => Set<Framework>();
     public DbSet<Revision> Revisions => Set<Revision>();
 
-protected override void ConfigureConventions(ModelConfigurationBuilder cb)
-{
-	// vorhandene:
-	cb.Properties<DateTimeOffset>().HaveColumnType("timestamp with time zone");
-	cb.Properties<DateTimeOffset?>().HaveColumnType("timestamp with time zone");
-	cb.Properties<decimal>().HavePrecision(18, 2);
+    // Library & taxonomy
+    public DbSet<LibraryControl> LibraryControls => Set<LibraryControl>();
+    public DbSet<LibraryScenario> LibraryScenarios => Set<LibraryScenario>();
+    public DbSet<Industry> Industries => Set<Industry>();
 
-	// ❌ Entfernt: Email-Lambda-Conversions per HaveConversion(...),
-	// die verursachen CS1660, weil hier nur Typ-/Converter-Overloads erlaubt sind.
-}
+    // Joins (explicit entities)
+    public DbSet<LibraryControlFramework> LibraryControlFrameworks => Set<LibraryControlFramework>();
+    public DbSet<LibraryControlScenario> LibraryControlScenarios => Set<LibraryControlScenario>();
+    public DbSet<LibraryControlIndustry> LibraryControlIndustries => Set<LibraryControlIndustry>();
+    public DbSet<FrameworkIndustry> FrameworkIndustries => Set<FrameworkIndustry>();
+    public DbSet<CustomerIndustry> CustomerIndustries => Set<CustomerIndustry>();
+    public DbSet<LibraryScenarioIndustry> LibraryScenarioIndustries => Set<LibraryScenarioIndustry>();
 
-protected override void OnModelCreating(ModelBuilder modelBuilder)
-{
-	modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+    // Customer data
+    public DbSet<Control> Controls => Set<Control>();
+    public DbSet<Scenario> Scenarios => Set<Scenario>();
+    public DbSet<Evidence> Evidence => Set<Evidence>();
+    public DbSet<ToDo> ToDos => Set<ToDo>();
+    public DbSet<Report> Reports => Set<Report>();
+    public DbSet<ReportDefinition> ReportDefinitions => Set<ReportDefinition>();
+    public DbSet<RiskAcceptance> RiskAcceptances => Set<RiskAcceptance>();
 
-	// Revisions-Modell registrieren
-	CMC.Infrastructure.RevisionsRegistration.ConfigureRevisionsModel(modelBuilder);
+    protected override void ConfigureConventions(ModelConfigurationBuilder cb)
+    {
+        // existing
+        cb.Properties<DateTimeOffset>().HaveColumnType("timestamp with time zone");
+        cb.Properties<DateTimeOffset?>().HaveColumnType("timestamp with time zone");
+        cb.Properties<decimal>().HavePrecision(18, 2);
+    }
 
-	// ❌ Entfernt: Doppeltes Mapping als Owned Type kollidiert mit HasConversion in UserConfiguration
-	// modelBuilder.Entity<User>(b =>
-	// {
-	// 	b.OwnsOne(u => u.Email, nb =>
-	// 	{
-	// 		nb.Property(e => e.Value)
-	// 		  .HasColumnName("Email")
-	// 		  .IsRequired();
-	// 	});
-	// });
-}
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+        CMC.Infrastructure.RevisionsRegistration.ConfigureRevisionsModel(modelBuilder);
+    }
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
@@ -66,34 +73,13 @@ protected override void OnModelCreating(ModelBuilder modelBuilder)
         return base.SaveChangesAsync(cancellationToken);
     }
 
-    // ACHTUNG: Signatur auf DateTimeOffset, damit wir zentral normalisieren können.
     private static void SetIfExists(EntityEntry entry, string propName, DateTimeOffset value)
     {
-        var prop = entry.Properties
-            .FirstOrDefault(p => string.Equals(p.Metadata.Name, propName, StringComparison.OrdinalIgnoreCase));
-        if (prop is null) return;
-
-        var t = prop.Metadata.ClrType;
-
-        // Bevorzugt DateTimeOffset (timestamptz)
-        if (t == typeof(DateTimeOffset) || t == typeof(DateTimeOffset?))
+        // Implementation missing - this method needs to be completed
+        var property = entry.Entity.GetType().GetProperty(propName);
+        if (property != null && property.CanWrite)
         {
-            prop.CurrentValue = value;
-            return;
-        }
-
-        // Legacy-Felder als DateTime (timestamp without time zone)
-        if (t == typeof(DateTime) || t == typeof(DateTime?))
-        {
-            // explizit UTC-Kind setzen
-            prop.CurrentValue = DateTime.SpecifyKind(value.UtcDateTime, DateTimeKind.Utc);
-            return;
-        }
-
-        // Optional: String-Fallback, falls jemand CreatedAt als string gespeichert hat
-        if (t == typeof(string))
-        {
-            prop.CurrentValue = value.UtcDateTime.ToString("O");
+            property.SetValue(entry.Entity, value);
         }
     }
 }

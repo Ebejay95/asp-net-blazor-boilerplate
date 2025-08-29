@@ -1,0 +1,50 @@
+@using CMC.Web.FormFields
+@inherits FormFieldBase
+
+<div class="form-row">
+    <label class="form-label" for="@Name">@Label</label>
+    <input
+        class="form-control"
+        id="@Name"
+        type="number"
+        step="@Step"
+        min="@Min"
+        max="@Max"
+        value="@(Value?.ToString() ?? string.Empty)"
+        disabled="@ReadOnly"
+        required="@Required"
+        @oninput="HandleInput"
+        @attributes="AdditionalAttributes" />
+
+    @if (!string.IsNullOrWhiteSpace(Hint))
+    {
+        <div class="form-hint">@Hint</div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Step { get; set; } = "any";
+    [Parameter] public string? Min { get; set; }
+    [Parameter] public string? Max { get; set; }
+
+    private async Task HandleInput(ChangeEventArgs e)
+    {
+        var input = e.Value?.ToString();
+        object? newValue = null;
+
+        if (!string.IsNullOrWhiteSpace(input))
+        {
+            // Versuche verschiedene numerische Typen
+            if (decimal.TryParse(input, System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out var decValue))
+                newValue = decValue;
+            else if (double.TryParse(input, System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out var doubleValue))
+                newValue = doubleValue;
+            else if (long.TryParse(input, out var longValue))
+                newValue = longValue;
+        }
+
+        await OnChanged(newValue);
+    }
+}

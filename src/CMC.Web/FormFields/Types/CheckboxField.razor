@@ -1,0 +1,36 @@
+@using CMC.Web.FormFields
+@inherits FormFieldBase
+
+<div class="form-row">
+    <label class="form-label">
+        <input type="checkbox"
+               checked="@IsChecked"
+               disabled="@ReadOnly"
+               @onchange="HandleChange"
+               @attributes="AdditionalAttributes" />
+        @Label
+    </label>
+
+    @if (!string.IsNullOrWhiteSpace(Hint))
+    {
+        <div class="form-hint">@Hint</div>
+    }
+</div>
+
+@code {
+    private bool IsChecked => Value is bool b && b;
+
+    private async Task HandleChange(ChangeEventArgs e)
+    {
+        bool? newValue = null;
+
+        if (e.Value is bool boolValue)
+            newValue = boolValue;
+        else if (e.Value?.ToString() == "on")
+            newValue = true;
+        else if (bool.TryParse(e.Value?.ToString(), out var parsedBool))
+            newValue = parsedBool;
+
+        await OnChanged(newValue);
+    }
+}

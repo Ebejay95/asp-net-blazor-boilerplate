@@ -274,7 +274,7 @@ public sealed class RecycleBinService
             .FirstOrDefault(e => string.Equals(TableNameOf(e), normalized, StringComparison.OrdinalIgnoreCase));
         if (et != null) return et;
 
-        // 2) CLR-Klassenname (z. B. "LibraryFramework")
+        // 2) CLR-Klassenname (z. B. "Framework")
         et = _db.Model.GetEntityTypes()
             .FirstOrDefault(e => string.Equals(e.ClrType.Name, normalized, StringComparison.OrdinalIgnoreCase));
         if (et != null) return et;

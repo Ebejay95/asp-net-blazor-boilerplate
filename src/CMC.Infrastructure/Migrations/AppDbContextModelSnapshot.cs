@@ -22,22 +22,99 @@ namespace CMC.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("CMC.Domain.Entities.Control", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("CostTotalEur")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("Coverage")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
+
+                    b.Property<decimal>("DeltaEalEur")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateTimeOffset?>("DueDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("EvidenceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("EvidenceWeight")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<decimal>("Freshness")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<bool>("Implemented")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<Guid>("LibraryControlId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Maturity")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("Score")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EvidenceId");
+
+                    b.HasIndex("LibraryControlId");
+
+                    b.HasIndex("CustomerId", "IsDeleted");
+
+                    b.ToTable("Controls");
+                });
+
             modelBuilder.Entity("CMC.Domain.Entities.Customer", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<DateTime>("CreatedAt")
+                    b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("EmployeeCount")
                         .HasColumnType("integer");
-
-                    b.Property<string>("Industry")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
 
                     b.Property<bool>("IsActive")
                         .ValueGeneratedOnAdd()
@@ -53,13 +130,10 @@ namespace CMC.Infrastructure.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 
-                    b.Property<DateTime>("UpdatedAt")
+                    b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("Industry")
-                        .HasDatabaseName("IX_Customers_Industry");
 
                     b.HasIndex("IsActive")
                         .HasDatabaseName("IX_Customers_IsActive");
@@ -70,33 +144,197 @@ namespace CMC.Infrastructure.Migrations
                     b.ToTable("Customers");
                 });
 
+            modelBuilder.Entity("CMC.Domain.Entities.CustomerIndustry", b =>
+                {
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("IndustryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("IndustryId1")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("CustomerId", "IndustryId");
+
+                    b.HasIndex("IndustryId");
+
+                    b.HasIndex("IndustryId1");
+
+                    b.ToTable("CustomerIndustries");
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.Evidence", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CollectedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Confidentiality")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
+
+                    b.Property<string>("HashSha256")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Location")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("ValidUntil")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerId", "IsDeleted");
+
+                    b.ToTable("Evidence");
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.Framework", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Version")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsDeleted");
+
+                    b.HasIndex("Name", "Version");
+
+                    b.ToTable("Frameworks");
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.FrameworkIndustry", b =>
+                {
+                    b.Property<Guid>("FrameworkId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("IndustryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("IndustryId1")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("FrameworkId", "IndustryId");
+
+                    b.HasIndex("IndustryId");
+
+                    b.HasIndex("IndustryId1");
+
+                    b.ToTable("FrameworkIndustries");
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.Industry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name");
+
+                    b.ToTable("Industries");
+                });
+
             modelBuilder.Entity("CMC.Domain.Entities.LibraryControl", b =>
                 {
-                    b.Property<string>("Id")
-                        .HasMaxLength(16)
-                        .HasColumnType("character varying(16)");
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
 
                     b.Property<decimal>("CapexEur")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 
-                    b.Property<DateTime>("CreatedAt")
+                    b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string[]>("Deps")
-                        .IsRequired()
-                        .HasColumnType("text[]");
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("ExtDays")
+                    b.Property<string>("DeletedBy")
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
+
+                    b.Property<int>("ExternalDays")
                         .HasColumnType("integer");
 
-                    b.Property<string>("Industry")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<int>("IntDays")
+                    b.Property<int>("InternalDays")
                         .HasColumnType("integer");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -112,28 +350,88 @@ namespace CMC.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<int>("TtlDays")
+                    b.Property<int>("TotalDays")
                         .HasColumnType("integer");
 
-                    b.Property<DateTime>("UpdatedAt")
+                    b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("Industry");
 
                     b.HasIndex("Tag");
 
                     b.ToTable("LibraryControls");
                 });
 
-            modelBuilder.Entity("CMC.Domain.Entities.LibraryFramework", b =>
+            modelBuilder.Entity("CMC.Domain.Entities.LibraryControlFramework", b =>
+                {
+                    b.Property<Guid>("ControlId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("FrameworkId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("ControlId", "FrameworkId");
+
+                    b.HasIndex("FrameworkId");
+
+                    b.ToTable("LibraryControlFrameworks");
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.LibraryControlIndustry", b =>
+                {
+                    b.Property<Guid>("ControlId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("IndustryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("IndustryId1")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("ControlId", "IndustryId");
+
+                    b.HasIndex("IndustryId");
+
+                    b.HasIndex("IndustryId1");
+
+                    b.ToTable("LibraryControlIndustries");
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.LibraryControlScenario", b =>
+                {
+                    b.Property<Guid>("ControlId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ScenarioId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("FrequencyEffect")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<decimal>("ImpactEffect")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.HasKey("ControlId", "ScenarioId");
+
+                    b.HasIndex("ScenarioId");
+
+                    b.ToTable("LibraryControlScenarios");
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.LibraryScenario", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<DateTime>("CreatedAt")
+                    b.Property<decimal>("AnnualFrequency")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTimeOffset?>("DeletedAt")
@@ -143,10 +441,9 @@ namespace CMC.Infrastructure.Migrations
                         .HasMaxLength(320)
                         .HasColumnType("character varying(320)");
 
-                    b.Property<string>("Industry")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                    b.Property<decimal>("ImpactPctRevenue")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
 
                     b.Property<bool>("IsDeleted")
                         .ValueGeneratedOnAdd()
@@ -158,21 +455,135 @@ namespace CMC.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
-                    b.Property<DateTime>("UpdatedAt")
+                    b.Property<string>("Tags")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("Version")
+                    b.HasKey("Id");
+
+                    b.ToTable("LibraryScenarios");
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.LibraryScenarioIndustry", b =>
+                {
+                    b.Property<Guid>("ScenarioId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("IndustryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("IndustryId1")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("ScenarioId", "IndustryId");
+
+                    b.HasIndex("IndustryId");
+
+                    b.HasIndex("IndustryId1");
+
+                    b.ToTable("LibraryScenarioIndustries");
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.Report", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CustomerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("DefinitionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
+
+                    b.Property<bool>("Frozen")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset>("GeneratedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTimeOffset>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("PeriodStart")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Reports");
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.ReportDefinition", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Kind")
                         .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Sections")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("WindowDays")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("IsDeleted");
+                    b.HasIndex("CustomerId", "Name");
 
-                    b.HasIndex("Name", "Version");
-
-                    b.ToTable("LibraryFrameworks");
+                    b.ToTable("ReportDefinitions");
                 });
 
             modelBuilder.Entity("CMC.Domain.Entities.Revision", b =>
@@ -213,13 +624,185 @@ namespace CMC.Infrastructure.Migrations
                     b.ToTable("Revisions", (string)null);
                 });
 
+            modelBuilder.Entity("CMC.Domain.Entities.RiskAcceptance", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ControlId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<string>("RiskAcceptedBy")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerId", "ControlId");
+
+                    b.ToTable("RiskAcceptances");
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.Scenario", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("AnnualFrequency")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
+
+                    b.Property<decimal>("ImpactPctRevenue")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<Guid>("LibraryScenarioId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Tags")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LibraryScenarioId");
+
+                    b.HasIndex("CustomerId", "IsDeleted");
+
+                    b.ToTable("Scenarios");
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.ToDo", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Assignee")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
+
+                    b.Property<Guid>("ControlId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
+
+                    b.Property<Guid?>("DependsOnTaskId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("EndDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ExternalDays")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("InternalDays")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTimeOffset?>("StartDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<int>("TotalDays")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ToDos");
+                });
+
             modelBuilder.Entity("CMC.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<DateTime>("CreatedAt")
+                    b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid?>("CustomerId")
@@ -232,8 +815,9 @@ namespace CMC.Infrastructure.Migrations
 
                     b.Property<string>("Email")
                         .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
+                        .HasMaxLength(320)
+                        .IsUnicode(false)
+                        .HasColumnType("character varying(320)");
 
                     b.Property<string>("FirstName")
                         .IsRequired()
@@ -243,7 +827,7 @@ namespace CMC.Infrastructure.Migrations
                     b.Property<bool>("IsEmailConfirmed")
                         .HasColumnType("boolean");
 
-                    b.Property<DateTime?>("LastLoginAt")
+                    b.Property<DateTimeOffset?>("LastLoginAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("LastName")
@@ -258,7 +842,7 @@ namespace CMC.Infrastructure.Migrations
                     b.Property<string>("PasswordResetToken")
                         .HasColumnType("text");
 
-                    b.Property<DateTime?>("PasswordResetTokenExpiry")
+                    b.Property<DateTimeOffset?>("PasswordResetTokenExpiry")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Role")
@@ -277,6 +861,200 @@ namespace CMC.Infrastructure.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("CMC.Domain.Entities.Control", b =>
+                {
+                    b.HasOne("CMC.Domain.Entities.Customer", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CMC.Domain.Entities.Evidence", "Evidence")
+                        .WithMany()
+                        .HasForeignKey("EvidenceId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("CMC.Domain.Entities.LibraryControl", "LibraryControl")
+                        .WithMany()
+                        .HasForeignKey("LibraryControlId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("Evidence");
+
+                    b.Navigation("LibraryControl");
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.CustomerIndustry", b =>
+                {
+                    b.HasOne("CMC.Domain.Entities.Customer", "Customer")
+                        .WithMany("IndustryLinks")
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CMC.Domain.Entities.Industry", null)
+                        .WithMany()
+                        .HasForeignKey("IndustryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CMC.Domain.Entities.Industry", "Industry")
+                        .WithMany()
+                        .HasForeignKey("IndustryId1")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("Industry");
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.Evidence", b =>
+                {
+                    b.HasOne("CMC.Domain.Entities.Customer", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Customer");
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.FrameworkIndustry", b =>
+                {
+                    b.HasOne("CMC.Domain.Entities.Framework", "Framework")
+                        .WithMany("IndustryLinks")
+                        .HasForeignKey("FrameworkId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CMC.Domain.Entities.Industry", null)
+                        .WithMany()
+                        .HasForeignKey("IndustryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CMC.Domain.Entities.Industry", "Industry")
+                        .WithMany()
+                        .HasForeignKey("IndustryId1")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Framework");
+
+                    b.Navigation("Industry");
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.LibraryControlFramework", b =>
+                {
+                    b.HasOne("CMC.Domain.Entities.LibraryControl", "Control")
+                        .WithMany("FrameworkLinks")
+                        .HasForeignKey("ControlId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CMC.Domain.Entities.Framework", "Framework")
+                        .WithMany("ControlLinks")
+                        .HasForeignKey("FrameworkId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Control");
+
+                    b.Navigation("Framework");
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.LibraryControlIndustry", b =>
+                {
+                    b.HasOne("CMC.Domain.Entities.LibraryControl", "Control")
+                        .WithMany("IndustryLinks")
+                        .HasForeignKey("ControlId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CMC.Domain.Entities.Industry", null)
+                        .WithMany()
+                        .HasForeignKey("IndustryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CMC.Domain.Entities.Industry", "Industry")
+                        .WithMany()
+                        .HasForeignKey("IndustryId1")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Control");
+
+                    b.Navigation("Industry");
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.LibraryControlScenario", b =>
+                {
+                    b.HasOne("CMC.Domain.Entities.LibraryControl", "Control")
+                        .WithMany("ScenarioLinks")
+                        .HasForeignKey("ControlId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CMC.Domain.Entities.LibraryScenario", "Scenario")
+                        .WithMany("ControlLinks")
+                        .HasForeignKey("ScenarioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Control");
+
+                    b.Navigation("Scenario");
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.LibraryScenarioIndustry", b =>
+                {
+                    b.HasOne("CMC.Domain.Entities.Industry", null)
+                        .WithMany()
+                        .HasForeignKey("IndustryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CMC.Domain.Entities.Industry", "Industry")
+                        .WithMany()
+                        .HasForeignKey("IndustryId1")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CMC.Domain.Entities.LibraryScenario", "Scenario")
+                        .WithMany("IndustryLinks")
+                        .HasForeignKey("ScenarioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Industry");
+
+                    b.Navigation("Scenario");
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.Scenario", b =>
+                {
+                    b.HasOne("CMC.Domain.Entities.Customer", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CMC.Domain.Entities.LibraryScenario", "LibraryScenario")
+                        .WithMany()
+                        .HasForeignKey("LibraryScenarioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("LibraryScenario");
+                });
+
             modelBuilder.Entity("CMC.Domain.Entities.User", b =>
                 {
                     b.HasOne("CMC.Domain.Entities.Customer", "Customer")
@@ -289,7 +1067,32 @@ namespace CMC.Infrastructure.Migrations
 
             modelBuilder.Entity("CMC.Domain.Entities.Customer", b =>
                 {
+                    b.Navigation("IndustryLinks");
+
                     b.Navigation("Users");
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.Framework", b =>
+                {
+                    b.Navigation("ControlLinks");
+
+                    b.Navigation("IndustryLinks");
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.LibraryControl", b =>
+                {
+                    b.Navigation("FrameworkLinks");
+
+                    b.Navigation("IndustryLinks");
+
+                    b.Navigation("ScenarioLinks");
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.LibraryScenario", b =>
+                {
+                    b.Navigation("ControlLinks");
+
+                    b.Navigation("IndustryLinks");
                 });
 #pragma warning restore 612, 618
         }

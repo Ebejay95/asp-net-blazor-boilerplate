@@ -55,21 +55,21 @@
                     });
                 }
             },
-            OnDelete = async ctx =>
+            OnDelete = ctx =>
             {
                 var model = (CustomerDto)ctx.Model;
 
                 ConfirmService.Open(new DialogRequest
                 {
                     Title = "Löschen bestätigen",
-                    Message = $"Firma „{model.Name}“ wirklich löschen?",
+                    Message = "Firma " + model.Name + " wirklich löschen?",
                     ConfirmText = "Löschen",
                     CancelText = "Abbrechen",
                     OnConfirm = async () =>
                     {
                         try
                         {
-                            await CustomerService.DeleteAsync(new DeleteCustomerRequest(model.Id));
+                            await CustomerService.DeleteAsync(model.Id);
                             await Reload();
                             EFEditService.Close();
                         }
@@ -85,6 +85,8 @@
                         }
                     }
                 });
+
+                return Task.CompletedTask;
             }
         };
 

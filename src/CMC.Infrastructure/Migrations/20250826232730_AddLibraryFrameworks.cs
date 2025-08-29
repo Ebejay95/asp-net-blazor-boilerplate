@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace CMC.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class AddLibraryFrameworks : Migration
+    public partial class AddFrameworks : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -34,7 +34,7 @@ namespace CMC.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "LibraryFrameworks",
+                name: "Frameworks",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -46,7 +46,7 @@ namespace CMC.Infrastructure.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_LibraryFrameworks", x => x.Id);
+                    table.PrimaryKey("PK_Frameworks", x => x.Id);
                 });
 
             migrationBuilder.CreateIndex(
@@ -60,8 +60,8 @@ namespace CMC.Infrastructure.Migrations
                 column: "Tag");
 
             migrationBuilder.CreateIndex(
-                name: "IX_LibraryFrameworks_Name_Version",
-                table: "LibraryFrameworks",
+                name: "IX_Frameworks_Name_Version",
+                table: "Frameworks",
                 columns: new[] { "Name", "Version" });
         }
 
@@ -72,7 +72,7 @@ namespace CMC.Infrastructure.Migrations
                 name: "LibraryControls");
 
             migrationBuilder.DropTable(
-                name: "LibraryFrameworks");
+                name: "Frameworks");
         }
     }
 }

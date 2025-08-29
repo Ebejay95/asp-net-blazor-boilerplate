@@ -1,5 +1,188 @@
 @attribute [Authorize(Roles = "super-admin")]
-@* CockpitPages/CockpitOverview.razor *@
+@using System.Linq
+@using CMC.Contracts.Controls
+@using CMC.Web.Services
+@using CMC.Web.Util
+@using CMC.Domain.Entities
+@inject CMC.Application.Services.ControlService ControlService
+@inject EFEditService EFEditService
+@inject DialogService ConfirmService
+
 <div class="card">
-    <h2>Controls</h2>
+    <EFTable TItem="ControlDto"
+               Items="_controls"
+               AllowEdit="true"
+               OnEdit="StartEdit"
+               AllowCreate="true"
+               OnCreate="StartCreate" />
 </div>
+
+@code {
+    private List<ControlDto> _controls = new();
+
+    protected override async Task OnInitializedAsync()
+        => _controls = await ControlService.GetAllAsync();
+
+    private async Task Reload()
+    {
+        _controls = await ControlService.GetAllAsync();
+        StateHasChanged();
+    }
+
+    private void StartEdit(ControlDto control)
+    {
+        var req = new EFEditRequest
+        {
+            Title = "Control bearbeiten",
+            Model = control,
+            ContractsAssembly = typeof(ControlDto).Assembly,
+            EfParentType = typeof(Control),
+            GetParentKey = m => ((ControlDto)m).Id,
+            IsCreate = false,
+            OnSave = async ctx =>
+            {
+                try
+                {
+                    var up = (UpdateControlRequest)ctx.Build("Update");
+                    _ = await ControlService.UpdateAsync(up);
+                    await Reload();
+                    EFEditService.Close();
+                }
+                catch (Exception ex)
+                {
+                    ConfirmService.Open(new DialogRequest
+                    {
+                        Title = "Fehler beim Speichern",
+                        Message = ex.Message,
+                        ConfirmText = "Okay",
+                        OnConfirm = () => Task.CompletedTask
+                    });
+                }
+            },
+            OnDelete = ctx =>
+            {
+                var model = (ControlDto)ctx.Model;
+
+                ConfirmService.Open(new DialogRequest
+                {
+                    Title = "Löschen bestätigen",
+                    Message = "Control wirklich löschen?",
+                    ConfirmText = "Löschen",
+                    CancelText = "Abbrechen",
+                    OnConfirm = async () =>
+                    {
+                        try
+                        {
+                            await ControlService.DeleteAsync(model.Id);
+                            await Reload();
+                            EFEditService.Close();
+                        }
+                        catch (Exception ex)
+                        {
+                            ConfirmService.Open(new DialogRequest
+                            {
+                                Title = "Löschen fehlgeschlagen",
+                                Message = ex.Message,
+                                ConfirmText = "Okay",
+                                OnConfirm = () => Task.CompletedTask
+                            });
+                        }
+                    }
+                });
+
+                return Task.CompletedTask;
+            }
+        };
+
+        // Relation Fields für Controls
+        req.ExtraFields.Add(new ExtraField(
+            Name: "CustomerId",
+            Label: "Kunde",
+            Type: typeof(Guid?),
+            DataType: "relation-auto",
+            Value: control.CustomerId
+        ));
+
+        req.ExtraFields.Add(new ExtraField(
+            Name: "LibraryControlId",
+            Label: "Vorlage",
+            Type: typeof(Guid),
+            DataType: "relation-auto",
+            Value: control.LibraryControlId
+        ));
+
+        EFEditService.Open(req);
+    }
+
+private void StartCreate()
+{
+	var empty = new ControlDto
+	{
+		Id = Guid.Empty,
+		CustomerId = Guid.Empty, // <— statt null
+		LibraryControlId = Guid.Empty,
+		Implemented = false,
+		Coverage = 0m,
+		Maturity = 0,
+		EvidenceWeight = 0m,
+		Freshness = 0m,
+		CostTotalEur = 0m,
+		DeltaEalEur = 0m,
+		Score = 0m,
+		Status = "proposed",
+		DueDate = null,
+		CreatedAt = DateTime.UtcNow,
+		UpdatedAt = DateTime.UtcNow
+	};
+
+	var req = new EFEditRequest
+	{
+		Title = "Control anlegen",
+		Model = empty,
+		ContractsAssembly = typeof(ControlDto).Assembly,
+		EfParentType = typeof(Control),
+		GetParentKey = m => ((ControlDto)m).Id,
+		IsCreate = true,
+		OnSave = async ctx =>
+		{
+			try
+			{
+				var create = (CreateControlRequest)ctx.Build("Create");
+				_ = await ControlService.CreateAsync(create);
+				await Reload();
+				EFEditService.Close();
+			}
+			catch (Exception ex)
+			{
+				ConfirmService.Open(new DialogRequest
+				{
+					Title = "Fehler beim Anlegen",
+					Message = ex.Message,
+					ConfirmText = "Okay",
+					OnConfirm = () => Task.CompletedTask
+				});
+			}
+		}
+	};
+
+	// Relation Fields für neue Controls
+	req.ExtraFields.Add(new ExtraField(
+		Name: "CustomerId",
+		Label: "Kunde",
+		Type: typeof(Guid),   // <— non-nullable, passend zum DTO
+		DataType: "relation-auto",
+		Value: Guid.Empty     // <— statt null
+	));
+
+	req.ExtraFields.Add(new ExtraField(
+		Name: "LibraryControlId",
+		Label: "Vorlage",
+		Type: typeof(Guid),
+		DataType: "relation-auto",
+		Value: Guid.Empty
+	));
+
+	EFEditService.Open(req);
+}
+
+}

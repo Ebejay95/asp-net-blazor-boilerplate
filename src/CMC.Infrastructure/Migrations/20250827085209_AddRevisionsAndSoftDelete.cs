@@ -14,20 +14,20 @@ namespace CMC.Infrastructure.Migrations
         {
             migrationBuilder.AddColumn<DateTimeOffset>(
                 name: "DeletedAt",
-                table: "LibraryFrameworks",
+                table: "Frameworks",
                 type: "timestamp with time zone",
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
                 name: "DeletedBy",
-                table: "LibraryFrameworks",
+                table: "Frameworks",
                 type: "character varying(320)",
                 maxLength: 320,
                 nullable: true);
 
             migrationBuilder.AddColumn<bool>(
                 name: "IsDeleted",
-                table: "LibraryFrameworks",
+                table: "Frameworks",
                 type: "boolean",
                 nullable: false,
                 defaultValue: false);
@@ -51,8 +51,8 @@ namespace CMC.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_LibraryFrameworks_IsDeleted",
-                table: "LibraryFrameworks",
+                name: "IX_Frameworks_IsDeleted",
+                table: "Frameworks",
                 column: "IsDeleted");
 
             migrationBuilder.CreateIndex(
@@ -68,20 +68,20 @@ namespace CMC.Infrastructure.Migrations
                 name: "Revisions");
 
             migrationBuilder.DropIndex(
-                name: "IX_LibraryFrameworks_IsDeleted",
-                table: "LibraryFrameworks");
+                name: "IX_Frameworks_IsDeleted",
+                table: "Frameworks");
 
             migrationBuilder.DropColumn(
                 name: "DeletedAt",
-                table: "LibraryFrameworks");
+                table: "Frameworks");
 
             migrationBuilder.DropColumn(
                 name: "DeletedBy",
-                table: "LibraryFrameworks");
+                table: "Frameworks");
 
             migrationBuilder.DropColumn(
                 name: "IsDeleted",
-                table: "LibraryFrameworks");
+                table: "Frameworks");
         }
     }
 }

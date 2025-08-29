@@ -1,5 +1,148 @@
+@* Pages/CockpitPagesSuperAdmins/LibraryControls.razor *@
 @attribute [Authorize(Roles = "super-admin")]
-@* CockpitPages/CockpitOverview.razor *@
+@using System.Linq
+@using CMC.Contracts.LibraryControls
+@using CMC.Web.Services
+@inject CMC.Application.Services.LibraryControlService LibraryControlService
+@inject EFEditService EFEditService
+@inject DialogService ConfirmService
+
 <div class="card">
-    <h2>Vorlagen: Controls</h2>
+    <EFTable TItem="LibraryControlDto"
+               Items="_controls"
+               AllowEdit="true"
+               OnEdit="StartEdit"
+               AllowCreate="true"
+               OnCreate="StartCreate" />
 </div>
+
+@code {
+    private List<LibraryControlDto> _controls = new();
+
+    protected override async Task OnInitializedAsync()
+        => _controls = await LibraryControlService.GetAllAsync();
+
+    private async Task Reload()
+    {
+        _controls = await LibraryControlService.GetAllAsync();
+        StateHasChanged();
+    }
+
+    private void StartEdit(LibraryControlDto control)
+    {
+        var req = new EFEditRequest
+        {
+            Title = "Control bearbeiten",
+            Model = control,
+            ContractsAssembly = typeof(LibraryControlDto).Assembly,
+            IsCreate = false,
+            OnSave = async ctx =>
+            {
+                try
+                {
+                    var up = (UpdateLibraryControlRequest)ctx.Build("Update");
+                    _ = await LibraryControlService.UpdateAsync(up);
+                    await Reload();
+                    EFEditService.Close();
+                }
+                catch (Exception ex)
+                {
+                    ConfirmService.Open(new DialogRequest
+                    {
+                        Title = "Fehler beim Speichern",
+                        Message = ex.Message,
+                        ConfirmText = "Okay",
+                        OnConfirm = () => Task.CompletedTask
+                    });
+                }
+            },
+            OnDelete = ctx =>
+            {
+                var model = (LibraryControlDto)ctx.Model;
+
+                ConfirmService.Open(new DialogRequest
+                {
+                    Title = "Löschen bestätigen",
+                    Message = "Control " + model.Name + " wirklich löschen?",
+                    ConfirmText = "Löschen",
+                    CancelText = "Abbrechen",
+                    OnConfirm = async () =>
+                    {
+                        try
+                        {
+                            await LibraryControlService.DeleteAsync(model.Id);
+                            await Reload();
+                            EFEditService.Close();
+                        }
+                        catch (Exception ex)
+                        {
+                            ConfirmService.Open(new DialogRequest
+                            {
+                                Title = "Löschen fehlgeschlagen",
+                                Message = ex.Message,
+                                ConfirmText = "Okay",
+                                OnConfirm = () => Task.CompletedTask
+                            });
+                        }
+                    }
+                });
+
+                return Task.CompletedTask;
+            },
+            OnAfterRestore = async () =>
+            {
+                await Reload();
+                EFEditService.Close();
+            }
+        };
+
+        EFEditService.Open(req);
+    }
+
+    private void StartCreate()
+    {
+        var empty = new LibraryControlDto
+        {
+            Id = Guid.Empty,
+            Name = string.Empty,
+            Tag = string.Empty,
+            CapexEur = 0m,
+            OpexYearEur = 0m,
+            InternalDays = 0,
+            ExternalDays = 0,
+            TotalDays = 0,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        var req = new EFEditRequest
+        {
+            Title = "Control anlegen",
+            Model = empty,
+            ContractsAssembly = typeof(LibraryControlDto).Assembly,
+            IsCreate = true,
+            OnSave = async ctx =>
+            {
+                try
+                {
+                    var create = (CreateLibraryControlRequest)ctx.Build("Create");
+                    _ = await LibraryControlService.CreateAsync(create);
+                    await Reload();
+                    EFEditService.Close();
+                }
+                catch (Exception ex)
+                {
+                    ConfirmService.Open(new DialogRequest
+                    {
+                        Title = "Fehler beim Anlegen",
+                        Message = ex.Message,
+                        ConfirmText = "Okay",
+                        OnConfirm = () => Task.CompletedTask
+                    });
+                }
+            }
+        };
+
+        EFEditService.Open(req);
+    }
+}

@@ -1,0 +1,58 @@
+@using CMC.Web.FormFields
+@inherits FormFieldBase
+@using System.Globalization
+
+<div class="form-row">
+    <label class="form-label" for="@Name">@Label</label>
+    <input
+        class="form-control"
+        id="@Name"
+        type="datetime-local"
+        value="@FormattedValue"
+        disabled="@ReadOnly"
+        required="@Required"
+        @oninput="HandleInput"
+        @attributes="AdditionalAttributes" />
+
+    @if (!string.IsNullOrWhiteSpace(Hint))
+    {
+        <div class="form-hint">@Hint</div>
+    }
+</div>
+
+@code {
+    private string FormattedValue
+    {
+        get
+        {
+            if (Value is DateTime dt)
+            {
+                var local = dt.Kind == DateTimeKind.Utc ? dt.ToLocalTime() : dt;
+                return local.ToString("yyyy-MM-ddTHH:mm");
+            }
+            if (Value is DateTimeOffset dto)
+            {
+                return dto.ToLocalTime().ToString("yyyy-MM-ddTHH:mm");
+            }
+            return string.Empty;
+        }
+    }
+
+    private async Task HandleInput(ChangeEventArgs e)
+    {
+        var input = e.Value?.ToString();
+        object? newValue = null;
+
+        if (!string.IsNullOrWhiteSpace(input) &&
+             DateTime.TryParseExact(input,
+                 "yyyy-MM-ddTHH:mm",
+                 CultureInfo.InvariantCulture,
+                 DateTimeStyles.AssumeLocal,
+                 out var parsed))
+        {
+            newValue = DateTime.SpecifyKind(parsed, DateTimeKind.Local);
+        }
+
+        await OnChanged(newValue);
+    }
+}

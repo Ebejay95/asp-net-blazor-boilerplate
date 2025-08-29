@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.Serialization;
 using System.Runtime.CompilerServices;
 using CMC.Web.Services;
 
@@ -90,7 +89,7 @@ public sealed class EditContextAdapter
 		// ---------------- Instanz anlegen ----------------
 		object? instance = TryCreateWithParameterlessCtor(targetType)
 						   ?? TryCreateWithBestMatchingCtor(targetType, bag)
-						   ?? FormatterServices.GetUninitializedObject(targetType); // letzter Ausweg
+						   ?? CreateUninitializedInstance(targetType); // modernized approach
 
 		// ---------------- Properties nachziehen (nur schreibbar & nicht init-only) ----------------
 		MapByName(bag, instance);
@@ -165,23 +164,88 @@ public sealed class EditContextAdapter
 		return best.Ctor.Invoke(args);
 	}
 
+	/// <summary>
+	/// Creates an uninitialized instance using modern approach instead of obsolete FormatterServices.
+	/// </summary>
+	private static object CreateUninitializedInstance(Type targetType)
+	{
+		try
+		{
+			// 1) Public oder private parameterloser Ctor
+			return Activator.CreateInstance(targetType, nonPublic: true)!;
+		}
+		catch
+		{
+			try
+			{
+				// 2) Modern: kein FormatterServices mehr -> keine SYSLIB0050
+				return RuntimeHelpers.GetUninitializedObject(targetType);
+			}
+			catch (Exception ex)
+			{
+				throw new InvalidOperationException(
+					$"Cannot create instance of type '{targetType.FullName}'. " +
+					"The type must have a parameterless constructor or support uninitialized creation.",
+					ex);
+			}
+		}
+	}
+
+	// Alternative modern approach using RuntimeHelpers (available in .NET 5+)
+	// Uncomment this method and use it in CreateUninitializedInstance if you're on .NET 5+
+	/*
+	private static object CreateUninitializedInstanceModern(Type targetType)
+	{
+		try
+		{
+			// First try: Activator.CreateInstance with nonPublic flag
+			return Activator.CreateInstance(targetType, nonPublic: true)!;
+		}
+		catch
+		{
+			try
+			{
+				// Modern approach: RuntimeHelpers.GetUninitializedObject (.NET 5+)
+				return System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(targetType);
+			}
+			catch
+			{
+				throw new InvalidOperationException(
+					$"Cannot create instance of type '{targetType.FullName}'. " +
+					"The type must support object creation through Activator or RuntimeHelpers.");
+			}
+		}
+	}
+	*/
+
 	// ========================= Mapping Helpers =========================
 
 	/// <summary>
 	/// Werte aus Bag per Name auf das Zielobjekt mappen (nur schreibbare & nicht init-only Properties).
 	/// </summary>
-	private static void MapByName(IDictionary<string, object?> sourceBag, object target)
+	private static bool IsNavigationProperty(PropertyInfo prop)
 	{
-		var tgtProps = target.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance)
-			.Where(p => p.CanWrite && !IsInitOnly(p))
-			.ToDictionary(p => p.Name, p => p, StringComparer.OrdinalIgnoreCase);
+		// Collections (außer string) sind Navigation Properties
+		if (prop.PropertyType != typeof(string) &&
+			typeof(IEnumerable).IsAssignableFrom(prop.PropertyType))
+			return true;
 
-		foreach (var (name, val) in sourceBag)
-		{
-			if (!tgtProps.TryGetValue(name, out var tp)) continue;
-			var converted = ConvertToType(val, tp.PropertyType);
-			tp.SetValue(target, converted);
-		}
+		// Komplexe Typen (nicht primitive, Guid, DateTime, etc.) sind Navigation Properties
+		if (!prop.PropertyType.IsPrimitive &&
+			prop.PropertyType != typeof(string) &&
+			prop.PropertyType != typeof(Guid) &&
+			prop.PropertyType != typeof(Guid?) &&
+			prop.PropertyType != typeof(DateTime) &&
+			prop.PropertyType != typeof(DateTime?) &&
+			prop.PropertyType != typeof(DateTimeOffset) &&
+			prop.PropertyType != typeof(DateTimeOffset?) &&
+			prop.PropertyType != typeof(decimal) &&
+			prop.PropertyType != typeof(decimal?) &&
+			!prop.PropertyType.IsEnum &&
+			!Nullable.GetUnderlyingType(prop.PropertyType)?.IsEnum == true)
+			return true;
+
+		return false;
 	}
 
 	private static bool TrySet(object target, string propName, object? value)

@@ -1,0 +1,44 @@
+@* FormFields/SelectField.razor *@
+@using CMC.Web.FormFields
+@inherits FormFieldBase
+
+<div class="form-row">
+    <label class="form-label" for="@Name">@Label</label>
+    <select class="form-control"
+            id="@Name"
+            disabled="@ReadOnly"
+            required="@Required"
+            @onchange="HandleChange"
+            @attributes="AdditionalAttributes">
+
+        @if (IncludeEmptyOption)
+        {
+            <option value="">@EmptyOptionText</option>
+        }
+
+        @if (Options != null)
+        {
+            @foreach (var option in Options)
+            {
+                var isSelected = string.Equals(option.Value, Value?.ToString(), StringComparison.OrdinalIgnoreCase);
+                <option value="@option.Value" selected="@isSelected">@option.Key</option>
+            }
+        }
+    </select>
+
+    @if (!string.IsNullOrWhiteSpace(Hint))
+    {
+        <div class="form-hint">@Hint</div>
+    }
+</div>
+
+@code {
+    [Parameter] public List<KeyValuePair<string, string>>? Options { get; set; }
+    [Parameter] public bool IncludeEmptyOption { get; set; } = true;
+    [Parameter] public string EmptyOptionText { get; set; } = "-- bitte wählen --";
+
+    private async Task HandleChange(ChangeEventArgs e)
+    {
+        await OnChanged(e.Value?.ToString());
+    }
+}

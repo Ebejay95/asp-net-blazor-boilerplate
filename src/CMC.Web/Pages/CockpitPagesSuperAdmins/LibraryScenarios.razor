@@ -1,5 +1,144 @@
 @attribute [Authorize(Roles = "super-admin")]
-@* CockpitPages/CockpitOverview.razor *@
+@using System.Linq
+@using CMC.Contracts.LibraryScenarios
+@using CMC.Web.Services
+@inject CMC.Application.Services.LibraryScenarioService LibraryScenarioService
+@inject EFEditService EFEditService
+@inject DialogService ConfirmService
+
 <div class="card">
-    <h2>Vorlagen: Szenarien</h2>
+    <EFTable TItem="LibraryScenarioDto"
+               Items="_scenarios"
+               AllowEdit="true"
+               OnEdit="StartEdit"
+               AllowCreate="true"
+               OnCreate="StartCreate" />
 </div>
+
+@code {
+    private List<LibraryScenarioDto> _scenarios = new();
+
+    protected override async Task OnInitializedAsync()
+        => _scenarios = await LibraryScenarioService.GetAllAsync();
+
+    private async Task Reload()
+    {
+        _scenarios = await LibraryScenarioService.GetAllAsync();
+        StateHasChanged();
+    }
+
+    private void StartEdit(LibraryScenarioDto scenario)
+    {
+        var req = new EFEditRequest
+        {
+            Title = "Szenario bearbeiten",
+            Model = scenario,
+            ContractsAssembly = typeof(LibraryScenarioDto).Assembly,
+            IsCreate = false,
+            OnSave = async ctx =>
+            {
+                try
+                {
+                    var up = (UpdateLibraryScenarioRequest)ctx.Build("Update");
+                    _ = await LibraryScenarioService.UpdateAsync(up);
+                    await Reload();
+                    EFEditService.Close();
+                }
+                catch (Exception ex)
+                {
+                    ConfirmService.Open(new DialogRequest
+                    {
+                        Title = "Fehler beim Speichern",
+                        Message = ex.Message,
+                        ConfirmText = "Okay",
+                        OnConfirm = () => Task.CompletedTask
+                    });
+                }
+            },
+            OnDelete = ctx =>
+            {
+                var model = (LibraryScenarioDto)ctx.Model;
+
+                ConfirmService.Open(new DialogRequest
+                {
+                    Title = "Löschen bestätigen",
+                    Message = "Szenario " + model.Name + " wirklich löschen?",
+                    ConfirmText = "Löschen",
+                    CancelText = "Abbrechen",
+                    OnConfirm = async () =>
+                    {
+                        try
+                        {
+                            await LibraryScenarioService.DeleteAsync(model.Id);
+                            await Reload();
+                            EFEditService.Close();
+                        }
+                        catch (Exception ex)
+                        {
+                            ConfirmService.Open(new DialogRequest
+                            {
+                                Title = "Löschen fehlgeschlagen",
+                                Message = ex.Message,
+                                ConfirmText = "Okay",
+                                OnConfirm = () => Task.CompletedTask
+                            });
+                        }
+                    }
+                });
+
+                return Task.CompletedTask;
+            },
+            OnAfterRestore = async () =>
+            {
+                await Reload();
+                EFEditService.Close();
+            }
+        };
+
+        EFEditService.Open(req);
+    }
+
+    private void StartCreate()
+    {
+        var empty = new LibraryScenarioDto
+        {
+            Id = Guid.Empty,
+            Name = string.Empty,
+            AnnualFrequency = 0m,
+            ImpactPctRevenue = 0m,
+            Tags = string.Empty,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        var req = new EFEditRequest
+        {
+            Title = "Szenario anlegen",
+            Model = empty,
+            ContractsAssembly = typeof(LibraryScenarioDto).Assembly,
+            IsCreate = true,
+            OnSave = async ctx =>
+            {
+                try
+                {
+                    var create = (CreateLibraryScenarioRequest)ctx.Build("Create");
+                    _ = await LibraryScenarioService.CreateAsync(create);
+                    await Reload();
+                    EFEditService.Close();
+                }
+                catch (Exception ex)
+                {
+                    ConfirmService.Open(new DialogRequest
+                    {
+                        Title = "Fehler beim Anlegen",
+                        Message = ex.Message,
+                        ConfirmText = "Okay",
+                        OnConfirm = () => Task.CompletedTask
+                    });
+                }
+            }
+        };
+
+        EFEditService.Open(req);
+    }
+}

@@ -25,6 +25,10 @@ public sealed class RevisionService
               .Take(take)
               .ToListAsync();
 
+    // Alias method for compatibility with EfRevisionsClient
+    public Task<List<Revision>> GetAsync(string table, Guid id, int take = 100)
+        => GetByAssetAsync(table, id, take);
+
     public async Task RestoreAsync(long revisionId, string? userEmail = null, CancellationToken ct = default)
     {
         // Revision nur lesen, kein Tracking nötig
@@ -113,6 +117,64 @@ public sealed class RevisionService
         // *** WICHTIG: KEINE explizite Revision "Restore" mehr schreiben! ***
         // Dein Audit/ChangeTracker erzeugt beim SaveChanges ein normales "Update".
         await _db.SaveChangesAsync(ct);
+    }
+
+    // Fixed method - assuming you want to get a revision by ID and return it as RecycleBinItem
+    public async Task<RecycleBinItem?> GetByIdAsync(Guid id, CancellationToken ct = default)
+    {
+        var revision = await _db.Set<Revision>()
+                                .FirstOrDefaultAsync(r => r.AssetId == id, ct);
+
+        return revision is null ? null : MapToRecycleBinItem(revision);
+    }
+
+    // Helper method to map Revision to RecycleBinItem
+    private static RecycleBinItem MapToRecycleBinItem(Revision revision)
+    {
+        return new RecycleBinItem
+        {
+            Table = revision.Table ?? string.Empty,
+            EntityType = revision.Table ?? string.Empty,
+            AssetId = revision.AssetId,
+            Display = ExtractDisplayFromJson(revision.Data),
+            DeletedAt = revision.CreatedAt,
+            DeletedBy = revision.UserEmail,
+            Source = "Revision"
+        };
+    }
+
+    // Helper method to extract display text from JSON (copied from RecycleBinService)
+    private static string ExtractDisplayFromJson(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return "(ohne Bezeichnung)";
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            if (TryStr(root, "Name", out var s)) return s;
+            if (TryStr(root, "Title", out s)) return s;
+            if (TryStr(root, "Email", out s)) return s;
+            if (TryStr(root, "Tag", out s)) return s;
+
+            return "(Snapshot)";
+        }
+        catch
+        {
+            return "(Snapshot)";
+        }
+
+        static bool TryStr(JsonElement e, string key, out string val)
+        {
+            val = "";
+            if (e.ValueKind != JsonValueKind.Object) return false;
+            if (!e.TryGetProperty(key, out var p)) return false;
+            if (p.ValueKind != JsonValueKind.String) return false;
+            var s = p.GetString();
+            if (string.IsNullOrWhiteSpace(s)) return false;
+            val = s!;
+            return true;
+        }
     }
 
     private static Dictionary<string, object?> SafeToDictionary(string? json)

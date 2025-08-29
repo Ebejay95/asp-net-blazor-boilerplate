@@ -1,0 +1,126 @@
+@using CMC.Web.FormFields
+@using CMC.Web.Services
+@inherits FormFieldBase
+@inject IRelationshipManager Rels
+
+<div class="form-row">
+    <label class="form-label">@Label</label>
+
+    @if (_isLoading)
+    {
+        <div class="form-control" style="padding: 8px;">
+            <span>Lade Optionen...</span>
+        </div>
+    }
+    else if (_options.Count == 0)
+    {
+        <div class="form-control" style="padding: 8px;">
+            <span class="text-muted">Keine Optionen verfügbar</span>
+        </div>
+    }
+    else
+    {
+        <div class="checkbox-list">
+            @foreach (var option in _options)
+            {
+                var isChecked = _selectedKeys.Contains(option.Value);
+                <label class="chk-inline">
+                    <input type="checkbox"
+                           checked="@isChecked"
+                           disabled="@ReadOnly"
+                           @onchange="@(e => HandleCheckboxChange(option.Value, e))" />
+                    @option.Key
+                </label>
+            }
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(Hint))
+    {
+        <div class="form-hint">@Hint</div>
+    }
+</div>
+
+@code {
+    [Parameter] public string RelationName { get; set; } = "";
+    [Parameter] public Type? ParentType { get; set; }
+
+    private bool _isLoading = true;
+    private List<KeyValuePair<string, string>> _options = new();
+    private HashSet<string> _selectedKeys = new(StringComparer.OrdinalIgnoreCase);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadOptionsAsync();
+        UpdateSelectedFromValue();
+    }
+
+    private async Task LoadOptionsAsync()
+    {
+        if (ParentType is null || string.IsNullOrWhiteSpace(RelationName))
+        {
+            _isLoading = false;
+            return;
+        }
+
+        try
+        {
+            _isLoading = true;
+            var descriptor = Rels.GetDescriptor(ParentType, RelationName);
+
+            if (descriptor.Kind != RelationKind.ManyToMany)
+            {
+                _isLoading = false;
+                return;
+            }
+
+            var relationOptions = await descriptor.LoadOptions();
+            _options = relationOptions.Select(o => new KeyValuePair<string, string>(o.Label, o.Value)).ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading options for {RelationName}: {ex.Message}");
+            _options = new();
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void UpdateSelectedFromValue()
+    {
+        _selectedKeys.Clear();
+
+        if (Value is IEnumerable<string> stringList)
+        {
+            foreach (var key in stringList)
+                _selectedKeys.Add(key);
+        }
+        else if (Value is string singleString && !string.IsNullOrWhiteSpace(singleString))
+        {
+            var keys = singleString.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                                  .Select(k => k.Trim())
+                                  .Where(k => k.Length > 0);
+            foreach (var key in keys)
+                _selectedKeys.Add(key);
+        }
+    }
+
+    private async Task HandleCheckboxChange(string optionValue, ChangeEventArgs e)
+    {
+        var isChecked = e.Value?.ToString() == "on" || (e.Value is bool b && b);
+
+        if (isChecked)
+        {
+            _selectedKeys.Add(optionValue);
+        }
+        else
+        {
+            _selectedKeys.Remove(optionValue);
+        }
+
+        var newValue = _selectedKeys.ToList();
+        await OnChanged(newValue);
+    }
+}
