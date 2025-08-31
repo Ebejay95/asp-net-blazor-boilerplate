@@ -1,145 +1,142 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using CMC.Domain.Entities.Joins;
 
-namespace CMC.Domain.Entities;
-
-public class Customer
+namespace CMC.Domain.Entities
 {
-	#region Properties - Identity
+    public class Customer
+    {
+        #region Properties - Identity
+        public Guid Id { get; private set; }
+        public string Name { get; private set; } = string.Empty;
+        #endregion
 
-	public Guid Id { get; private set; }
+        #region Properties - Business Information
+        public int EmployeeCount { get; private set; }
+        public decimal RevenuePerYear { get; private set; }
+        #endregion
 
-	public string Name { get; private set; } = string.Empty;
+        #region Properties - Account Status & Tracking
+        public bool IsActive { get; private set; } = true;
+        public DateTimeOffset CreatedAt { get; private set; }
+        public DateTimeOffset UpdatedAt { get; private set; }
+        #endregion
 
-	#endregion
+        #region Navigation (Join-only + 1:n)
+        // Nur explizite Join-Entities (keine Skip-Navigation "Industries")
+        public virtual ICollection<CustomerIndustry> CustomerIndustries { get; private set; } = new List<CustomerIndustry>();
 
-	#region Properties - Business Information
+        // 1:n Customer -> Controls / Users
+        public virtual ICollection<Control> Controls { get; private set; } = new List<Control>();
+        public virtual ICollection<User> Users { get; private set; } = new List<User>();
+        #endregion
 
-	public int EmployeeCount { get; private set; }
+        #region Constructors
+        private Customer() { }
 
-	public decimal RevenuePerYear { get; private set; }
+        public Customer(string name, int employeeCount, decimal revenuePerYear)
+        {
+            if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Customer name cannot be null or empty", nameof(name));
+            if (employeeCount < 0) throw new ArgumentException("Employee count cannot be negative", nameof(employeeCount));
+            if (revenuePerYear < 0) throw new ArgumentException("Revenue cannot be negative", nameof(revenuePerYear));
 
-	#endregion
+            Id = Guid.NewGuid();
+            Name = name.Trim();
+            EmployeeCount = employeeCount;
+            RevenuePerYear = revenuePerYear;
 
-	#region Properties - Account Status & Tracking
+            CreatedAt = DateTimeOffset.UtcNow;
+            UpdatedAt = CreatedAt;
+            IsActive = true;
+        }
+        #endregion
 
-	public bool IsActive { get; private set; } = true;
+        #region Domain Methods - Business Information Updates
+        public void UpdateBusinessInfo(string name, int employeeCount, decimal revenuePerYear)
+        {
+            if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Customer name cannot be null or empty", nameof(name));
+            if (employeeCount < 0) throw new ArgumentException("Employee count cannot be negative", nameof(employeeCount));
+            if (revenuePerYear < 0) throw new ArgumentException("Revenue cannot be negative", nameof(revenuePerYear));
 
-	public DateTimeOffset CreatedAt { get; private set; }
+            Name = name.Trim();
+            EmployeeCount = employeeCount;
+            RevenuePerYear = revenuePerYear;
+            UpdatedAt = DateTimeOffset.UtcNow;
+        }
+        #endregion
 
-	public DateTimeOffset UpdatedAt { get; private set; }
+        #region Domain Methods - Account Status
+        public void Deactivate()
+        {
+            IsActive = false;
+            UpdatedAt = DateTimeOffset.UtcNow;
+        }
 
-	#endregion
+        public void Activate()
+        {
+            IsActive = true;
+            UpdatedAt = DateTimeOffset.UtcNow;
+        }
+        #endregion
 
-	#region Navigation Properties
+        #region Domain Methods - Industries (Join-only API)
+        /// <summary>
+        /// Ersetzt die Zuordnung zu Branchen (Industry) anhand einer Menge von Industry-Ids.
+        /// </summary>
+        public void SetIndustries(IEnumerable<Guid>? industryIds)
+        {
+            var target = (industryIds ?? Enumerable.Empty<Guid>())
+                .Where(id => id != Guid.Empty)
+                .Distinct()
+                .ToHashSet();
 
-	public virtual ICollection<User> Users { get; private set; } = new List<User>();
-	public virtual ICollection<CustomerIndustry> IndustryLinks { get; private set; } = new List<CustomerIndustry>();
+            // Remove missing links
+            var toRemove = CustomerIndustries.Where(l => !target.Contains(l.IndustryId)).ToList();
+            foreach (var r in toRemove) CustomerIndustries.Remove(r);
 
-	#endregion
+            // Add new links
+            var existing = CustomerIndustries.Select(l => l.IndustryId).ToHashSet();
+            foreach (var id in target)
+            {
+                if (!existing.Contains(id))
+                    CustomerIndustries.Add(new CustomerIndustry(customerId: Id, industryId: id));
+            }
 
-	#region Constructors
+            UpdatedAt = DateTimeOffset.UtcNow;
+        }
+public void AddIndustries(IEnumerable<Guid> industryIds)
+{
+    var current = GetIndustryIds();
+    var combined = current.Concat(industryIds).Distinct().ToArray();
+    SetIndustries(combined);
+}
 
-	private Customer() { }
+public void RemoveIndustries(IEnumerable<Guid> industryIds)
+{
+    var current = GetIndustryIds();
+    var remaining = current.Except(industryIds).ToArray();
+    SetIndustries(remaining);
+}
+        public IReadOnlyList<Guid> GetIndustryIds()
+            => CustomerIndustries.Select(l => l.IndustryId).Distinct().ToArray();
+        #endregion
 
-	public Customer(string name, int employeeCount, decimal revenuePerYear)
-	{
-		if (string.IsNullOrWhiteSpace(name))
-			throw new ArgumentException("Customer name cannot be null or empty", nameof(name));
-		if (employeeCount < 0)
-			throw new ArgumentException("Employee count cannot be negative", nameof(employeeCount));
-		if (revenuePerYear < 0)
-			throw new ArgumentException("Revenue cannot be negative", nameof(revenuePerYear));
+        #region Domain Methods - Users (1:n Helfer)
+        public void AddUser(User user)
+        {
+            if (user is null) throw new ArgumentNullException(nameof(user));
+            if (!Users.Any(u => u.Id == user.Id)) Users.Add(user);
+            UpdatedAt = DateTimeOffset.UtcNow;
+        }
 
-		Id = Guid.NewGuid();
-		Name = name.Trim();
-		EmployeeCount = employeeCount;
-		RevenuePerYear = revenuePerYear;
-		CreatedAt = DateTime.UtcNow;
-		UpdatedAt = DateTime.UtcNow;
-		IsActive = true;
-	}
-
-	#endregion
-
-	#region Domain Methods - Business Information Updates
-
-	/// <summary>
-	/// Updates the customer's business information.
-	/// </summary>
-	/// <param name="name">Updated company name</param>
-	/// <param name="employeeCount">Updated employee count</param>
-	/// <param name="revenuePerYear">Updated annual revenue</param>
-	public void UpdateBusinessInfo(string name, int employeeCount, decimal revenuePerYear)
-	{
-		if (string.IsNullOrWhiteSpace(name))
-			throw new ArgumentException("Customer name cannot be null or empty", nameof(name));
-		if (employeeCount < 0)
-			throw new ArgumentException("Employee count cannot be negative", nameof(employeeCount));
-		if (revenuePerYear < 0)
-			throw new ArgumentException("Revenue cannot be negative", nameof(revenuePerYear));
-
-		Name = name.Trim();
-		EmployeeCount = employeeCount;
-		RevenuePerYear = revenuePerYear;
-		UpdatedAt = DateTime.UtcNow;
-	}
-
-	#endregion
-
-	#region Domain Methods - Account Status
-
-	/// <summary>
-	/// Deactivates the customer account.
-	/// </summary>
-	public void Deactivate()
-	{
-		IsActive = false;
-		UpdatedAt = DateTime.UtcNow;
-	}
-
-	/// <summary>
-	/// Reactivates the customer account.
-	/// </summary>
-	public void Activate()
-	{
-		IsActive = true;
-		UpdatedAt = DateTime.UtcNow;
-	}
-
-	#endregion
-
-	#region Domain Methods - User Association
-
-	/// <summary>
-	/// Associates a user with this customer.
-	/// Simple internal method that just manages the collection.
-	/// </summary>
-	/// <param name="user">The user to associate</param>
-	internal void AddUser(User user)
-	{
-		if (user == null) throw new ArgumentNullException(nameof(user));
-
-		if (!Users.Contains(user))
-		{
-			Users.Add(user);
-		}
-	}
-
-	/// <summary>
-	/// Removes a user association from this customer.
-	/// Simple internal method that just manages the collection.
-	/// </summary>
-	/// <param name="user">The user to remove</param>
-	internal void RemoveUser(User user)
-	{
-		if (user == null) throw new ArgumentNullException(nameof(user));
-
-		if (Users.Contains(user))
-		{
-			Users.Remove(user);
-		}
-	}
-
-	#endregion
+        public void RemoveUser(User user)
+        {
+            if (user is null) return;
+            var existing = Users.FirstOrDefault(u => u.Id == user.Id);
+            if (existing != null) Users.Remove(existing);
+            UpdatedAt = DateTimeOffset.UtcNow;
+        }
+        #endregion
+    }
 }

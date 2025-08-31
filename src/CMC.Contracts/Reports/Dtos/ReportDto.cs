@@ -15,21 +15,21 @@ namespace CMC.Contracts.Reports
 		public Guid DefinitionId { get; init; }
 
 		[Display(Name = "Zeitraum von"), DisplayFormat(DataFormatString = "{0:dd.MM.yyyy HH:mm}")]
-		public DateTime PeriodStart { get; set; }
+		public DateTimeOffset PeriodStart { get; set; }
 
 		[Display(Name = "Zeitraum bis"), DisplayFormat(DataFormatString = "{0:dd.MM.yyyy HH:mm}")]
-		public DateTime PeriodEnd { get; set; }
+		public DateTimeOffset PeriodEnd { get; set; }
 
 		[Display(Name = "Generiert am"), DisplayFormat(DataFormatString = "{0:dd.MM.yyyy HH:mm}")]
-		public DateTime GeneratedAt { get; set; }
+		public DateTimeOffset GeneratedAt { get; set; }
 
 		[Display(Name = "Eingefroren")]
 		public bool Frozen { get; set; }
 
 		[Display(Name = "Erstellt am"), DisplayFormat(DataFormatString = "{0:dd.MM.yyyy HH:mm}")]
-		public DateTime CreatedAt { get; set; }
+		public DateTimeOffset CreatedAt { get; set; }
 
 		[Display(Name = "Aktualisiert am"), DisplayFormat(DataFormatString = "{0:dd.MM.yyyy HH:mm}")]
-		public DateTime UpdatedAt { get; set; }
+		public DateTimeOffset UpdatedAt { get; set; }
 	}
 }

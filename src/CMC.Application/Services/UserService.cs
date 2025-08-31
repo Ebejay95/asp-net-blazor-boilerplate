@@ -96,8 +96,7 @@ public class UserService
 
   public async Task<List<UserDto>> GetByCustomerAsync(Guid customerId, CancellationToken cancellationToken = default)
   {
-    var users = await _userRepository.GetAllAsync(cancellationToken);
-    var customerUsers = users.Where(u => u.CustomerId == customerId).ToList();
+    var customerUsers = await _userRepository.GetByCustomerIdAsync(customerId, cancellationToken);
 
     var userDtos = new List<UserDto>();
     foreach (var user in customerUsers)
@@ -254,7 +253,7 @@ public class UserService
       throw new ArgumentNullException(nameof(request));
 
     var user = await _userRepository.GetByPasswordResetTokenAsync(request.Token, cancellationToken);
-    if (user == null || user.PasswordResetTokenExpiry < DateTime.UtcNow)
+    if (user == null || !user.PasswordResetTokenExpiry.HasValue || user.PasswordResetTokenExpiry.Value < DateTime.UtcNow)
       return false;
 
     var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
@@ -282,21 +281,6 @@ public class UserService
   private static DateTime ToUtc(DateTimeOffset dto) => dto.UtcDateTime;
   private static DateTime? ToUtc(DateTimeOffset? dto) => dto.HasValue ? dto.Value.UtcDateTime : (DateTime?)null;
 
-  private static UserDto ToDto(Domain.Entities.User u) => new UserDto
-  {
-    Id = u.Id,
-    Email = u.Email,
-    FirstName = u.FirstName,
-    LastName = u.LastName,
-    Role = u.Role,
-    Department = u.Department,
-    IsEmailConfirmed = u.IsEmailConfirmed,
-    CreatedAt = ToUtc(u.CreatedAt),
-    LastLoginAt = ToUtc(u.LastLoginAt),
-    CustomerId = u.CustomerId,
-    CustomerName = u.Customer?.Name
-  };
-
   /// <summary>
   /// Maps a User domain entity to a UserDto for external consumption.
   /// Includes customer information if the user is associated with one.
@@ -320,10 +304,10 @@ public class UserService
       Role = user.Role,
       Department = user.Department,
       IsEmailConfirmed = user.IsEmailConfirmed,
-      CreatedAt = ToUtc(user.CreatedAt),
-      LastLoginAt = ToUtc(user.LastLoginAt),
       CustomerId = user.CustomerId,
-      CustomerName = customerName
+      CustomerName = customerName,
+      CreatedAt   = user.CreatedAt,
+      LastLoginAt = user.LastLoginAt
     };
   }
 

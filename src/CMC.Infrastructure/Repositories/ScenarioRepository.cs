@@ -28,11 +28,13 @@ public class ScenarioRepository : IScenarioRepository
 		await _db.SaveChangesAsync(ct);
 	}
 
-	public async Task DeleteAsync(Scenario e, CancellationToken ct = default)
-	{
-		_db.Scenarios.Remove(e);
-		await _db.SaveChangesAsync(ct);
-	}
+    public async Task DeleteAsync(Scenario e, CancellationToken ct = default)
+    {
+        if (e == null) throw new ArgumentNullException(nameof(e));
+        e.Delete();
+        _db.Scenarios.Update(e);
+        await _db.SaveChangesAsync(ct);
+    }
 
 	public Task<List<Scenario>> GetByCustomerAsync(Guid customerId, CancellationToken ct = default)
 		=> _db.Scenarios.AsNoTracking()

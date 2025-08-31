@@ -1,9 +1,10 @@
+using System;
 using System.ComponentModel.DataAnnotations;
 
 namespace CMC.Contracts.Reports
 {
 	public record CreateReportDefinitionRequest(
-		[property: Required, StringLength(100, MinimumLength = 1), Display(Name = "Kunde")]
+		[property: Required, Display(Name = "Kunde")]
 		Guid CustomerId,
 		[property: Required, StringLength(200, MinimumLength = 1), Display(Name = "Name")]
 		string Name,

@@ -1,17 +1,18 @@
+// CMC.Contracts/Common/RelationFromAttribute.cs
 using System;
 
 namespace CMC.Contracts.Common
 {
-	[AttributeUsage(AttributeTargets.Property, AllowMultiple = false, Inherited = true)]
-	public sealed class RelationFromAttribute : Attribute
-	{
-		public string RelationName { get; }
-		public bool IsMany { get; }
+    [AttributeUsage(AttributeTargets.Property)]
+    public class RelationFromAttribute : Attribute
+    {
+        public bool IsMany { get; init; }
+        public string? RelationName { get; init; }  // <- Das Property das fehlt
 
-		public RelationFromAttribute(string relationName, bool isMany = false)
-		{
-			RelationName = relationName ?? string.Empty;
-			IsMany = isMany;
-		}
-	}
+        public RelationFromAttribute(bool isMany = false, string? relationName = null)
+        {
+            IsMany = isMany;
+            RelationName = relationName;
+        }
+    }
 }

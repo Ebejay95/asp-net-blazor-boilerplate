@@ -33,8 +33,8 @@ namespace CMC.Infrastructure.Migrations
                         .HasColumnType("numeric(18,2)");
 
                     b.Property<decimal>("Coverage")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("numeric(18,4)");
+                        .HasPrecision(9, 6)
+                        .HasColumnType("numeric(9,6)");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -60,12 +60,12 @@ namespace CMC.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<decimal>("EvidenceWeight")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("numeric(18,4)");
+                        .HasPrecision(9, 6)
+                        .HasColumnType("numeric(9,6)");
 
                     b.Property<decimal>("Freshness")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("numeric(18,4)");
+                        .HasPrecision(9, 6)
+                        .HasColumnType("numeric(9,6)");
 
                     b.Property<bool>("Implemented")
                         .HasColumnType("boolean");
@@ -82,8 +82,8 @@ namespace CMC.Infrastructure.Migrations
                         .HasColumnType("integer");
 
                     b.Property<decimal>("Score")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("numeric(18,4)");
+                        .HasPrecision(9, 4)
+                        .HasColumnType("numeric(9,4)");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -99,9 +99,26 @@ namespace CMC.Infrastructure.Migrations
 
                     b.HasIndex("LibraryControlId");
 
+                    b.HasIndex("Status");
+
                     b.HasIndex("CustomerId", "IsDeleted");
 
-                    b.ToTable("Controls");
+                    b.ToTable("Controls", (string)null);
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.ControlScenario", b =>
+                {
+                    b.Property<Guid>("ControlId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ScenarioId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("ControlId", "ScenarioId");
+
+                    b.HasIndex("ScenarioId");
+
+                    b.ToTable("ControlScenarios", (string)null);
                 });
 
             modelBuilder.Entity("CMC.Domain.Entities.Customer", b =>
@@ -123,8 +140,8 @@ namespace CMC.Infrastructure.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
 
                     b.Property<decimal>("RevenuePerYear")
                         .HasPrecision(18, 2)
@@ -141,27 +158,7 @@ namespace CMC.Infrastructure.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("Customers");
-                });
-
-            modelBuilder.Entity("CMC.Domain.Entities.CustomerIndustry", b =>
-                {
-                    b.Property<Guid>("CustomerId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("IndustryId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("IndustryId1")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("CustomerId", "IndustryId");
-
-                    b.HasIndex("IndustryId");
-
-                    b.HasIndex("IndustryId1");
-
-                    b.ToTable("CustomerIndustries");
+                    b.ToTable("Customers", (string)null);
                 });
 
             modelBuilder.Entity("CMC.Domain.Entities.Evidence", b =>
@@ -193,8 +190,8 @@ namespace CMC.Infrastructure.Migrations
 
                     b.Property<string>("HashSha256")
                         .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
 
                     b.Property<bool>("IsDeleted")
                         .ValueGeneratedOnAdd()
@@ -217,11 +214,19 @@ namespace CMC.Infrastructure.Migrations
                     b.Property<DateTimeOffset?>("ValidUntil")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("CollectedAt");
 
                     b.HasIndex("CustomerId", "IsDeleted");
 
-                    b.ToTable("Evidence");
+                    b.ToTable("Evidence", (string)null);
                 });
 
             modelBuilder.Entity("CMC.Domain.Entities.Framework", b =>
@@ -260,11 +265,9 @@ namespace CMC.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("IsDeleted");
-
                     b.HasIndex("Name", "Version");
 
-                    b.ToTable("Frameworks");
+                    b.ToTable("Frameworks", (string)null);
                 });
 
             modelBuilder.Entity("CMC.Domain.Entities.FrameworkIndustry", b =>
@@ -275,7 +278,7 @@ namespace CMC.Infrastructure.Migrations
                     b.Property<Guid>("IndustryId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("IndustryId1")
+                    b.Property<Guid?>("IndustryId1")
                         .HasColumnType("uuid");
 
                     b.HasKey("FrameworkId", "IndustryId");
@@ -284,7 +287,7 @@ namespace CMC.Infrastructure.Migrations
 
                     b.HasIndex("IndustryId1");
 
-                    b.ToTable("FrameworkIndustries");
+                    b.ToTable("FrameworkIndustries", (string)null);
                 });
 
             modelBuilder.Entity("CMC.Domain.Entities.Industry", b =>
@@ -302,7 +305,22 @@ namespace CMC.Infrastructure.Migrations
 
                     b.HasIndex("Name");
 
-                    b.ToTable("Industries");
+                    b.ToTable("Industries", (string)null);
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.Joins.CustomerIndustry", b =>
+                {
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("IndustryId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("CustomerId", "IndustryId");
+
+                    b.HasIndex("IndustryId");
+
+                    b.ToTable("CustomerIndustries", (string)null);
                 });
 
             modelBuilder.Entity("CMC.Domain.Entities.LibraryControl", b =>
@@ -345,11 +363,6 @@ namespace CMC.Infrastructure.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 
-                    b.Property<string>("Tag")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
                     b.Property<int>("TotalDays")
                         .HasColumnType("integer");
 
@@ -358,67 +371,86 @@ namespace CMC.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Tag");
+                    b.HasIndex("IsDeleted");
 
-                    b.ToTable("LibraryControls");
+                    b.HasIndex("Name", "IsDeleted");
+
+                    b.ToTable("LibraryControls", (string)null);
                 });
 
             modelBuilder.Entity("CMC.Domain.Entities.LibraryControlFramework", b =>
                 {
-                    b.Property<Guid>("ControlId")
+                    b.Property<Guid>("LibraryControlId")
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("FrameworkId")
                         .HasColumnType("uuid");
 
-                    b.HasKey("ControlId", "FrameworkId");
+                    b.HasKey("LibraryControlId", "FrameworkId");
 
                     b.HasIndex("FrameworkId");
 
-                    b.ToTable("LibraryControlFrameworks");
+                    b.ToTable("LibraryControlFrameworks", (string)null);
                 });
 
             modelBuilder.Entity("CMC.Domain.Entities.LibraryControlIndustry", b =>
                 {
-                    b.Property<Guid>("ControlId")
+                    b.Property<Guid>("LibraryControlId")
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("IndustryId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("IndustryId1")
+                    b.Property<Guid?>("IndustryId1")
                         .HasColumnType("uuid");
 
-                    b.HasKey("ControlId", "IndustryId");
+                    b.HasKey("LibraryControlId", "IndustryId");
 
                     b.HasIndex("IndustryId");
 
                     b.HasIndex("IndustryId1");
 
-                    b.ToTable("LibraryControlIndustries");
+                    b.ToTable("LibraryControlIndustries", (string)null);
                 });
 
             modelBuilder.Entity("CMC.Domain.Entities.LibraryControlScenario", b =>
                 {
-                    b.Property<Guid>("ControlId")
+                    b.Property<Guid>("LibraryControlId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("ScenarioId")
+                    b.Property<Guid>("LibraryScenarioId")
                         .HasColumnType("uuid");
 
-                    b.Property<decimal>("FrequencyEffect")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("numeric(18,4)");
+                    b.Property<Guid?>("LibraryScenarioId1")
+                        .HasColumnType("uuid");
 
-                    b.Property<decimal>("ImpactEffect")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("numeric(18,4)");
+                    b.HasKey("LibraryControlId", "LibraryScenarioId");
 
-                    b.HasKey("ControlId", "ScenarioId");
+                    b.HasIndex("LibraryScenarioId");
 
-                    b.HasIndex("ScenarioId");
+                    b.HasIndex("LibraryScenarioId1");
 
-                    b.ToTable("LibraryControlScenarios");
+                    b.ToTable("LibraryControlScenarios", (string)null);
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.LibraryControlTag", b =>
+                {
+                    b.Property<Guid>("LibraryControlId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TagId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("TagId1")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("LibraryControlId", "TagId");
+
+                    b.HasIndex("TagId");
+
+                    b.HasIndex("TagId1");
+
+                    b.ToTable("LibraryControlTags", (string)null);
                 });
 
             modelBuilder.Entity("CMC.Domain.Entities.LibraryScenario", b =>
@@ -428,8 +460,8 @@ namespace CMC.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<decimal>("AnnualFrequency")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("numeric(18,4)");
+                        .HasPrecision(9, 6)
+                        .HasColumnType("numeric(9,6)");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -442,8 +474,8 @@ namespace CMC.Infrastructure.Migrations
                         .HasColumnType("character varying(320)");
 
                     b.Property<decimal>("ImpactPctRevenue")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("numeric(18,4)");
+                        .HasPrecision(9, 6)
+                        .HasColumnType("numeric(9,6)");
 
                     b.Property<bool>("IsDeleted")
                         .ValueGeneratedOnAdd()
@@ -455,37 +487,107 @@ namespace CMC.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
-                    b.Property<string>("Tags")
-                        .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
-
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
-                    b.ToTable("LibraryScenarios");
+                    b.HasIndex("Name");
+
+                    b.ToTable("LibraryScenarios", (string)null);
                 });
 
             modelBuilder.Entity("CMC.Domain.Entities.LibraryScenarioIndustry", b =>
                 {
-                    b.Property<Guid>("ScenarioId")
+                    b.Property<Guid>("LibraryScenarioId")
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("IndustryId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("IndustryId1")
+                    b.Property<Guid?>("IndustryId1")
                         .HasColumnType("uuid");
 
-                    b.HasKey("ScenarioId", "IndustryId");
+                    b.HasKey("LibraryScenarioId", "IndustryId");
 
                     b.HasIndex("IndustryId");
 
                     b.HasIndex("IndustryId1");
 
-                    b.ToTable("LibraryScenarioIndustries");
+                    b.ToTable("LibraryScenarioIndustries", (string)null);
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.LibraryScenarioTag", b =>
+                {
+                    b.Property<Guid>("LibraryScenarioId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TagId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("TagId1")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("LibraryScenarioId", "TagId");
+
+                    b.HasIndex("TagId");
+
+                    b.HasIndex("TagId1");
+
+                    b.ToTable("LibraryScenarioTags", (string)null);
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.ProvisionedControlMap", b =>
+                {
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("LibraryControlId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ScenarioId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ControlId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("CustomerId", "LibraryControlId", "ScenarioId");
+
+                    b.HasIndex("ControlId")
+                        .IsUnique();
+
+                    b.HasIndex("LibraryControlId");
+
+                    b.HasIndex("ScenarioId");
+
+                    b.ToTable("ProvisionedControlMaps", (string)null);
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.ProvisionedScenarioMap", b =>
+                {
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("LibraryScenarioId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ScenarioId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("CustomerId", "LibraryScenarioId");
+
+                    b.HasIndex("LibraryScenarioId");
+
+                    b.HasIndex("ScenarioId")
+                        .IsUnique();
+
+                    b.ToTable("ProvisionedScenarioMaps", (string)null);
                 });
 
             modelBuilder.Entity("CMC.Domain.Entities.Report", b =>
@@ -530,9 +632,29 @@ namespace CMC.Infrastructure.Migrations
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("Id");
 
-                    b.ToTable("Reports");
+                    b.HasIndex("DefinitionId");
+
+                    b.HasIndex("GeneratedAt");
+
+                    b.HasIndex("CustomerId", "IsDeleted");
+
+                    b.HasIndex("DefinitionId", "PeriodStart", "PeriodEnd", "CustomerId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Reports_Def_Period_Cust")
+                        .HasFilter("\"IsDeleted\" = false");
+
+                    b.ToTable("Reports", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Reports_Period", "\"PeriodEnd\" >= \"PeriodStart\"");
+                        });
                 });
 
             modelBuilder.Entity("CMC.Domain.Entities.ReportDefinition", b =>
@@ -579,11 +701,18 @@ namespace CMC.Infrastructure.Migrations
                     b.Property<int>("WindowDays")
                         .HasColumnType("integer");
 
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("CustomerId", "Name");
+                    b.HasIndex("CustomerId", "Name")
+                        .IsUnique();
 
-                    b.ToTable("ReportDefinitions");
+                    b.ToTable("ReportDefinitions", (string)null);
                 });
 
             modelBuilder.Entity("CMC.Domain.Entities.Revision", b =>
@@ -667,11 +796,21 @@ namespace CMC.Infrastructure.Migrations
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("ControlId");
+
+                    b.HasIndex("ExpiresAt");
 
                     b.HasIndex("CustomerId", "ControlId");
 
-                    b.ToTable("RiskAcceptances");
+                    b.ToTable("RiskAcceptances", (string)null);
                 });
 
             modelBuilder.Entity("CMC.Domain.Entities.Scenario", b =>
@@ -681,8 +820,8 @@ namespace CMC.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<decimal>("AnnualFrequency")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("numeric(18,4)");
+                        .HasPrecision(9, 6)
+                        .HasColumnType("numeric(9,6)");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -698,8 +837,8 @@ namespace CMC.Infrastructure.Migrations
                         .HasColumnType("character varying(320)");
 
                     b.Property<decimal>("ImpactPctRevenue")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("numeric(18,4)");
+                        .HasPrecision(9, 6)
+                        .HasColumnType("numeric(9,6)");
 
                     b.Property<bool>("IsDeleted")
                         .ValueGeneratedOnAdd()
@@ -714,11 +853,6 @@ namespace CMC.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
-                    b.Property<string>("Tags")
-                        .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
-
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -728,7 +862,50 @@ namespace CMC.Infrastructure.Migrations
 
                     b.HasIndex("CustomerId", "IsDeleted");
 
-                    b.ToTable("Scenarios");
+                    b.HasIndex("CustomerId", "LibraryScenarioId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Scenarios_Cust_LibScenario")
+                        .HasFilter("\"IsDeleted\" = false");
+
+                    b.ToTable("Scenarios", (string)null);
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.ScenarioTag", b =>
+                {
+                    b.Property<Guid>("ScenarioId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TagId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("TagId1")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("ScenarioId", "TagId");
+
+                    b.HasIndex("TagId");
+
+                    b.HasIndex("TagId1");
+
+                    b.ToTable("ScenarioTags", (string)null);
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.Tag", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name");
+
+                    b.ToTable("Tags", (string)null);
                 });
 
             modelBuilder.Entity("CMC.Domain.Entities.ToDo", b =>
@@ -782,8 +959,8 @@ namespace CMC.Infrastructure.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
                     b.Property<int>("TotalDays")
                         .HasColumnType("integer");
@@ -793,7 +970,15 @@ namespace CMC.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ToDos");
+                    b.HasIndex("ControlId");
+
+                    b.HasIndex("DependsOnTaskId");
+
+                    b.HasIndex("ControlId", "DependsOnTaskId");
+
+                    b.HasIndex("Status", "IsDeleted");
+
+                    b.ToTable("ToDos", (string)null);
                 });
 
             modelBuilder.Entity("CMC.Domain.Entities.User", b =>
@@ -864,13 +1049,13 @@ namespace CMC.Infrastructure.Migrations
             modelBuilder.Entity("CMC.Domain.Entities.Control", b =>
                 {
                     b.HasOne("CMC.Domain.Entities.Customer", "Customer")
-                        .WithMany()
+                        .WithMany("Controls")
                         .HasForeignKey("CustomerId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("CMC.Domain.Entities.Evidence", "Evidence")
-                        .WithMany()
+                        .WithMany("Controls")
                         .HasForeignKey("EvidenceId")
                         .OnDelete(DeleteBehavior.SetNull);
 
@@ -887,40 +1072,23 @@ namespace CMC.Infrastructure.Migrations
                     b.Navigation("LibraryControl");
                 });
 
-            modelBuilder.Entity("CMC.Domain.Entities.CustomerIndustry", b =>
+            modelBuilder.Entity("CMC.Domain.Entities.ControlScenario", b =>
                 {
-                    b.HasOne("CMC.Domain.Entities.Customer", "Customer")
-                        .WithMany("IndustryLinks")
-                        .HasForeignKey("CustomerId")
+                    b.HasOne("CMC.Domain.Entities.Control", "Control")
+                        .WithMany("ScenarioLinks")
+                        .HasForeignKey("ControlId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("CMC.Domain.Entities.Industry", null)
-                        .WithMany()
-                        .HasForeignKey("IndustryId")
+                    b.HasOne("CMC.Domain.Entities.Scenario", "Scenario")
+                        .WithMany("ControlLinks")
+                        .HasForeignKey("ScenarioId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("CMC.Domain.Entities.Industry", "Industry")
-                        .WithMany()
-                        .HasForeignKey("IndustryId1")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                    b.Navigation("Control");
 
-                    b.Navigation("Customer");
-
-                    b.Navigation("Industry");
-                });
-
-            modelBuilder.Entity("CMC.Domain.Entities.Evidence", b =>
-                {
-                    b.HasOne("CMC.Domain.Entities.Customer", "Customer")
-                        .WithMany()
-                        .HasForeignKey("CustomerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Customer");
+                    b.Navigation("Scenario");
                 });
 
             modelBuilder.Entity("CMC.Domain.Entities.FrameworkIndustry", b =>
@@ -931,109 +1099,258 @@ namespace CMC.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("CMC.Domain.Entities.Industry", null)
+                    b.HasOne("CMC.Domain.Entities.Industry", "Industry")
                         .WithMany()
                         .HasForeignKey("IndustryId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("CMC.Domain.Entities.Industry", "Industry")
-                        .WithMany()
-                        .HasForeignKey("IndustryId1")
+                    b.HasOne("CMC.Domain.Entities.Industry", null)
+                        .WithMany("FrameworkIndustries")
+                        .HasForeignKey("IndustryId1");
+
+                    b.Navigation("Framework");
+
+                    b.Navigation("Industry");
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.Joins.CustomerIndustry", b =>
+                {
+                    b.HasOne("CMC.Domain.Entities.Customer", "Customer")
+                        .WithMany("CustomerIndustries")
+                        .HasForeignKey("CustomerId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Framework");
+                    b.HasOne("CMC.Domain.Entities.Industry", "Industry")
+                        .WithMany("CustomerIndustries")
+                        .HasForeignKey("IndustryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Customer");
 
                     b.Navigation("Industry");
                 });
 
             modelBuilder.Entity("CMC.Domain.Entities.LibraryControlFramework", b =>
                 {
-                    b.HasOne("CMC.Domain.Entities.LibraryControl", "Control")
-                        .WithMany("FrameworkLinks")
-                        .HasForeignKey("ControlId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("CMC.Domain.Entities.Framework", "Framework")
                         .WithMany("ControlLinks")
                         .HasForeignKey("FrameworkId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Control");
+                    b.HasOne("CMC.Domain.Entities.LibraryControl", "LibraryControl")
+                        .WithMany("FrameworkLinks")
+                        .HasForeignKey("LibraryControlId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Framework");
+
+                    b.Navigation("LibraryControl");
                 });
 
             modelBuilder.Entity("CMC.Domain.Entities.LibraryControlIndustry", b =>
                 {
-                    b.HasOne("CMC.Domain.Entities.LibraryControl", "Control")
-                        .WithMany("IndustryLinks")
-                        .HasForeignKey("ControlId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("CMC.Domain.Entities.Industry", null)
+                    b.HasOne("CMC.Domain.Entities.Industry", "Industry")
                         .WithMany()
                         .HasForeignKey("IndustryId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("CMC.Domain.Entities.Industry", "Industry")
-                        .WithMany()
-                        .HasForeignKey("IndustryId1")
+                    b.HasOne("CMC.Domain.Entities.Industry", null)
+                        .WithMany("LibraryControlIndustries")
+                        .HasForeignKey("IndustryId1");
+
+                    b.HasOne("CMC.Domain.Entities.LibraryControl", "LibraryControl")
+                        .WithMany("IndustryLinks")
+                        .HasForeignKey("LibraryControlId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Control");
-
                     b.Navigation("Industry");
+
+                    b.Navigation("LibraryControl");
                 });
 
             modelBuilder.Entity("CMC.Domain.Entities.LibraryControlScenario", b =>
                 {
-                    b.HasOne("CMC.Domain.Entities.LibraryControl", "Control")
+                    b.HasOne("CMC.Domain.Entities.LibraryControl", "LibraryControl")
                         .WithMany("ScenarioLinks")
-                        .HasForeignKey("ControlId")
+                        .HasForeignKey("LibraryControlId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("CMC.Domain.Entities.LibraryScenario", "Scenario")
+                    b.HasOne("CMC.Domain.Entities.LibraryScenario", "LibraryScenario")
+                        .WithMany()
+                        .HasForeignKey("LibraryScenarioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CMC.Domain.Entities.LibraryScenario", null)
                         .WithMany("ControlLinks")
-                        .HasForeignKey("ScenarioId")
+                        .HasForeignKey("LibraryScenarioId1");
+
+                    b.Navigation("LibraryControl");
+
+                    b.Navigation("LibraryScenario");
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.LibraryControlTag", b =>
+                {
+                    b.HasOne("CMC.Domain.Entities.LibraryControl", "LibraryControl")
+                        .WithMany("TagLinks")
+                        .HasForeignKey("LibraryControlId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Control");
+                    b.HasOne("CMC.Domain.Entities.Tag", "Tag")
+                        .WithMany()
+                        .HasForeignKey("TagId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
-                    b.Navigation("Scenario");
+                    b.HasOne("CMC.Domain.Entities.Tag", null)
+                        .WithMany("LibraryControlTags")
+                        .HasForeignKey("TagId1");
+
+                    b.Navigation("LibraryControl");
+
+                    b.Navigation("Tag");
                 });
 
             modelBuilder.Entity("CMC.Domain.Entities.LibraryScenarioIndustry", b =>
                 {
-                    b.HasOne("CMC.Domain.Entities.Industry", null)
+                    b.HasOne("CMC.Domain.Entities.Industry", "Industry")
                         .WithMany()
                         .HasForeignKey("IndustryId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("CMC.Domain.Entities.Industry", "Industry")
-                        .WithMany()
-                        .HasForeignKey("IndustryId1")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                    b.HasOne("CMC.Domain.Entities.Industry", null)
+                        .WithMany("LibraryScenarioIndustries")
+                        .HasForeignKey("IndustryId1");
 
-                    b.HasOne("CMC.Domain.Entities.LibraryScenario", "Scenario")
+                    b.HasOne("CMC.Domain.Entities.LibraryScenario", "LibraryScenario")
                         .WithMany("IndustryLinks")
-                        .HasForeignKey("ScenarioId")
+                        .HasForeignKey("LibraryScenarioId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Industry");
 
-                    b.Navigation("Scenario");
+                    b.Navigation("LibraryScenario");
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.LibraryScenarioTag", b =>
+                {
+                    b.HasOne("CMC.Domain.Entities.LibraryScenario", "LibraryScenario")
+                        .WithMany("TagLinks")
+                        .HasForeignKey("LibraryScenarioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CMC.Domain.Entities.Tag", "Tag")
+                        .WithMany()
+                        .HasForeignKey("TagId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CMC.Domain.Entities.Tag", null)
+                        .WithMany("LibraryScenarioTags")
+                        .HasForeignKey("TagId1");
+
+                    b.Navigation("LibraryScenario");
+
+                    b.Navigation("Tag");
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.ProvisionedControlMap", b =>
+                {
+                    b.HasOne("CMC.Domain.Entities.Control", null)
+                        .WithMany()
+                        .HasForeignKey("ControlId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CMC.Domain.Entities.Customer", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CMC.Domain.Entities.LibraryControl", null)
+                        .WithMany()
+                        .HasForeignKey("LibraryControlId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CMC.Domain.Entities.Scenario", null)
+                        .WithMany()
+                        .HasForeignKey("ScenarioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.ProvisionedScenarioMap", b =>
+                {
+                    b.HasOne("CMC.Domain.Entities.Customer", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CMC.Domain.Entities.LibraryScenario", null)
+                        .WithMany()
+                        .HasForeignKey("LibraryScenarioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CMC.Domain.Entities.Scenario", null)
+                        .WithMany()
+                        .HasForeignKey("ScenarioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.Report", b =>
+                {
+                    b.HasOne("CMC.Domain.Entities.Customer", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("CMC.Domain.Entities.ReportDefinition", null)
+                        .WithMany()
+                        .HasForeignKey("DefinitionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.ReportDefinition", b =>
+                {
+                    b.HasOne("CMC.Domain.Entities.Customer", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.RiskAcceptance", b =>
+                {
+                    b.HasOne("CMC.Domain.Entities.Control", null)
+                        .WithMany()
+                        .HasForeignKey("ControlId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CMC.Domain.Entities.Customer", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("CMC.Domain.Entities.Scenario", b =>
@@ -1041,7 +1358,7 @@ namespace CMC.Infrastructure.Migrations
                     b.HasOne("CMC.Domain.Entities.Customer", "Customer")
                         .WithMany()
                         .HasForeignKey("CustomerId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("CMC.Domain.Entities.LibraryScenario", "LibraryScenario")
@@ -1055,6 +1372,43 @@ namespace CMC.Infrastructure.Migrations
                     b.Navigation("LibraryScenario");
                 });
 
+            modelBuilder.Entity("CMC.Domain.Entities.ScenarioTag", b =>
+                {
+                    b.HasOne("CMC.Domain.Entities.Scenario", "Scenario")
+                        .WithMany("TagLinks")
+                        .HasForeignKey("ScenarioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CMC.Domain.Entities.Tag", "Tag")
+                        .WithMany()
+                        .HasForeignKey("TagId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CMC.Domain.Entities.Tag", null)
+                        .WithMany("ScenarioTags")
+                        .HasForeignKey("TagId1");
+
+                    b.Navigation("Scenario");
+
+                    b.Navigation("Tag");
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.ToDo", b =>
+                {
+                    b.HasOne("CMC.Domain.Entities.Control", null)
+                        .WithMany("ToDos")
+                        .HasForeignKey("ControlId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CMC.Domain.Entities.ToDo", null)
+                        .WithMany()
+                        .HasForeignKey("DependsOnTaskId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
             modelBuilder.Entity("CMC.Domain.Entities.User", b =>
                 {
                     b.HasOne("CMC.Domain.Entities.Customer", "Customer")
@@ -1065,11 +1419,25 @@ namespace CMC.Infrastructure.Migrations
                     b.Navigation("Customer");
                 });
 
+            modelBuilder.Entity("CMC.Domain.Entities.Control", b =>
+                {
+                    b.Navigation("ScenarioLinks");
+
+                    b.Navigation("ToDos");
+                });
+
             modelBuilder.Entity("CMC.Domain.Entities.Customer", b =>
                 {
-                    b.Navigation("IndustryLinks");
+                    b.Navigation("Controls");
+
+                    b.Navigation("CustomerIndustries");
 
                     b.Navigation("Users");
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.Evidence", b =>
+                {
+                    b.Navigation("Controls");
                 });
 
             modelBuilder.Entity("CMC.Domain.Entities.Framework", b =>
@@ -1079,6 +1447,17 @@ namespace CMC.Infrastructure.Migrations
                     b.Navigation("IndustryLinks");
                 });
 
+            modelBuilder.Entity("CMC.Domain.Entities.Industry", b =>
+                {
+                    b.Navigation("CustomerIndustries");
+
+                    b.Navigation("FrameworkIndustries");
+
+                    b.Navigation("LibraryControlIndustries");
+
+                    b.Navigation("LibraryScenarioIndustries");
+                });
+
             modelBuilder.Entity("CMC.Domain.Entities.LibraryControl", b =>
                 {
                     b.Navigation("FrameworkLinks");
@@ -1086,6 +1465,8 @@ namespace CMC.Infrastructure.Migrations
                     b.Navigation("IndustryLinks");
 
                     b.Navigation("ScenarioLinks");
+
+                    b.Navigation("TagLinks");
                 });
 
             modelBuilder.Entity("CMC.Domain.Entities.LibraryScenario", b =>
@@ -1093,6 +1474,24 @@ namespace CMC.Infrastructure.Migrations
                     b.Navigation("ControlLinks");
 
                     b.Navigation("IndustryLinks");
+
+                    b.Navigation("TagLinks");
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.Scenario", b =>
+                {
+                    b.Navigation("ControlLinks");
+
+                    b.Navigation("TagLinks");
+                });
+
+            modelBuilder.Entity("CMC.Domain.Entities.Tag", b =>
+                {
+                    b.Navigation("LibraryControlTags");
+
+                    b.Navigation("LibraryScenarioTags");
+
+                    b.Navigation("ScenarioTags");
                 });
 #pragma warning restore 612, 618
         }

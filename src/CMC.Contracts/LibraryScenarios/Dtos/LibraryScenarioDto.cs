@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
 namespace CMC.Contracts.LibraryScenarios
@@ -17,13 +18,24 @@ namespace CMC.Contracts.LibraryScenarios
 		[Display(Name = "Impact (% Umsatz)"), DisplayFormat(DataFormatString = "{0:P2}")]
 		public decimal ImpactPctRevenue { get; set; }
 
+		// M:N – Tags
 		[Display(Name = "Tags")]
-		public string Tags { get; set; } = string.Empty;
+		public IReadOnlyList<Guid> TagIds { get; set; } = Array.Empty<Guid>();
+
+		[Display(Name = "Tag-Namen")]
+		public IReadOnlyList<string> TagLabels { get; set; } = Array.Empty<string>();
+
+		// M:N – Branchen
+		[Display(Name = "Branchen")]
+		public IReadOnlyList<Guid> IndustryIds { get; set; } = Array.Empty<Guid>();
+
+		[Display(Name = "Branchen-Namen")]
+		public IReadOnlyList<string> IndustryLabels { get; set; } = Array.Empty<string>();
 
 		[Display(Name = "Erstellt am"), DisplayFormat(DataFormatString = "{0:dd.MM.yyyy HH:mm}")]
-		public DateTime CreatedAt { get; set; }
+		public DateTimeOffset CreatedAt { get; set; }
 
 		[Display(Name = "Aktualisiert am"), DisplayFormat(DataFormatString = "{0:dd.MM.yyyy HH:mm}")]
-		public DateTime UpdatedAt { get; set; }
+		public DateTimeOffset UpdatedAt { get; set; }
 	}
 }

@@ -49,19 +49,23 @@ namespace CMC.Application.Services
 			return list.Select(Map).ToList();
 		}
 
-		public async Task<RiskAcceptanceDto?> UpdateAsync(UpdateRiskAcceptanceRequest r, CancellationToken ct = default)
-		{
-			var ra = await _repo.GetByIdAsync(r.Id, ct);
-			if (ra == null) return null;
+        public async Task<RiskAcceptanceDto?> UpdateAsync(UpdateRiskAcceptanceRequest r, CancellationToken ct = default)
+        {
+            var ra = await _repo.GetByIdAsync(r.Id, ct);
+            if (ra == null) return null;
 
-			ra.UpdateReason(r.Reason);
-			ra.UpdateRiskAcceptedBy(r.RiskAcceptedBy);
-			ra.SetExpiry(r.ExpiresAt);
-			ra.SetRefs(r.CustomerId, r.ControlId);
+            ra.UpdateReason(r.Reason);
+            ra.UpdateRiskAcceptedBy(r.RiskAcceptedBy);
+            ra.SetExpiry(r.ExpiresAt);
 
-			await _repo.UpdateAsync(ra, ct);
-			return Map(ra);
-		}
+            // Nur ersetzen, wenn neue Werte übergeben wurden; sonst aktuelle beibehalten
+            var newCustomerId = r.CustomerId ?? ra.CustomerId;
+            var newControlId  = r.ControlId  ?? ra.ControlId;
+            ra.SetRefs(newCustomerId, newControlId);
+
+            await _repo.UpdateAsync(ra, ct);
+            return Map(ra);
+        }
 
 		public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
 		{
@@ -78,9 +82,9 @@ namespace CMC.Application.Services
 			ControlId = e.ControlId,
 			Reason = e.Reason,
 			RiskAcceptedBy = e.RiskAcceptedBy,
-			ExpiresAt = e.ExpiresAt.UtcDateTime,
-			CreatedAt = e.CreatedAt.UtcDateTime,
-			UpdatedAt = e.UpdatedAt.UtcDateTime
+			ExpiresAt = e.ExpiresAt,
+			CreatedAt = e.CreatedAt,
+			UpdatedAt = e.UpdatedAt
 		};
 	}
 }

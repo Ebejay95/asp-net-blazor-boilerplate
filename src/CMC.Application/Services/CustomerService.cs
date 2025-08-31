@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,175 +10,140 @@ using CMC.Domain.Entities;
 
 namespace CMC.Application.Services
 {
-	public class CustomerService
-	{
-		private readonly ICustomerRepository _customerRepository;
-		private readonly IIndustryRepository _industryRepository;
+    public class CustomerService
+    {
+        private readonly ICustomerRepository _customerRepository;
+        private readonly IIndustryRepository _industryRepository;
 
-		public CustomerService(ICustomerRepository customerRepository, IIndustryRepository industryRepository)
-		{
-			_customerRepository = customerRepository ?? throw new ArgumentNullException(nameof(customerRepository));
-			_industryRepository = industryRepository ?? throw new ArgumentNullException(nameof(industryRepository));
-		}
+        public CustomerService(ICustomerRepository customerRepository, IIndustryRepository industryRepository)
+        {
+            _customerRepository = customerRepository ?? throw new ArgumentNullException(nameof(customerRepository));
+            _industryRepository = industryRepository ?? throw new ArgumentNullException(nameof(industryRepository));
+        }
 
-		public async Task<CustomerDto> CreateAsync(CreateCustomerRequest request, CancellationToken cancellationToken = default)
-		{
-			if (request == null) throw new ArgumentNullException(nameof(request));
+        public async Task<CustomerDto> CreateAsync(CreateCustomerRequest request, CancellationToken cancellationToken = default)
+        {
+            if (request == null) throw new ArgumentNullException(nameof(request));
 
-			var existing = await _customerRepository.GetByNameAsync(request.Name, cancellationToken);
-			if (existing != null) throw new DomainException("Customer with this name already exists");
+            var existing = await _customerRepository.GetByNameAsync(request.Name, cancellationToken);
+            if (existing != null) throw new DomainException("Customer with this name already exists");
 
-			var customer = new Customer(request.Name, request.EmployeeCount, request.RevenuePerYear);
+            var customer = new Customer(request.Name, request.EmployeeCount, request.RevenuePerYear);
 
-			// Industries: upsert + links
-			var tokens = ParseIndustryTokens(request.Industry);
-			if (tokens.Length > 0)
-			{
-				var industries = await EnsureIndustriesAsync(tokens, cancellationToken);
-				SyncCustomerIndustries(customer, industries);
-			}
+            // Industries laden & validieren (optional)
+            var ids = (request.IndustryIds ?? Array.Empty<Guid>()).Where(x => x != Guid.Empty).Distinct().ToArray();
+            if (ids.Length > 0)
+            {
+                var industries = await _industryRepository.GetByIdsAsync(ids, cancellationToken);
+                if (industries.Count != ids.Length)
+                    throw new DomainException("One or more specified industries do not exist");
 
-			await _customerRepository.AddAsync(customer, cancellationToken);
-			return MapToReadDto(customer);
-		}
+                // neue API: nur IDs setzen (Join-Entities werden in der Domain erzeugt)
+                customer.SetIndustries(ids);
+            }
 
-		public async Task<CustomerDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
-		{
-			// WICHTIG: Repo sollte IndustryLinks inkl. Industry mitladen!
-			var customer = await _customerRepository.GetByIdWithUsersAsync(id, cancellationToken);
-			return customer != null ? MapToReadDto(customer) : null;
-		}
+            await _customerRepository.AddAsync(customer, cancellationToken);
 
-		public async Task<List<CustomerDto>> GetAllAsync(CancellationToken cancellationToken = default)
-		{
-			// WICHTIG: Repo sollte IndustryLinks inkl. Industry mitladen!
-			var customers = await _customerRepository.GetAllWithUsersAsync(cancellationToken);
-			return customers.Select(MapToReadDto).ToList();
-		}
+            var persisted = await _customerRepository.GetByIdWithUsersAsync(customer.Id, cancellationToken) ?? customer;
+            return MapToReadDto(persisted);
+        }
 
-		public async Task<List<CustomerDto>> GetActiveCustomersAsync(CancellationToken cancellationToken = default)
-		{
-			// WICHTIG: Repo sollte IndustryLinks inkl. Industry mitladen!
-			var customers = await _customerRepository.GetActiveCustomersAsync(cancellationToken);
-			return customers.Select(MapToReadDto).ToList();
-		}
+        public async Task<CustomerDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            var customer = await _customerRepository.GetByIdWithUsersAsync(id, cancellationToken);
+            return customer != null ? MapToReadDto(customer) : null;
+        }
 
-		public async Task<CustomerDto?> UpdateAsync(UpdateCustomerRequest request, CancellationToken cancellationToken = default)
-		{
-			if (request == null) throw new ArgumentNullException(nameof(request));
+        public async Task<List<CustomerDto>> GetAllAsync(CancellationToken cancellationToken = default)
+        {
+            var customers = await _customerRepository.GetAllWithUsersAsync(cancellationToken);
+            return customers.Select(MapToReadDto).ToList();
+        }
 
-			// WICHTIG: Repo sollte IndustryLinks inkl. Industry mitladen!
-			var customer = await _customerRepository.GetByIdAsync(request.Id, cancellationToken);
-			if (customer == null) return null;
+        public async Task<List<CustomerDto>> GetActiveCustomersAsync(CancellationToken cancellationToken = default)
+        {
+            var customers = await _customerRepository.GetActiveCustomersAsync(cancellationToken);
+            return customers.Select(MapToReadDto).ToList();
+        }
 
-			if (await _customerRepository.ExistsAsync(request.Name, request.Id, cancellationToken))
-				throw new DomainException("Customer with this name already exists");
+        public async Task<CustomerDto?> UpdateAsync(UpdateCustomerRequest request, CancellationToken cancellationToken = default)
+        {
+            if (request == null) throw new ArgumentNullException(nameof(request));
 
-			customer.UpdateBusinessInfo(request.Name, request.EmployeeCount, request.RevenuePerYear);
+            var customer = await _customerRepository.GetByIdAsync(request.Id, cancellationToken);
+            if (customer == null) return null;
 
-			if (request.IsActive.HasValue)
-			{
-				if (request.IsActive.Value && !customer.IsActive) customer.Activate();
-				if (!request.IsActive.Value && customer.IsActive) customer.Deactivate();
-			}
+            if (await _customerRepository.ExistsAsync(request.Name, request.Id, cancellationToken))
+                throw new DomainException("Customer with this name already exists");
 
-			// Industries: upsert + links sync
-			var tokens = ParseIndustryTokens(request.Industry);
-			var industries = await EnsureIndustriesAsync(tokens, cancellationToken);
-			SyncCustomerIndustries(customer, industries);
+            customer.UpdateBusinessInfo(request.Name, request.EmployeeCount, request.RevenuePerYear);
 
-			await _customerRepository.UpdateAsync(customer, cancellationToken);
+            if (request.IsActive.HasValue)
+            {
+                if (request.IsActive.Value && !customer.IsActive) customer.Activate();
+                if (!request.IsActive.Value && customer.IsActive) customer.Deactivate();
+            }
 
-			// WICHTIG: Repo sollte IndustryLinks inkl. Industry mitladen!
-			var updated = await _customerRepository.GetByIdWithUsersAsync(customer.Id, cancellationToken);
-			return updated != null ? MapToReadDto(updated) : null;
-		}
+            // Industries: NULL = keine Änderung, leere Liste = alle entfernen
+            if (request.IndustryIds != null)
+            {
+                var ids = request.IndustryIds.Where(x => x != Guid.Empty).Distinct().ToArray();
+                var industries = ids.Length == 0
+                    ? new List<Industry>()
+                    : await _industryRepository.GetByIdsAsync(ids, cancellationToken);
 
-		public async Task<bool> DeleteAsync(DeleteCustomerRequest request, CancellationToken cancellationToken = default)
-		{
-			if (request is null) throw new ArgumentNullException(nameof(request));
-			return await DeleteAsync(request.Id, cancellationToken);
-		}
+                if (industries.Count != ids.Length)
+                    throw new DomainException("One or more specified industries do not exist");
 
-		public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
-		{
-			// WICHTIG: Repo sollte Users (und idealerweise IndustryLinks) mitladen
-			var customer = await _customerRepository.GetByIdWithUsersAsync(id, cancellationToken);
-			if (customer == null) return false;
-			if (customer.Users.Any()) throw new DomainException("Cannot delete customer with associated users. Please remove all users first.");
+                customer.SetIndustries(ids);
+            }
 
-			await _customerRepository.DeleteAsync(customer, cancellationToken);
-			return true;
-		}
+            await _customerRepository.UpdateAsync(customer, cancellationToken);
+            var updated = await _customerRepository.GetByIdWithUsersAsync(customer.Id, cancellationToken);
+            return updated != null ? MapToReadDto(updated) : MapToReadDto(customer);
+        }
 
-		// -------------------- Helpers --------------------
+        public async Task<bool> DeleteAsync(DeleteCustomerRequest request, CancellationToken cancellationToken = default)
+        {
+            if (request is null) throw new ArgumentNullException(nameof(request));
+            return await DeleteAsync(request.Id, cancellationToken);
+        }
 
-		private static DateTime ToUtc(DateTimeOffset dto) => dto.UtcDateTime;
+        public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            var customer = await _customerRepository.GetByIdWithUsersAsync(id, cancellationToken);
+            if (customer == null) return false;
+            if (customer.Users.Any())
+                throw new DomainException("Cannot delete customer with associated users. Please remove all users first.");
 
-		private static string BuildIndustryString(Customer c)
-		{
-			var names = c.IndustryLinks?
-				.Select(l => l.Industry?.Name)
-				.Where(n => !string.IsNullOrWhiteSpace(n))
-				.Distinct(StringComparer.OrdinalIgnoreCase)
-				.OrderBy(n => n)
-				.ToArray();
+            await _customerRepository.DeleteAsync(customer, cancellationToken);
+            return true;
+        }
 
-			return (names == null || names.Length == 0) ? string.Empty : string.Join(", ", names);
-		}
+        // -------------------- Helpers --------------------
+        private static CustomerDto MapToReadDto(Customer c)
+        {
+            // neue Join-Nav verwenden
+            var industryIds = c.CustomerIndustries?.Select(ci => ci.IndustryId).Distinct().ToArray() ?? Array.Empty<Guid>();
+            var industryNames = c.CustomerIndustries?
+                .Select(ci => ci.Industry?.Name)
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Cast<string>()
+                .Distinct()
+                .ToArray() ?? Array.Empty<string>();
 
-		private static CustomerDto MapToReadDto(Customer c) => new(
-			Id: c.Id,
-			Name: c.Name,
-			Industry: BuildIndustryString(c),
-			EmployeeCount: c.EmployeeCount,
-			RevenuePerYear: c.RevenuePerYear,
-			IsActive: c.IsActive,
-			CreatedAt: ToUtc(c.CreatedAt),
-			UpdatedAt: ToUtc(c.UpdatedAt),
-			UserCount: c.Users?.Count ?? 0
-		);
-
-		private static string[] ParseIndustryTokens(string? raw)
-		{
-			if (string.IsNullOrWhiteSpace(raw)) return Array.Empty<string>();
-			char[] seps = new[] { ',', ';', '|', '/' };
-			return raw
-				.Split(seps, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-				.Select(s => s.Trim())
-				.Where(s => s.Length > 0)
-				.Distinct(StringComparer.OrdinalIgnoreCase)
-				.ToArray();
-		}
-
-		private async Task<List<Industry>> EnsureIndustriesAsync(string[] tokens, CancellationToken ct)
-		{
-			var result = new List<Industry>(tokens.Length);
-			foreach (var name in tokens)
-			{
-				var existing = await _industryRepository.GetByNameAsync(name, ct);
-				if (existing == null)
-				{
-					existing = new Industry(name);
-					await _industryRepository.AddAsync(existing, ct);
-				}
-				result.Add(existing);
-			}
-			return result;
-		}
-
-		private static void SyncCustomerIndustries(Customer c, IReadOnlyCollection<Industry> target)
-		{
-			var targetIds = target.Select(i => i.Id).ToHashSet();
-			var toRemove = c.IndustryLinks.Where(l => !targetIds.Contains(l.IndustryId)).ToList();
-			foreach (var r in toRemove) c.IndustryLinks.Remove(r);
-
-			var existingIds = c.IndustryLinks.Select(l => l.IndustryId).ToHashSet();
-			foreach (var ind in target)
-			{
-				if (!existingIds.Contains(ind.Id))
-					c.IndustryLinks.Add(new CustomerIndustry(c.Id, ind.Id));
-			}
-		}
-	}
+            return new CustomerDto(
+                Id: c.Id,
+                Name: c.Name,
+                IndustryIds: industryIds,
+                IndustryNames: industryNames,
+                EmployeeCount: c.EmployeeCount,
+                RevenuePerYear: c.RevenuePerYear,
+                IsActive: c.IsActive,
+                CreatedAt: c.CreatedAt,
+                UpdatedAt: c.UpdatedAt,
+                UserCount: c.Users?.Count ?? 0
+            );
+        }
+    }
 }

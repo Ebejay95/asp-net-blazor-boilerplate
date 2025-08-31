@@ -4,15 +4,14 @@ using System.ComponentModel.DataAnnotations;
 namespace CMC.Contracts.RiskAcceptances
 {
 	public record UpdateRiskAcceptanceRequest(
-		[property: Required]
-		Guid Id,
+		[property: Required] Guid Id,
 
-		// Optional: Referenzen ändern (setzt Entity.SetRefs)
-		[property: StringLength(100, MinimumLength = 1), Display(Name = "Kunde")]
-		Guid CustomerId,
+		// Optional: Referenzen ändern
+		[property: Display(Name = "Kunde")]
+		Guid? CustomerId = null,
 
-		[property: StringLength(64, MinimumLength = 1), Display(Name = "Control-ID")]
-		Guid ControlId,
+		[property: Display(Name = "Control-ID")]
+		Guid? ControlId = null,
 
 		// Inhalte
 		[property: Required, StringLength(2000, MinimumLength = 1), Display(Name = "Begründung")]

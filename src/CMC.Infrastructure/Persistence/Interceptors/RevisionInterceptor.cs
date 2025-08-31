@@ -26,12 +26,9 @@ public sealed class RevisionInterceptor : SaveChangesInterceptor
         var now = DateTimeOffset.UtcNow;
         var email = GetUserEmail();
 
-        // Wir iterieren vor SaveChanges, damit alle Snapshots erfasst werden
         foreach (var e in ctx.ChangeTracker.Entries().ToList())
         {
-            if (e.Entity is not IVersionedEntity) continue;
-
-            // Soft-Delete erzwingen, wenn möglich
+            // 1) Soft-Delete für alle ISoftDeletable
             if (e.State == EntityState.Deleted && e.Entity is ISoftDeletable sd)
             {
                 e.State = EntityState.Modified;
@@ -39,6 +36,9 @@ public sealed class RevisionInterceptor : SaveChangesInterceptor
                 sd.DeletedAt = now;
                 sd.DeletedBy = email;
             }
+
+            // 2) Revisions nur für IVersionedEntity (wie bisher)
+            if (e.Entity is not IVersionedEntity) continue;
 
             var action = e.State switch
             {

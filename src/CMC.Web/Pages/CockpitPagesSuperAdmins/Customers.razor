@@ -1,138 +1,218 @@
-@attribute [Authorize(Roles = "super-admin")]
-@using System.Linq
-@using CMC.Contracts.Customers
-@using CMC.Web.Services
-@inject CMC.Application.Services.CustomerService CustomerService
-@inject EFEditService EFEditService
-@inject DialogService ConfirmService
+@page "/superadmin/customers"
+@attribute [Authorize]
 
-<div class="card">
-    <EFTable TItem="CustomerDto"
-               Items="_customers"
-               AllowEdit="true"
-               OnEdit="StartEdit"
-               AllowCreate="true"
-               OnCreate="StartCreate" />
-</div>
+@using CMC.Infrastructure.Persistence
+@using Microsoft.EntityFrameworkCore
+@using CMC.Contracts.Customers
+@using CMC.Domain.Entities
+@using CMC.Web.Services
+@using CMC.Web.Util
+
+@inject DialogService ConfirmService
+@inject DbContext Db
+@inject IRelationshipManager Rels
+@inject EFEditService EFEdit
+@inject DbContextOptions<AppDbContext> DbOptions
+
+<EFTable TItem="CustomerDto"
+         Items="CustomerList"
+         AutoGenerate="true"
+         AllowEdit="true"
+         AllowCreate="true"
+         OnEdit="EditCustomer"
+         OnCreate="CreateCustomer" />
 
 @code {
-    private List<CustomerDto> _customers = new();
+    private List<CustomerDto> CustomerList = new();
 
     protected override async Task OnInitializedAsync()
-        => _customers = await CustomerService.GetAllAsync();
+        => await ReloadListAsync();
 
-    private async Task Reload()
+    private async Task ReloadListAsync()
     {
-        _customers = await CustomerService.GetAllAsync();
-        StateHasChanged();
+        // eigener Context fürs Lesen => keine Concurrency-Probleme
+        await using var db = new AppDbContext(DbOptions);
+
+        var list = await db.Set<Customer>()
+            .Include(c => c.CustomerIndustries).ThenInclude(ci => ci.Industry)
+            .Include(c => c.Users)
+            .AsNoTracking()
+            .ToListAsync();
+
+        CustomerList = list.Select(c => new CustomerDto(
+            Id: c.Id,
+            Name: c.Name,
+            IndustryIds: c.GetIndustryIds().ToArray(),
+            IndustryNames: c.CustomerIndustries.Select(ci => ci.Industry.Name).ToArray(),
+            EmployeeCount: c.EmployeeCount,
+            RevenuePerYear: c.RevenuePerYear,
+            IsActive: c.IsActive,
+            CreatedAt: c.CreatedAt,
+            UpdatedAt: c.UpdatedAt,
+            UserCount: c.Users.Count
+        )).ToList();
     }
 
-    private void StartEdit(CustomerDto c)
+    private Task CreateCustomer()
     {
-        var req = new EFEditRequest
-        {
-            Title = "Kunde bearbeiten",
-            Model = c,
-            ContractsAssembly = typeof(CustomerDto).Assembly, // <-- WICHTIG
-            IsCreate = false,
-            OnSave = async ctx =>
-            {
-                try
-                {
-                    var up = (UpdateCustomerRequest)ctx.Build("Update");
-                    _ = await CustomerService.UpdateAsync(up);
-                    await Reload();
-                    EFEditService.Close();
-                }
-                catch (Exception ex)
-                {
-                    ConfirmService.Open(new DialogRequest
-                    {
-                        Title = "Fehler beim Speichern",
-                        Message = ex.Message,
-                        ConfirmText = "Okay",
-                        OnConfirm = () => Task.CompletedTask
-                    });
-                }
-            },
-            OnDelete = ctx =>
-            {
-                var model = (CustomerDto)ctx.Model;
-
-                ConfirmService.Open(new DialogRequest
-                {
-                    Title = "Löschen bestätigen",
-                    Message = "Firma " + model.Name + " wirklich löschen?",
-                    ConfirmText = "Löschen",
-                    CancelText = "Abbrechen",
-                    OnConfirm = async () =>
-                    {
-                        try
-                        {
-                            await CustomerService.DeleteAsync(model.Id);
-                            await Reload();
-                            EFEditService.Close();
-                        }
-                        catch (Exception ex)
-                        {
-                            ConfirmService.Open(new DialogRequest
-                            {
-                                Title = "Löschen fehlgeschlagen",
-                                Message = ex.Message,
-                                ConfirmText = "Okay",
-                                OnConfirm = () => Task.CompletedTask
-                            });
-                        }
-                    }
-                });
-
-                return Task.CompletedTask;
-            }
-        };
-
-        EFEditService.Open(req);
-    }
-
-    private void StartCreate()
-    {
-        var empty = new CustomerDto(
+        var dto = new CustomerDto(
             Id: Guid.Empty,
             Name: "",
-            Industry: "",
+            IndustryIds: Array.Empty<Guid>(),
+            IndustryNames: Array.Empty<string>(),
             EmployeeCount: 0,
             RevenuePerYear: 0m,
             IsActive: true,
-            CreatedAt: DateTime.UtcNow,
-            UpdatedAt: DateTime.UtcNow,
+            CreatedAt: DateTimeOffset.UtcNow,
+            UpdatedAt: DateTimeOffset.UtcNow,
             UserCount: 0
         );
+        OpenEditor(dto, isCreate: true);
+        return Task.CompletedTask;
+    }
 
-        EFEditService.Open(new EFEditRequest
+    private Task EditCustomer(CustomerDto dto)
+    {
+        OpenEditor(dto, isCreate: false);
+        return Task.CompletedTask;
+    }
+
+    private void OpenEditor(CustomerDto dto, bool isCreate)
+    {
+        EFEdit.Open(new EFEditRequest
         {
-            Title = "Firma anlegen",
-            Model = empty,
-            ContractsAssembly = typeof(CustomerDto).Assembly, // <-- WICHTIG
-            IsCreate = true,
-            OnSave = async ctx =>
+            Title = isCreate ? "Kunde anlegen" : $"Kunde bearbeiten – {dto.Name}",
+            Model = dto,
+            ContractsAssembly = typeof(CustomerDto).Assembly,
+            EfParentType = typeof(Customer),
+            IsCreate = isCreate,
+            OnSave = OnSaveCustomer
+        });
+    }
+
+    private async Task OnSaveCustomer(EditContextAdapter ctx)
+    {
+        try
+        {
+            // 1) Model + Key
+            var dto = (CustomerDto)ctx.Model;
+            Guid customerId = dto.Id;
+
+            // 2) Create/Update Stammfelder (schreibender injizierter DbContext)
+            if (dto.Id == Guid.Empty)
             {
-                try
+                var entity = new Customer(dto.Name, dto.EmployeeCount, dto.RevenuePerYear);
+                Db.Add(entity);
+                await Db.SaveChangesAsync(); // Id wird gesetzt
+                customerId = entity.Id;
+
+                Console.WriteLine($"🆕 Customer created: {entity.Id} – {entity.Name}");
+            }
+            else
+            {
+                var existing = await Db.Set<Customer>().FindAsync(dto.Id);
+                if (existing is not null)
                 {
-                    var req = (CreateCustomerRequest)ctx.Build("Create");
-                    _ = await CustomerService.CreateAsync(req);
-                    await Reload();
-                    EFEditService.Close();
-                }
-                catch (Exception ex)
-                {
-                    ConfirmService.Open(new DialogRequest
-                    {
-                        Title = "Fehler beim Anlegen",
-                        Message = ex.Message,
-                        ConfirmText = "Okay",
-                        OnConfirm = () => Task.CompletedTask
-                    });
+                    existing.UpdateBusinessInfo(dto.Name, dto.EmployeeCount, dto.RevenuePerYear);
+                    if (dto.IsActive) existing.Activate(); else existing.Deactivate();
+                    await Db.SaveChangesAsync();
+
+                    Console.WriteLine($"✏️  Customer updated: {existing.Id} – {existing.Name}");
                 }
             }
-        });
+
+            // 3) M:N – aktuelle Auswahl AUS DEM CONTEXT holen (nicht nur dto)
+            var selectedIndustryIds = ExtractGuidArray(
+                ctx.TryGetValue("IndustryIds", out var raw) ? raw : dto.IndustryIds
+            );
+
+            Console.WriteLine("🧾 ctx dump:");
+            foreach (var kv in ctx.Values)
+                Console.WriteLine($"   - {kv.Key} => {DescribeValue(kv.Value)}");
+
+            Console.WriteLine($"🔗 Apply relations IndustryIds → {selectedIndustryIds.Length} key(s): {string.Join(", ", selectedIndustryIds)}");
+
+            await RelationSaveHelper.ApplyAsync(
+                rels: Rels,
+                parentType: typeof(Customer),
+                parentKey: customerId,
+                values: new Dictionary<string, object?> { ["IndustryIds"] = selectedIndustryIds });
+
+            // Domain-Setter-Pfad speichert ggf. nicht -> explizit persistieren
+            await Db.SaveChangesAsync();
+            Console.WriteLine("✅ Relations persisted to DB.");
+
+            // 4) UI schließen & Liste neu laden
+            EFEdit.Close();
+            await ReloadListAsync();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("❌ OnSaveCustomer failed:\n" + ex);
+            ConfirmService.Open(new DialogRequest
+            {
+                Title = "Speichern fehlgeschlagen",
+                Message = ex.ToString(),
+                ConfirmText = "Okay",
+                OnConfirm = () => Task.CompletedTask
+            });
+            // Drawer bleibt offen
+        }
+    }
+
+    // ---------- Helpers ----------
+
+    private static Guid[] ExtractGuidArray(object? value)
+    {
+        var list = new List<Guid>();
+
+        switch (value)
+        {
+            case null:
+                return Array.Empty<Guid>();
+
+            case IEnumerable<Guid> gs:
+                list.AddRange(gs.Where(g => g != Guid.Empty));
+                break;
+
+            case IEnumerable<string> ss:
+                foreach (var s in ss)
+                    if (Guid.TryParse(s, out var g) && g != Guid.Empty)
+                        list.Add(g);
+                break;
+
+            case System.Collections.IEnumerable seq when value is not string:
+                foreach (var e in seq)
+                {
+                    var s = e?.ToString();
+                    if (!string.IsNullOrWhiteSpace(s) && Guid.TryParse(s, out var g) && g != Guid.Empty)
+                        list.Add(g);
+                }
+                break;
+
+            default:
+                var one = value.ToString();
+                if (!string.IsNullOrWhiteSpace(one) && Guid.TryParse(one, out var g1) && g1 != Guid.Empty)
+                    list.Add(g1);
+                break;
+        }
+
+        return list.Distinct().ToArray();
+    }
+
+    private static string DescribeValue(object? v)
+    {
+        if (v is null) return "null";
+        if (v is string s) return $"string({s})";
+        if (v is IEnumerable<Guid> gs) return "IEnumerable<Guid>(" + string.Join(",", gs) + ")";
+        if (v is IEnumerable<string> ss) return "IEnumerable<string>(" + string.Join(",", ss) + ")";
+        if (v is System.Collections.IEnumerable seq && v is not string)
+        {
+            var parts = new List<string>();
+            foreach (var e in seq) parts.Add(e?.ToString() ?? "null");
+            return "IEnumerable(" + string.Join(",", parts) + ")";
+        }
+        return v.GetType().Name + "(" + v + ")";
     }
 }

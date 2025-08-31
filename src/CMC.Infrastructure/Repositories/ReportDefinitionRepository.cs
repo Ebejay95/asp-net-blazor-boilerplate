@@ -28,11 +28,12 @@ public class ReportDefinitionRepository : IReportDefinitionRepository
 		await _db.SaveChangesAsync(ct);
 	}
 
-	public async Task DeleteAsync(ReportDefinition e, CancellationToken ct = default)
-	{
-		_db.ReportDefinitions.Remove(e);
-		await _db.SaveChangesAsync(ct);
-	}
+    public async Task DeleteAsync(ReportDefinition e, CancellationToken ct = default)
+    {
+        e.Delete();
+        _db.ReportDefinitions.Update(e);
+        await _db.SaveChangesAsync(ct);
+    }
 
 	public Task<List<ReportDefinition>> GetByCustomerAsync(Guid customerId, CancellationToken ct = default)
 		=> _db.ReportDefinitions.AsNoTracking()

@@ -4,10 +4,10 @@ using System.ComponentModel.DataAnnotations;
 namespace CMC.Contracts.RiskAcceptances
 {
 	public record CreateRiskAcceptanceRequest(
-		[property: Required, StringLength(100, MinimumLength = 1), Display(Name = "Kunde")]
+		[property: Required, Display(Name = "Kunde")]
 		Guid CustomerId,
 
-		[property: Required, StringLength(64, MinimumLength = 1), Display(Name = "Control-ID")]
+		[property: Required, Display(Name = "Control-ID")]
 		Guid ControlId,
 
 		[property: Required, StringLength(2000, MinimumLength = 1), Display(Name = "Begründung")]

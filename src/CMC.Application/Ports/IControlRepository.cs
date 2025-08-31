@@ -14,5 +14,6 @@ namespace CMC.Application.Ports
 		Task AddAsync(Control control, CancellationToken ct = default);
 		Task UpdateAsync(Control control, CancellationToken ct = default);
 		Task DeleteAsync(Control control, CancellationToken ct = default);
+		Task AddRangeAsync(IEnumerable<Control> controls, CancellationToken ct = default);
 	}
 }

@@ -5,7 +5,7 @@ namespace CMC.Contracts.Reports
 {
 	public record UpdateReportRequest(
 		[property: Required] Guid Id,
-		[property: Required, StringLength(100, MinimumLength = 1), Display(Name = "Definition")]
+		[property: Required, Display(Name = "Definition")]
 		Guid DefinitionId,
 		[property: Required, Display(Name = "Zeitraum von")]
 		DateTimeOffset PeriodStart,

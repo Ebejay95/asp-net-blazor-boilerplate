@@ -51,9 +51,9 @@ namespace CMC.Contracts.Controls
 		public DateTimeOffset? DueDate { get; set; }
 
 		[Display(Name = "Erstellt am"), DisplayFormat(DataFormatString = "{0:dd.MM.yyyy HH:mm}")]
-		public DateTime CreatedAt { get; set; }
+		public DateTimeOffset CreatedAt { get; set; }
 
 		[Display(Name = "Aktualisiert am"), DisplayFormat(DataFormatString = "{0:dd.MM.yyyy HH:mm}")]
-		public DateTime UpdatedAt { get; set; }
+		public DateTimeOffset UpdatedAt { get; set; }
 	}
 }

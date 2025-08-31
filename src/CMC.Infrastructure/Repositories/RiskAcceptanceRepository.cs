@@ -30,7 +30,8 @@ public class RiskAcceptanceRepository : IRiskAcceptanceRepository
 
     public async Task DeleteAsync(RiskAcceptance e, CancellationToken ct = default)
     {
-        _db.RiskAcceptances.Remove(e);
+        e.Delete();
+        _db.RiskAcceptances.Update(e);
         await _db.SaveChangesAsync(ct);
     }
 

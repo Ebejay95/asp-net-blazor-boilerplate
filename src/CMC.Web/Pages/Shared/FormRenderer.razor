@@ -2,8 +2,6 @@
 @using System.Reflection
 @using System.Linq
 @using Microsoft.AspNetCore.Components
-@using Microsoft.AspNetCore.Components.Web
-@using CMC.Web.Pages.Shared
 @using CMC.Web.Services
 @using CMC.Web.Util
 @using CMC.Web.FormFields
@@ -22,44 +20,43 @@
     [Parameter] public List<ExtraField> ExtraFields { get; set; } = new();
     [Parameter] public EventCallback<(string Name, object? Value)> OnFieldChanged { get; set; }
     [Parameter] public EFEditRequest Request { get; set; } = default!;
+    [Parameter] public IDictionary<string, object?>? ValueOverrides { get; set; }
 
     private List<FormFieldDescriptor> GetFormFields()
     {
         var fields = new List<FormFieldDescriptor>();
 
-        // Model Properties
         if (Model != null)
         {
             foreach (var prop in GetVisibleProps())
-            {
                 fields.Add(CreateFieldFromProperty(prop));
-            }
         }
 
-        // Extra Fields
         foreach (var extra in ExtraFields ?? new())
-        {
             fields.Add(CreateFieldFromExtra(extra));
-        }
 
         return fields;
     }
 
     private FormFieldDescriptor CreateFieldFromProperty(PropertyInfo prop)
     {
-        var pType = EffectiveType(prop.PropertyType);
-        var label = GetDisplayName(prop) ?? prop.Name;
-        var current = prop.GetValue(Model);
-        var hint = GetHint(prop);
+        var pType   = EffectiveType(prop.PropertyType);
+        var label   = GetDisplayName(prop) ?? prop.Name;
+        var current = ResolveCurrentValue(prop.Name, prop.GetValue(Model!));
+        var hint    = GetHint(prop);
+
+        // Im Editor „read-only“ markieren, wenn ausdrücklich EditorHidden – (wir blenden sie über GetVisibleProps ohnehin aus)
         var readOnly = prop.GetCustomAttribute<EditorHiddenAttribute>() != null;
 
-        // Relation Field?
+        // --- 1) Attribut-basierte Relation ---
         var relAttr = prop.GetCustomAttribute<RelationFromAttribute>();
         if (relAttr != null && Request.EfParentType != null)
         {
-            var relationName = string.IsNullOrWhiteSpace(relAttr.RelationName)
-                ? DeriveRelationName(prop.Name)
-                : relAttr.RelationName;
+            var relationName = TryGetRelationName(relAttr)
+                               ?? DeriveRelationName(prop.Name, isMany: relAttr.IsMany);
+
+            if (relAttr.IsMany)
+                current = NormalizeKeys(current);
 
             return new FormFieldDescriptor(
                 Name: prop.Name,
@@ -69,34 +66,65 @@
                 ReadOnly: readOnly,
                 Hint: hint,
                 Value: current,
-                Parameters: new Dictionary<string, object>
+                Parameters: new()
                 {
                     ["RelationName"] = relationName,
-                    ["ParentType"] = Request.EfParentType
+                    ["ParentType"]   = Request.EfParentType
                 }
             );
         }
 
-        // Select Field mit Optionen?
-        if (TryGetSelectOptions(prop, out var selectOpts))
+        // --- 2) Heuristik: *Ids => Many-to-Many Checkboxen ---
+        if (Request.EfParentType != null &&
+            typeof(System.Collections.IEnumerable).IsAssignableFrom(pType) &&
+            pType != typeof(string) &&
+            prop.Name.EndsWith("Ids", StringComparison.Ordinal))
         {
+            var relationName = DeriveRelationName(prop.Name, isMany: true);
+            current = NormalizeKeys(current);
+
             return new FormFieldDescriptor(
                 Name: prop.Name,
                 Label: label,
-                FieldType: typeof(SelectField),
+                FieldType: typeof(CheckboxListField),
                 ValueType: prop.PropertyType,
                 ReadOnly: readOnly,
                 Hint: hint,
                 Value: current,
-                Parameters: new Dictionary<string, object>
+                Parameters: new()
                 {
-                    ["Options"] = selectOpts
+                    ["RelationName"] = relationName,
+                    ["ParentType"]   = Request.EfParentType
                 }
             );
         }
 
-        // Standard Field Type bestimmen
-        var fieldType = GetFieldTypeForProperty(pType);
+        // --- 3) Heuristik: *Id (Guid/String) => Single-Reference Select ---
+        if (Request.EfParentType != null &&
+            (pType == typeof(Guid) || pType == typeof(Guid?) || pType == typeof(string)) &&
+            prop.Name.EndsWith("Id", StringComparison.Ordinal) &&
+            !prop.Name.EndsWith("Ids", StringComparison.Ordinal))
+        {
+            var relationName = DeriveRelationName(prop.Name, isMany: false); // z.B. CustomerId -> "Customer"
+
+            return new FormFieldDescriptor(
+                Name: prop.Name,
+                Label: label,
+                FieldType: typeof(RelationSelectField),
+                ValueType: prop.PropertyType,
+                ReadOnly: readOnly,
+                Hint: hint,
+                Value: current,
+                Parameters: new()
+                {
+                    ["RelationName"] = relationName,
+                    ["ParentType"]   = Request.EfParentType
+                }
+            );
+        }
+
+        // --- 4) Standard-Feld ---
+        var fieldType  = GetFieldTypeForProperty(pType);
         var parameters = GetParametersForProperty(pType, prop);
 
         return new FormFieldDescriptor(
@@ -113,67 +141,96 @@
 
     private FormFieldDescriptor CreateFieldFromExtra(ExtraField extra)
     {
-        var fieldType = GetFieldTypeForExtra(extra);
+        var fieldType  = GetFieldTypeForExtra(extra);
         var parameters = GetParametersForExtra(extra);
 
         return new FormFieldDescriptor(
-            Name: extra.Name,
+            Name:  extra.Name,
             Label: string.IsNullOrWhiteSpace(extra.Label) ? extra.Name : extra.Label,
             FieldType: fieldType,
             ValueType: extra.Type,
             ReadOnly: extra.ReadOnly,
             Hint: extra.Hint,
-            Value: extra.Value,
+            Value: ResolveCurrentValue(extra.Name, extra.Value),
             Parameters: parameters
         );
     }
 
-    private Type GetFieldTypeForProperty(Type propType)
+    // ---------- Hilfen ----------
+    private object? ResolveCurrentValue(string name, object? modelValue)
+        => (ValueOverrides != null && ValueOverrides.TryGetValue(name, out var v)) ? v : modelValue;
+
+    private static object? NormalizeKeys(object? value)
     {
-        return TypeCodeOf(propType) switch
+        if (value is null) return null;
+        if (value is System.Collections.IEnumerable seq && value is not string)
         {
-            TypeCode.Boolean => typeof(CheckboxField),
-            TypeCode.DateTime => typeof(DateTimeField),
-            TypeCode.Decimal or TypeCode.Double or TypeCode.Single => typeof(NumberField),
-            TypeCode.Int16 or TypeCode.Int32 or TypeCode.Int64 or
-            TypeCode.UInt16 or TypeCode.UInt32 or TypeCode.UInt64 => typeof(NumberField),
-            _ when propType == typeof(Guid) => typeof(TextField),
-            _ => typeof(TextField)
-        };
+            var list = new List<string>();
+            foreach (var e in seq)
+                if (e != null)
+                    list.Add(e.ToString()!);
+            return list;
+        }
+        return value;
     }
+
+    private static string? TryGetRelationName(RelationFromAttribute attr)
+    {
+        var t = attr.GetType();
+        foreach (var name in new[] { "RelationName", "Name", "Relation", "Navigation", "Property" })
+        {
+            var p = t.GetProperty(name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+            var val = p?.GetValue(attr)?.ToString();
+            if (!string.IsNullOrWhiteSpace(val))
+                return val;
+        }
+        return null;
+    }
+
+    private Type GetFieldTypeForProperty(Type propType) => TypeCodeOf(propType) switch
+    {
+        TypeCode.Boolean => typeof(CheckboxField),
+        TypeCode.DateTime => typeof(DateTimeField),
+        TypeCode.Decimal or TypeCode.Double or TypeCode.Single => typeof(NumberField),
+        TypeCode.Int16 or TypeCode.Int32 or TypeCode.Int64 or
+        TypeCode.UInt16 or TypeCode.UInt32 or TypeCode.UInt64 => typeof(NumberField),
+        _ when propType == typeof(Guid) || propType == typeof(Guid?) => typeof(TextField),
+        _ => typeof(TextField)
+    };
 
     private Dictionary<string, object> GetParametersForProperty(Type propType, PropertyInfo prop)
     {
         var parameters = new Dictionary<string, object>();
+        var typeCode   = TypeCodeOf(propType);
 
-        var typeCode = TypeCodeOf(propType);
         switch (typeCode)
         {
             case TypeCode.DateTime:
                 parameters["InputType"] = "datetime-local";
                 break;
+
             case TypeCode.Decimal or TypeCode.Double or TypeCode.Single:
                 parameters["InputType"] = "number";
-                parameters["Step"] = "any";
+                parameters["Step"]      = "any";
                 break;
+
             case TypeCode.Int16 or TypeCode.Int32 or TypeCode.Int64 or
                  TypeCode.UInt16 or TypeCode.UInt32 or TypeCode.UInt64:
                 parameters["InputType"] = "number";
-                parameters["Step"] = "1";
+                parameters["Step"]      = "1";
                 break;
+
             case TypeCode.String:
                 if (prop.Name.Contains("Password", StringComparison.OrdinalIgnoreCase))
                 {
-                    parameters["InputType"] = "password";
+                    parameters["InputType"]    = "password";
                     parameters["Autocomplete"] = "new-password";
                 }
                 break;
         }
 
-        if (propType == typeof(Guid))
-        {
-            parameters["ReadOnly"] = true;
-        }
+        if (propType == typeof(Guid) || propType == typeof(Guid?))
+            parameters["ReadOnly"] = false; // Guid im Editor NICHT readonly, falls als Textfeld gerendert würde
 
         return parameters;
     }
@@ -182,23 +239,16 @@
     {
         if (string.Equals(extra.DataType, "relation-auto", StringComparison.OrdinalIgnoreCase))
         {
-            // Ableiten ob Many oder Reference basierend auf Type
             if (extra.Type.IsGenericType && extra.Type.GetGenericTypeDefinition() == typeof(IEnumerable<>))
-            {
                 return typeof(CheckboxListField);
-            }
             return typeof(RelationSelectField);
         }
 
         if (string.Equals(extra.DataType, "password", StringComparison.OrdinalIgnoreCase))
-        {
             return typeof(TextField);
-        }
 
         if (extra.Options?.Any() == true)
-        {
             return typeof(SelectField);
-        }
 
         return typeof(TextField);
     }
@@ -209,14 +259,16 @@
 
         if (string.Equals(extra.DataType, "relation-auto", StringComparison.OrdinalIgnoreCase))
         {
-            var relationName = DeriveRelationName(extra.Name);
+            var relationName = DeriveRelationName(extra.Name,
+                isMany: extra.Type.IsGenericType && extra.Type.GetGenericTypeDefinition() == typeof(IEnumerable<>));
+
             parameters["RelationName"] = relationName;
             if (Request.EfParentType != null)
                 parameters["ParentType"] = Request.EfParentType;
         }
         else if (string.Equals(extra.DataType, "password", StringComparison.OrdinalIgnoreCase))
         {
-            parameters["InputType"] = "password";
+            parameters["InputType"]    = "password";
             parameters["Autocomplete"] = "new-password";
         }
         else if (extra.Options?.Any() == true)
@@ -230,13 +282,12 @@
     private RenderFragment RenderFormField(FormFieldDescriptor descriptor) => builder =>
     {
         int seq = 0;
-
         builder.OpenComponent(seq++, descriptor.FieldType);
-        builder.AddAttribute(seq++, nameof(FormFieldBase.Name), descriptor.Name);
+        builder.AddAttribute(seq++, nameof(FormFieldBase.Name),  descriptor.Name);
         builder.AddAttribute(seq++, nameof(FormFieldBase.Label), descriptor.Label);
         builder.AddAttribute(seq++, nameof(FormFieldBase.Value), descriptor.Value);
-        builder.AddAttribute(seq++, nameof(FormFieldBase.ReadOnly), descriptor.ReadOnly);
-        builder.AddAttribute(seq++, nameof(FormFieldBase.Required), descriptor.Required);
+        builder.AddAttribute(seq++, nameof(FormFieldBase.ReadOnly),  descriptor.ReadOnly);
+        builder.AddAttribute(seq++, nameof(FormFieldBase.Required),  descriptor.Required);
 
         if (!string.IsNullOrWhiteSpace(descriptor.Hint))
             builder.AddAttribute(seq++, nameof(FormFieldBase.Hint), descriptor.Hint);
@@ -244,171 +295,64 @@
         builder.AddAttribute(seq++, nameof(FormFieldBase.OnValueChanged),
             EventCallback.Factory.Create<object?>(this, value => OnFieldChanged.InvokeAsync((descriptor.Name, value))));
 
-        // Parameter hinzufügen
         foreach (var param in descriptor.Parameters)
-        {
             builder.AddAttribute(seq++, param.Key, param.Value);
-        }
 
         builder.CloseComponent();
     };
 
-    // Hilfsmethoden (aus original FormRenderer übernommen)
     private IEnumerable<PropertyInfo> GetVisibleProps()
     {
         if (Model is null) yield break;
 
-        var type = Model.GetType();
+        var type    = Model.GetType();
         var allProps = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
                            .Where(p => p.CanRead)
                            .ToList();
 
-        var propNames = new HashSet<string>(allProps.Select(p => p.Name), StringComparer.OrdinalIgnoreCase);
-        var extraNames = new HashSet<string>((ExtraFields ?? new()).Select(ef => ef.Name), StringComparer.OrdinalIgnoreCase);
-
         foreach (var p in allProps)
         {
+            var effective = EffectiveType(p.PropertyType);
+
+            var isRelationCandidate =
+                p.GetCustomAttribute<RelationFromAttribute>() != null ||
+                // Many-to-Many via *Ids
+                (p.Name.EndsWith("Ids", StringComparison.Ordinal) &&
+                 typeof(System.Collections.IEnumerable).IsAssignableFrom(effective) &&
+                 effective != typeof(string)) ||
+                // Single-Reference via *Id
+                (p.Name.EndsWith("Id", StringComparison.Ordinal) &&
+                 !p.Name.EndsWith("Ids", StringComparison.Ordinal) &&
+                 (effective == typeof(Guid) || effective == typeof(Guid?) || effective == typeof(string)));
+
+            // In Tabellen ausblenden (Scaffold=false), **aber** im Editor anzeigen, wenn RelationCandidate
             var scaffold = p.GetCustomAttribute<ScaffoldColumnAttribute>();
-            if (scaffold is { Scaffold: false }) continue;
+            if (scaffold is { Scaffold: false } && !isRelationCandidate) continue;
 
+            // AutoGenerateField=false respektieren – außer es ist eine Relation
             var disp = p.GetCustomAttribute<DisplayAttribute>();
-            if (disp?.GetAutoGenerateField() == false) continue;
+            if (disp?.GetAutoGenerateField() == false && !isRelationCandidate) continue;
 
-            if (p.GetCustomAttribute<EditorHiddenAttribute>() is not null)
-                continue;
-
-            var hideIfs = p.GetCustomAttributes<EditorHideIfExistsAttribute>()?.ToList();
-            if (hideIfs is { Count: > 0 } &&
-                hideIfs.Any(h => propNames.Contains(h.OtherProperty) || extraNames.Contains(h.OtherProperty)))
-                continue;
+            // EditorHidden: im Editor ausblenden (keine Relation)
+            if (p.GetCustomAttribute<EditorHiddenAttribute>() is not null && !isRelationCandidate) continue;
 
             yield return p;
         }
     }
 
-    private bool TryGetSelectOptions(PropertyInfo p, out List<KeyValuePair<string,string>> options)
+    // --- Namensableitung für Relationen (mit einfacher Pluralisierung) ---
+    private static string DeriveRelationName(string fieldName, bool isMany)
     {
-        options = new();
-        var attr = p.GetCustomAttribute<SelectFromAttribute>();
-        if (attr is null) return false;
+        var baseName =
+            fieldName.EndsWith("Ids", StringComparison.Ordinal) ? fieldName[..^3] :
+            fieldName.EndsWith("Id",  StringComparison.Ordinal) ? fieldName[..^2] :
+            fieldName;
 
-        try
-        {
-            var path = attr.SourcePath?.Trim() ?? string.Empty;
-            var lastDot = path.LastIndexOf('.');
-            if (lastDot <= 0 || lastDot >= path.Length - 1) return false;
+        if (!isMany) return baseName;
 
-            var typeName = path[..lastDot];
-            var member = path[(lastDot + 1)..];
-
-            var sourceType = TryResolveType(typeName, p.DeclaringType?.Assembly);
-            if (sourceType is null) return false;
-
-            var flags = BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy;
-            var field = sourceType.GetField(member, flags);
-            var prop = sourceType.GetProperty(member, flags);
-
-            object? raw = field?.GetValue(null) ?? prop?.GetValue(null);
-            if (raw is null) return false;
-
-            options = ToOptions(raw);
-            return options.Count > 0;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    private Type? TryResolveType(string typeName, Assembly? contextAsm)
-    {
-        Type? t = null;
-
-        if (contextAsm != null)
-        {
-            try { t = contextAsm.GetType(typeName, throwOnError: false, ignoreCase: false); } catch { }
-            if (t != null) return t;
-        }
-
-        if (Request?.ContractsAssembly != null)
-        {
-            try { t = Request.ContractsAssembly.GetType(typeName, throwOnError: false, ignoreCase: false); } catch { }
-            if (t != null) return t;
-        }
-
-        foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
-        {
-            try
-            {
-                t = asm.GetType(typeName, throwOnError: false, ignoreCase: false);
-                if (t != null) return t;
-            }
-            catch { }
-        }
-
-        var asmName = Request?.ContractsAssembly?.GetName().Name ?? contextAsm?.GetName().Name;
-        if (!string.IsNullOrWhiteSpace(asmName))
-        {
-            try { t = Type.GetType($"{typeName}, {asmName}", throwOnError: false); } catch { }
-            if (t != null) return t;
-        }
-
-        return null;
-    }
-
-    private static List<KeyValuePair<string,string>> ToOptions(object? raw)
-    {
-        var result = new List<KeyValuePair<string,string>>();
-        if (raw is not System.Collections.IEnumerable seq) return result;
-
-        foreach (var item in seq)
-        {
-            if (item is KeyValuePair<string,string> kv)
-            {
-                result.Add(kv);
-                continue;
-            }
-
-            var itemStr = item.ToString();
-            if (!string.IsNullOrWhiteSpace(itemStr) &&
-                itemStr.StartsWith("(") &&
-                itemStr.EndsWith(")") &&
-                itemStr.Contains(", "))
-            {
-                var content = itemStr.Substring(1, itemStr.Length - 2);
-                var parts = content.Split(new[] { ", " }, 2, StringSplitOptions.None);
-
-                if (parts.Length == 2)
-                {
-                    var itemLabel = parts[0].Trim();
-                    var itemValue = parts[1].Trim();
-                    result.Add(new KeyValuePair<string,string>(itemLabel, itemValue));
-                    continue;
-                }
-            }
-
-            var t = item.GetType();
-
-            var labelProp = t.GetProperty("Label") ?? t.GetProperty("Name") ?? t.GetProperty("Text") ?? t.GetProperty("Key");
-            var valueProp = t.GetProperty("Tag")   ?? t.GetProperty("Value") ?? t.GetProperty("Id")  ?? t.GetProperty("Key");
-
-            if (labelProp is null && valueProp is null)
-            {
-                labelProp = t.GetProperty("Item1");
-                valueProp = t.GetProperty("Item2");
-            }
-
-            var label = labelProp?.GetValue(item)?.ToString();
-            var value = valueProp?.GetValue(item)?.ToString();
-
-            label ??= item.ToString() ?? "";
-            value ??= label;
-
-            if (!string.IsNullOrWhiteSpace(value))
-                result.Add(new KeyValuePair<string,string>(label, value));
-        }
-
-        return result;
+        return baseName.EndsWith("y", StringComparison.OrdinalIgnoreCase)
+            ? baseName[..^1] + "ies"
+            : baseName + "s";
     }
 
     private static string? GetDisplayName(PropertyInfo p)
@@ -420,19 +364,5 @@
     private static Type EffectiveType(Type t) => Nullable.GetUnderlyingType(t) ?? t;
 
     private static TypeCode TypeCodeOf(Type t)
-    {
-        var et = EffectiveType(t);
-        return Type.GetTypeCode(et);
-    }
-
-    private static string DeriveRelationName(string fieldName)
-    {
-        if (fieldName.EndsWith("Id", StringComparison.Ordinal))
-            return fieldName.Substring(0, fieldName.Length - 2);
-
-        if (fieldName.EndsWith("Ids", StringComparison.Ordinal))
-            return fieldName.Substring(0, fieldName.Length - 3);
-
-        return fieldName;
-    }
+        => Type.GetTypeCode(EffectiveType(t));
 }

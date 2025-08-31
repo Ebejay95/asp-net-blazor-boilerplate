@@ -16,12 +16,19 @@ namespace CMC.Application.Services
 
 		public ToDoService(IToDoRepository repo, ILibraryControlRepository libRepo)
 		{
-            _repo = repo ?? throw new ArgumentNullException(nameof(repo));
-            _libRepo = libRepo ?? throw new ArgumentNullException(nameof(libRepo));
+			_repo = repo ?? throw new ArgumentNullException(nameof(repo));
+			_libRepo = libRepo ?? throw new ArgumentNullException(nameof(libRepo));
 		}
+
+		// Mappt UI/DTO-Tag -> Domain-Enum
+		private static ToDoStatus ParseStatusTag(string? tag)
+			=> ToDoStatusExtensions.FromTag(tag);
 
 		public async Task<ToDoDto> CreateAsync(CreateToDoRequest r, CancellationToken ct = default)
 		{
+			// CreateToDoRequest.Status ist ein string? (Tag)
+			var statusEnum = ParseStatusTag(r.Status);
+
 			var t = new ToDo(
 				r.ControlId,
 				r.Name,
@@ -30,9 +37,10 @@ namespace CMC.Application.Services
 				r.DependsOnTaskId,
 				r.StartDate,
 				r.EndDate,
-				r.Status,
+				statusEnum,
 				r.Assignee
 			);
+
 			await _repo.AddAsync(t, ct);
 			return Map(t);
 		}
@@ -57,7 +65,11 @@ namespace CMC.Application.Services
 			t.SetEffort(r.InternalDays, r.ExternalDays);
 			t.DependOn(r.DependsOnTaskId);
 			t.Schedule(r.StartDate, r.EndDate);
-			t.SetStatus(r.Status);
+
+			// UpdateToDoRequest hat StatusTag (string?) – nur setzen, wenn vorhanden
+			if (!string.IsNullOrWhiteSpace(r.StatusTag))
+				t.SetStatus(ParseStatusTag(r.StatusTag));
+
 			t.Assign(r.Assignee);
 
 			await _repo.UpdateAsync(t, ct);
@@ -90,7 +102,7 @@ namespace CMC.Application.Services
 			CancellationToken ct = default)
 		{
 			var libs = await _libRepo.GetByIdsAsync(libraryControlIds, ct);
-			var todos = TasksFactory.FromLibraryControls(libs, startDateUtc, status, assignee);
+			var todos = ToDoFactory.FromLibraryControls(libs, startDateUtc, status, assignee);
 			await _repo.AddRangeAsync(todos, ct);
 			return todos.Select(Map).ToList();
 		}
@@ -104,18 +116,19 @@ namespace CMC.Application.Services
 			InternalDays = t.InternalDays,
 			ExternalDays = t.ExternalDays,
 			TotalDays = t.TotalDays,
-			StartDate = t.StartDate?.UtcDateTime,
-			EndDate = t.EndDate?.UtcDateTime,
-			Status = t.Status,
+			StartDate = t.StartDate,
+			EndDate = t.EndDate,
+			// Konsistent zum UI: Tag ausgeben
+			Status = t.Status.ToTag(),
 			Assignee = t.Assignee,
-			CreatedAt = t.CreatedAt.UtcDateTime,
-			UpdatedAt = t.UpdatedAt.UtcDateTime
+			CreatedAt = t.CreatedAt,
+			UpdatedAt = t.UpdatedAt
 		};
 
-        public async Task<List<ToDoDto>> GetAllAsync(CancellationToken ct = default)
-        {
-            var items = await _repo.GetAllAsync(ct);
-            return items.Select(Map).ToList();
-        }
+		public async Task<List<ToDoDto>> GetAllAsync(CancellationToken ct = default)
+		{
+			var items = await _repo.GetAllAsync(ct);
+			return items.Select(Map).ToList();
+		}
 	}
 }

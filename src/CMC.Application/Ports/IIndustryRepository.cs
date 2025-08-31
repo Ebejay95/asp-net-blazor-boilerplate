@@ -8,13 +8,15 @@ namespace CMC.Application.Ports
 {
 	public interface IIndustryRepository
 	{
-        Task<Industry?> GetByIdAsync(Guid id, CancellationToken ct = default);
-        Task<Industry?> GetByNameAsync(string name, CancellationToken ct = default);
-        Task<List<Industry>> GetAllAsync(CancellationToken ct = default);
-        Task AddAsync(Industry industry, CancellationToken ct = default);
-        Task<bool> ExistsAsync(string name, Guid? excludeId = null, CancellationToken ct = default);
-
+		Task<Industry?> GetByIdAsync(Guid id, CancellationToken ct = default);
+		Task<Industry?> GetByNameAsync(string name, CancellationToken ct = default);
+		Task<List<Industry>> GetAllAsync(CancellationToken ct = default);
+		Task AddAsync(Industry industry, CancellationToken ct = default);
+		Task<bool> ExistsAsync(string name, Guid? excludeId = null, CancellationToken ct = default);
 		Task UpdateAsync(Industry entity, CancellationToken ct = default);
 		Task DeleteAsync(Industry entity, CancellationToken ct = default);
+
+		// NEW
+		Task<List<Industry>> GetByIdsAsync(IEnumerable<Guid> ids, CancellationToken ct = default);
 	}
 }

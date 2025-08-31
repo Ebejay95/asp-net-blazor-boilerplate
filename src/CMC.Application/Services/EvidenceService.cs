@@ -72,12 +72,12 @@ namespace CMC.Application.Services
 			CustomerId = e.CustomerId,
 			Source = e.Source,
 			Location = e.Location,
-			CollectedAt = e.CollectedAt.UtcDateTime,
-			ValidUntil = e.ValidUntil?.UtcDateTime,
+			CollectedAt = e.CollectedAt,
+			ValidUntil  = e.ValidUntil,
 			HashSha256 = e.HashSha256,
 			Confidentiality = e.Confidentiality,
-			CreatedAt = e.CreatedAt.UtcDateTime,
-			UpdatedAt = e.UpdatedAt.UtcDateTime
+            CreatedAt   = e.CreatedAt,
+            UpdatedAt   = e.UpdatedAt
 		};
 	}
 }

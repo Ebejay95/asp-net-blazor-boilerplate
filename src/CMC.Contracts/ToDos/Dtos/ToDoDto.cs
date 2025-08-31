@@ -27,10 +27,10 @@ namespace CMC.Contracts.ToDos
 		public int TotalDays { get; set; }
 
 		[Display(Name = "Start"), DisplayFormat(DataFormatString = "{0:dd.MM.yyyy HH:mm}")]
-		public DateTime? StartDate { get; set; }
+		public DateTimeOffset? StartDate { get; set; }
 
 		[Display(Name = "Ende"), DisplayFormat(DataFormatString = "{0:dd.MM.yyyy HH:mm}")]
-		public DateTime? EndDate { get; set; }
+		public DateTimeOffset? EndDate { get; set; }
 
 		[Display(Name = "Status")]
 		public string Status { get; set; } = string.Empty;
@@ -39,9 +39,9 @@ namespace CMC.Contracts.ToDos
 		public string Assignee { get; set; } = string.Empty;
 
 		[Display(Name = "Erstellt am"), DisplayFormat(DataFormatString = "{0:dd.MM.yyyy HH:mm}")]
-		public DateTime CreatedAt { get; set; }
+		public DateTimeOffset CreatedAt { get; set; }
 
 		[Display(Name = "Aktualisiert am"), DisplayFormat(DataFormatString = "{0:dd.MM.yyyy HH:mm}")]
-		public DateTime UpdatedAt { get; set; }
+		public DateTimeOffset UpdatedAt { get; set; }
 	}
 }

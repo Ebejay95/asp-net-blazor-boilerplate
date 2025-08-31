@@ -57,6 +57,8 @@
 
     private async Task LoadOptionsAsync()
     {
+        _options.Clear();
+
         if (ParentType is null || string.IsNullOrWhiteSpace(RelationName))
         {
             _isLoading = false;
@@ -66,9 +68,12 @@
         try
         {
             _isLoading = true;
-            var descriptor = Rels.GetDescriptor(ParentType, RelationName);
 
-            if (descriptor.Kind != RelationKind.ManyToMany)
+            // 🔎 robust: zuerst "Industries", dann "CustomerIndustries"
+            var descriptor = TryGetDescriptor(RelationName)
+                          ?? TryGetDescriptor(ParentType.Name + RelationName);
+
+            if (descriptor is null || descriptor.Kind != RelationKind.ManyToMany)
             {
                 _isLoading = false;
                 return;
@@ -77,9 +82,8 @@
             var relationOptions = await descriptor.LoadOptions();
             _options = relationOptions.Select(o => new KeyValuePair<string, string>(o.Label, o.Value)).ToList();
         }
-        catch (Exception ex)
+        catch
         {
-            Console.WriteLine($"Error loading options for {RelationName}: {ex.Message}");
             _options = new();
         }
         finally
@@ -88,22 +92,32 @@
         }
     }
 
+    private RelationDescriptor? TryGetDescriptor(string rel)
+    {
+        try { return Rels.GetDescriptor(ParentType!, rel); }
+        catch { return null; }
+    }
+
     private void UpdateSelectedFromValue()
     {
         _selectedKeys.Clear();
 
-        if (Value is IEnumerable<string> stringList)
+        if (Value is IEnumerable<string> strings)
         {
-            foreach (var key in stringList)
-                _selectedKeys.Add(key);
+            foreach (var key in strings)
+                if (!string.IsNullOrWhiteSpace(key))
+                    _selectedKeys.Add(key);
+            return;
         }
-        else if (Value is string singleString && !string.IsNullOrWhiteSpace(singleString))
+
+        if (Value is System.Collections.IEnumerable seq && Value is not string)
         {
-            var keys = singleString.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                                  .Select(k => k.Trim())
-                                  .Where(k => k.Length > 0);
-            foreach (var key in keys)
-                _selectedKeys.Add(key);
+            foreach (var item in seq)
+            {
+                var s = item?.ToString();
+                if (!string.IsNullOrWhiteSpace(s))
+                    _selectedKeys.Add(s);
+            }
         }
     }
 
@@ -111,16 +125,9 @@
     {
         var isChecked = e.Value?.ToString() == "on" || (e.Value is bool b && b);
 
-        if (isChecked)
-        {
-            _selectedKeys.Add(optionValue);
-        }
-        else
-        {
-            _selectedKeys.Remove(optionValue);
-        }
+        if (isChecked) _selectedKeys.Add(optionValue);
+        else _selectedKeys.Remove(optionValue);
 
-        var newValue = _selectedKeys.ToList();
-        await OnChanged(newValue);
+        await OnChanged(_selectedKeys.ToList());
     }
 }

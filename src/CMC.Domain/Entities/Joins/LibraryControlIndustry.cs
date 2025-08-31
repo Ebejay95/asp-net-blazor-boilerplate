@@ -4,18 +4,11 @@ namespace CMC.Domain.Entities
 {
 	public class LibraryControlIndustry
 	{
-		public Guid ControlId { get; private set; }
+		public Guid LibraryControlId { get; private set; }
 		public Guid IndustryId { get; private set; }
-
-		public virtual LibraryControl Control { get; private set; } = null!;
+		public virtual LibraryControl LibraryControl { get; private set; } = null!;
 		public virtual Industry Industry { get; private set; } = null!;
-
 		private LibraryControlIndustry() { }
-
-		public LibraryControlIndustry(Guid controlId, Guid industryId)
-		{
-			ControlId = controlId;
-			IndustryId = industryId;
-		}
+		public LibraryControlIndustry(Guid libControlId, Guid industryId) { LibraryControlId = libControlId; IndustryId = industryId; }
 	}
 }

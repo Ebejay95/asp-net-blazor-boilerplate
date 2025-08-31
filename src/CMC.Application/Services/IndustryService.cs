@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using CMC.Application.Ports;
 using CMC.Contracts.Industries;
+using CMC.Domain.Common;
 using CMC.Domain.Entities;
 
 namespace CMC.Application.Services
@@ -40,16 +41,20 @@ namespace CMC.Application.Services
 			return list.Select(Map).ToList();
 		}
 
-        public async Task<IndustryDto?> UpdateAsync(UpdateIndustryRequest r, CancellationToken ct = default)
-        {
-            var e = await _repo.GetByIdAsync(r.Id, ct);
-            if (e == null) return null;
+		public async Task<IndustryDto?> UpdateAsync(UpdateIndustryRequest r, CancellationToken ct = default)
+		{
+			var e = await _repo.GetByIdAsync(r.Id, ct);
+			if (e == null) return null;
 
-            e.Rename(r.Name);
+			// Duplikate verhindern (ausgenommen aktuelles Entity)
+			if (await _repo.ExistsAsync(r.Name, r.Id, ct))
+				throw new DomainException("Industry already exists");
 
-            await _repo.UpdateAsync(e, ct);
-            return Map(e);
-        }
+			e.Rename(r.Name);
+
+			await _repo.UpdateAsync(e, ct);
+			return Map(e);
+		}
 
 		public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
 		{

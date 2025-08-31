@@ -10,283 +10,160 @@ namespace CMC.Domain.Entities;
 /// </summary>
 public class User
 {
-    #region Properties - Identity & Authentication
+	#region Properties - Identity & Authentication
 
-    /// <summary>
-    /// Unique identifier for the user. Generated automatically upon creation.
-    /// </summary>
-    public Guid Id { get; private set; }
+	public Guid Id { get; private set; }
+	public Email Email { get; private set; } = new Email("placeholder@example.invalid");
+	public string PasswordHash { get; private set; } = string.Empty;
 
-    /// <summary>
-    /// User's email address as a validated value object.
-    /// Serves as unique identifier for authentication.
-    /// </summary>
-    public Email Email { get; private set; } = new Email("placeholder@example.invalid");
+	#endregion
 
-    /// <summary>
-    /// BCrypt hashed password for secure authentication.
-    /// Never stores plain text passwords for security compliance.
-    /// </summary>
-    public string PasswordHash { get; private set; } = string.Empty;
+	#region Properties - Personal Information
 
-    #endregion
+	public string FirstName { get; private set; } = string.Empty;
+	public string LastName { get; private set; } = string.Empty;
+	public string Role { get; private set; } = string.Empty;
+	public string Department { get; private set; } = string.Empty;
 
-    #region Properties - Personal Information
+	#endregion
 
-    /// <summary>
-    /// User's first name for personalization and display purposes.
-    /// </summary>
-    public string FirstName { get; private set; } = string.Empty;
+	#region Properties - Customer Relationship
 
-    /// <summary>
-    /// User's last name for personalization and display purposes.
-    /// </summary>
-    public string LastName { get; private set; } = string.Empty;
+	public Guid? CustomerId { get; private set; }
+	public virtual Customer? Customer { get; private set; }
 
-    /// <summary>
-    /// User's role within their organization (e.g., "Manager", "Developer", "Admin").
-    /// Not scaffolded in UI forms.
-    /// </summary>
-    public string Role { get; private set; } = string.Empty;
+	#endregion
 
-    /// <summary>
-    /// Department the user belongs to (e.g., "IT", "Sales", "Marketing").
-    /// Not scaffolded in UI forms.
-    /// </summary>
-    public string Department { get; private set; } = string.Empty;
+	#region Properties - Account Status & Tracking
 
-    #endregion
+	public bool IsEmailConfirmed { get; private set; }
+	public DateTimeOffset CreatedAt { get; private set; }
+	public DateTimeOffset? LastLoginAt { get; private set; }
 
-    #region Properties - Customer Relationship
+	#endregion
 
-    /// <summary>
-    /// Foreign key to the customer this user belongs to.
-    /// Null if user is not associated with any customer.
-    /// </summary>
-    public Guid? CustomerId { get; private set; }
+	#region Properties - Password Reset
 
-    /// <summary>
-    /// Navigation property to the customer this user belongs to.
-    /// Represents the company/organization the user works for.
-    /// </summary>
-    public virtual Customer? Customer { get; private set; }
+	public string? PasswordResetToken { get; private set; }
+	public DateTimeOffset? PasswordResetTokenExpiry { get; private set; }
 
-    #endregion
+	#endregion
 
-    #region Properties - Account Status & Tracking
+	#region Constructors
 
-    /// <summary>
-    /// Indicates whether the user has confirmed their email address.
-    /// Used to enforce email verification before certain operations.
-    /// </summary>
-    public bool IsEmailConfirmed { get; private set; }
+	private User() { }
 
-    /// <summary>
-    /// UTC timestamp when the user account was created.
-    /// Immutable after creation for audit purposes.
-    /// </summary>
-    public DateTimeOffset CreatedAt { get; private set; }
+	public User(Email email, string passwordHash, string firstName, string lastName, string role = "", string department = "")
+	{
+		if (string.IsNullOrWhiteSpace(passwordHash)) throw new ArgumentException("Password hash cannot be null or empty", nameof(passwordHash));
+		if (string.IsNullOrWhiteSpace(firstName)) throw new ArgumentException("First name cannot be null or empty", nameof(firstName));
+		if (string.IsNullOrWhiteSpace(lastName)) throw new ArgumentException("Last name cannot be null or empty", nameof(lastName));
 
-    /// <summary>
-    /// UTC timestamp of the user's most recent successful login.
-    /// Null if the user has never logged in.
-    /// </summary>
-    public DateTimeOffset? LastLoginAt { get; private set; }
+		Id = Guid.NewGuid();
+		Email = email ?? throw new ArgumentNullException(nameof(email));
+		PasswordHash = passwordHash;
+		FirstName = firstName.Trim();
+		LastName = lastName.Trim();
+		Role = (role ?? string.Empty).Trim();
+		Department = (department ?? string.Empty).Trim();
+		IsEmailConfirmed = false;
+		CreatedAt = DateTimeOffset.UtcNow;
+	}
 
-    #endregion
+	#endregion
 
-    #region Properties - Password Reset
+	#region Domain Methods - Email
 
-    /// <summary>
-    /// Secure token for password reset operations.
-    /// Null when no password reset is in progress.
-    /// </summary>
-    public string? PasswordResetToken { get; private set; }
+	public void ConfirmEmail()
+	{
+		IsEmailConfirmed = true;
+	}
 
-    /// <summary>
-    /// UTC expiry time for the password reset token.
-    /// Null when no password reset is in progress.
-    /// </summary>
-    public DateTimeOffset? PasswordResetTokenExpiry { get; private set; }
+	public void ChangeEmail(Email newEmail)
+	{
+		Email = newEmail ?? throw new ArgumentNullException(nameof(newEmail));
+		// Optional: IsEmailConfirmed = false;
+	}
 
-    #endregion
+	#endregion
 
-    #region Constructors
+	#region Domain Methods - Authentication Tracking
 
-    /// <summary>
-    /// Private parameterless constructor for Entity Framework.
-    /// Prevents direct instantiation without required parameters.
-    /// </summary>
-    private User() { }
+	public void UpdateLastLogin()
+	{
+		LastLoginAt = DateTimeOffset.UtcNow;
+	}
 
-    /// <summary>
-    /// Creates a new user with the specified details.
-    /// Initializes the user in an unconfirmed state requiring email verification.
-    /// </summary>
-    /// <param name="email">User's email address (validated value object; implicit cast from string möglich)</param>
-    /// <param name="passwordHash">BCrypt hashed password</param>
-    /// <param name="firstName">User's first name</param>
-    /// <param name="lastName">User's last name</param>
-    /// <param name="role">User's role (optional)</param>
-    /// <param name="department">User's department (optional)</param>
-    /// <exception cref="ArgumentException">Thrown when any required parameter is null or empty</exception>
-    public User(Email email, string passwordHash, string firstName, string lastName, string role = "", string department = "")
-    {
-        if (string.IsNullOrWhiteSpace(passwordHash)) throw new ArgumentException("Password hash cannot be null or empty", nameof(passwordHash));
-        if (string.IsNullOrWhiteSpace(firstName)) throw new ArgumentException("First name cannot be null or empty", nameof(firstName));
-        if (string.IsNullOrWhiteSpace(lastName)) throw new ArgumentException("Last name cannot be null or empty", nameof(lastName));
+	#endregion
 
-        Id = Guid.NewGuid();
-        Email = email ?? throw new ArgumentNullException(nameof(email));
-        PasswordHash = passwordHash;
-        FirstName = firstName.Trim();
-        LastName = lastName.Trim();
-        Role = (role ?? string.Empty).Trim();
-        Department = (department ?? string.Empty).Trim();
-        IsEmailConfirmed = false;
-        CreatedAt = DateTime.UtcNow;
-    }
+	#region Domain Methods - Personal Information
 
-    #endregion
+	public void UpdatePersonalInfo(string firstName, string lastName, string? role = null, string? department = null)
+	{
+		if (string.IsNullOrWhiteSpace(firstName)) throw new ArgumentException("First name cannot be null or empty", nameof(firstName));
+		if (string.IsNullOrWhiteSpace(lastName)) throw new ArgumentException("Last name cannot be null or empty", nameof(lastName));
 
-    #region Domain Methods - Email
+		FirstName = firstName.Trim();
+		LastName = lastName.Trim();
 
-    /// <summary>
-    /// Confirms the user's email address after successful verification.
-    /// Enables full account functionality that requires verified email.
-    /// </summary>
-    public void ConfirmEmail()
-    {
-        IsEmailConfirmed = true;
-    }
+		if (role != null) Role = role.Trim();
+		if (department != null) Department = department.Trim();
+	}
 
-    /// <summary>
-    /// Changes the user's email address (validated by value object).
-    /// </summary>
-    /// <param name="newEmail">New email (value object; implicit cast from string möglich)</param>
-    public void ChangeEmail(Email newEmail)
-    {
-        Email = newEmail ?? throw new ArgumentNullException(nameof(newEmail));
-        // Optional: Beim E-Mail-Wechsel könnte man IsEmailConfirmed zurücksetzen, falls gewünscht:
-        // IsEmailConfirmed = false;
-    }
+	#endregion
 
-    #endregion
+	#region Domain Methods - Customer Association
 
-    #region Domain Methods - Authentication Tracking
+	public void AssignToCustomer(Customer customer)
+	{
+		if (customer == null) throw new ArgumentNullException(nameof(customer));
 
-    /// <summary>
-    /// Updates the last login timestamp to the current UTC time.
-    /// Called after successful authentication to track user activity.
-    /// </summary>
-    public void UpdateLastLogin()
-    {
-        LastLoginAt = DateTime.UtcNow;
-    }
+		if (Customer != null)
+		{
+			Customer.RemoveUser(this);
+		}
 
-    #endregion
+		CustomerId = customer.Id;
+		Customer = customer;
+		customer.AddUser(this);
+	}
 
-    #region Domain Methods - Personal Information
+	public void RemoveFromCustomer()
+	{
+		if (Customer != null)
+		{
+			Customer.RemoveUser(this);
+			Customer = null;
+		}
+		CustomerId = null;
+	}
 
-    /// <summary>
-    /// Updates the user's personal information.
-    /// </summary>
-    /// <param name="firstName">Updated first name</param>
-    /// <param name="lastName">Updated last name</param>
-    /// <param name="role">Updated role (optional)</param>
-    /// <param name="department">Updated department (optional)</param>
-    public void UpdatePersonalInfo(string firstName, string lastName, string? role = null, string? department = null)
-    {
-        if (string.IsNullOrWhiteSpace(firstName)) throw new ArgumentException("First name cannot be null or empty", nameof(firstName));
-        if (string.IsNullOrWhiteSpace(lastName)) throw new ArgumentException("Last name cannot be null or empty", nameof(lastName));
+	#endregion
 
-        FirstName = firstName.Trim();
-        LastName = lastName.Trim();
+	#region Domain Methods - Password Reset
 
-        if (role != null) Role = role.Trim();
-        if (department != null) Department = department.Trim();
-    }
+	public void SetPasswordResetToken(string token, DateTimeOffset expiryUtc)
+	{
+		if (string.IsNullOrWhiteSpace(token)) throw new ArgumentException("Token cannot be null or empty", nameof(token));
+		if (expiryUtc <= DateTimeOffset.UtcNow) throw new ArgumentException("Expiry must be in the future", nameof(expiryUtc));
 
-    #endregion
+		PasswordResetToken = token;
+		PasswordResetTokenExpiry = expiryUtc.ToUniversalTime();
+	}
 
-    #region Domain Methods - Customer Association
+	public void ClearPasswordResetToken()
+	{
+		PasswordResetToken = null;
+		PasswordResetTokenExpiry = null;
+	}
 
-    /// <summary>
-    /// Assigns the user to a customer (company).
-    /// </summary>
-    /// <param name="customer">The customer to assign to</param>
-    public void AssignToCustomer(Customer customer)
-    {
-        if (customer == null) throw new ArgumentNullException(nameof(customer));
+	public void UpdatePassword(string newPasswordHash)
+	{
+		if (string.IsNullOrWhiteSpace(newPasswordHash)) throw new ArgumentException("Password hash cannot be null or empty", nameof(newPasswordHash));
 
-        // Remove from current customer if any
-        if (Customer != null)
-        {
-            Customer.RemoveUser(this);
-        }
+		PasswordHash = newPasswordHash;
+		ClearPasswordResetToken();
+	}
 
-        CustomerId = customer.Id;
-        Customer = customer;
-        customer.AddUser(this);
-    }
-
-    /// <summary>
-    /// Removes the user from their current customer.
-    /// </summary>
-    public void RemoveFromCustomer()
-    {
-        if (Customer != null)
-        {
-            Customer.RemoveUser(this);
-            Customer = null;
-        }
-        CustomerId = null;
-    }
-
-    #endregion
-
-    #region Domain Methods - Password Reset
-
-    /// <summary>
-    /// Sets a password reset token with expiry time for secure password recovery.
-    /// Overwrites any existing token to ensure only one active reset per user.
-    /// </summary>
-    /// <param name="token">Cryptographically secure reset token</param>
-    /// <param name="expiry">UTC expiry time for the token</param>
-    /// <exception cref="ArgumentException">Thrown when token is null or empty</exception>
-    /// <exception cref="ArgumentException">Thrown when expiry is in the past</exception>
-    public void SetPasswordResetToken(string token, DateTime expiry)
-    {
-        if (string.IsNullOrWhiteSpace(token)) throw new ArgumentException("Token cannot be null or empty", nameof(token));
-        if (expiry <= DateTime.UtcNow) throw new ArgumentException("Expiry must be in the future", nameof(expiry));
-
-        PasswordResetToken = token;
-        PasswordResetTokenExpiry = expiry;
-    }
-
-    /// <summary>
-    /// Clears the password reset token and expiry.
-    /// Called after successful password reset or token expiration.
-    /// </summary>
-    public void ClearPasswordResetToken()
-    {
-        PasswordResetToken = null;
-        PasswordResetTokenExpiry = null;
-    }
-
-    /// <summary>
-    /// Updates the user's password with a new hash and clears any active reset tokens.
-    /// Ensures security by invalidating all existing reset tokens after password change.
-    /// </summary>
-    /// <param name="newPasswordHash">New BCrypt hashed password</param>
-    /// <exception cref="ArgumentException">Thrown when password hash is null or empty</exception>
-    public void UpdatePassword(string newPasswordHash)
-    {
-        if (string.IsNullOrWhiteSpace(newPasswordHash)) throw new ArgumentException("Password hash cannot be null or empty", nameof(newPasswordHash));
-
-        PasswordHash = newPasswordHash;
-        ClearPasswordResetToken();
-    }
-
-    #endregion
+	#endregion
 }

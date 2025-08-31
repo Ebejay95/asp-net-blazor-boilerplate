@@ -30,7 +30,9 @@ public class ToDoRepository : IToDoRepository
 
     public async Task DeleteAsync(ToDo e, CancellationToken ct = default)
     {
-        _db.ToDos.Remove(e);
+        if (e == null) throw new ArgumentNullException(nameof(e));
+        e.Delete();
+        _db.ToDos.Update(e);
         await _db.SaveChangesAsync(ct);
     }
 

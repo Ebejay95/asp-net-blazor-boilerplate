@@ -223,29 +223,18 @@ public sealed class EditContextAdapter
 	/// <summary>
 	/// Werte aus Bag per Name auf das Zielobjekt mappen (nur schreibbare & nicht init-only Properties).
 	/// </summary>
-	private static bool IsNavigationProperty(PropertyInfo prop)
+	private static void MapByName(IDictionary<string, object?> sourceBag, object target)
 	{
-		// Collections (außer string) sind Navigation Properties
-		if (prop.PropertyType != typeof(string) &&
-			typeof(IEnumerable).IsAssignableFrom(prop.PropertyType))
-			return true;
+		var tgtProps = target.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance)
+			.Where(p => p.CanWrite && !IsInitOnly(p))
+			.ToDictionary(p => p.Name, p => p, StringComparer.OrdinalIgnoreCase);
 
-		// Komplexe Typen (nicht primitive, Guid, DateTime, etc.) sind Navigation Properties
-		if (!prop.PropertyType.IsPrimitive &&
-			prop.PropertyType != typeof(string) &&
-			prop.PropertyType != typeof(Guid) &&
-			prop.PropertyType != typeof(Guid?) &&
-			prop.PropertyType != typeof(DateTime) &&
-			prop.PropertyType != typeof(DateTime?) &&
-			prop.PropertyType != typeof(DateTimeOffset) &&
-			prop.PropertyType != typeof(DateTimeOffset?) &&
-			prop.PropertyType != typeof(decimal) &&
-			prop.PropertyType != typeof(decimal?) &&
-			!prop.PropertyType.IsEnum &&
-			!Nullable.GetUnderlyingType(prop.PropertyType)?.IsEnum == true)
-			return true;
-
-		return false;
+		foreach (var (name, val) in sourceBag)
+		{
+			if (!tgtProps.TryGetValue(name, out var tp)) continue;
+			var converted = ConvertToType(val, tp.PropertyType);
+			tp.SetValue(target, converted);
+		}
 	}
 
 	private static bool TrySet(object target, string propName, object? value)
@@ -379,4 +368,12 @@ public sealed class EditContextAdapter
 			? name[..^suffix.Length]
 			: name;
 	}
+
+	public IReadOnlyDictionary<string, object?> Values => _overrides;
+
+	public bool TryGetValue(string name, out object? value)
+   		=> _overrides.TryGetValue(name, out value);
+
+	public object? this[string name]
+    	=> _overrides.TryGetValue(name, out var v) ? v : null;
 }

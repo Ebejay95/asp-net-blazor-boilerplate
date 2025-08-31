@@ -9,84 +9,87 @@ using CMC.Domain.Entities;
 
 namespace CMC.Application.Services
 {
-	public class ScenarioService
-	{
-		private readonly IScenarioRepository _repo;
-		private readonly ILibraryScenarioRepository _libRepo;
+    public class ScenarioService
+    {
+        private readonly IScenarioRepository _repo;
+        private readonly ILibraryScenarioRepository _libRepo;
+        public ScenarioService(IScenarioRepository repo, ILibraryScenarioRepository libRepo)
+        {
+            _repo = repo ?? throw new ArgumentNullException(nameof(repo));
+            _libRepo = libRepo ?? throw new ArgumentNullException(nameof(libRepo));
+        }
 
-		public ScenarioService(IScenarioRepository repo, ILibraryScenarioRepository libRepo)
-		{
-			_repo = repo ?? throw new ArgumentNullException(nameof(repo));
-			_libRepo = libRepo ?? throw new ArgumentNullException(nameof(libRepo));
-		}
+        public async Task<ScenarioDto> CreateAsync(CreateScenarioRequest r, CancellationToken ct = default)
+        {
+            // CreateRequest: property heißt "TagIds"
+            var s = new Scenario(r.CustomerId, r.LibraryScenarioId, r.Name, r.AnnualFrequency, r.ImpactPctRevenue, r.TagIds);
+            await _repo.AddAsync(s, ct);
+            return Map(s);
+        }
 
-		public async Task<ScenarioDto> CreateAsync(CreateScenarioRequest r, CancellationToken ct = default)
-		{
-			var s = new Scenario(r.CustomerId, r.LibraryScenarioId, r.Name, r.AnnualFrequency, r.ImpactPctRevenue, r.Tags);
-			await _repo.AddAsync(s, ct);
-			return Map(s);
-		}
+        public async Task<ScenarioDto?> GetByIdAsync(Guid id, CancellationToken ct = default)
+        {
+            var s = await _repo.GetByIdAsync(id, ct);
+            return s != null ? Map(s) : null;
+        }
 
-		public async Task<ScenarioDto?> GetByIdAsync(Guid id, CancellationToken ct = default)
-		{
-			var s = await _repo.GetByIdAsync(id, ct);
-			return s != null ? Map(s) : null;
-		}
+        public async Task<List<ScenarioDto>> GetAllAsync(CancellationToken ct = default)
+        {
+            var items = await _repo.GetAllAsync(ct);
+            return items.Select(Map).ToList();
+        }
 
-		public async Task<List<ScenarioDto>> GetAllAsync(CancellationToken ct = default)
-		{
-			var items = await _repo.GetAllAsync(ct);
-			return items.Select(Map).ToList();
-		}
+        public async Task<List<ScenarioDto>> GetByCustomerAsync(Guid customerId, CancellationToken ct = default)
+        {
+            var items = await _repo.GetByCustomerAsync(customerId, ct);
+            return items.Select(Map).ToList();
+        }
 
-		public async Task<List<ScenarioDto>> GetByCustomerAsync(Guid customerId, CancellationToken ct = default)
-		{
-			var items = await _repo.GetByCustomerAsync(customerId, ct);
-			return items.Select(Map).ToList();
-		}
 
-		public async Task<ScenarioDto?> UpdateAsync(UpdateScenarioRequest r, CancellationToken ct = default)
-		{
-			var s = await _repo.GetByIdAsync(r.Id, ct);
-			if (s == null) return null;
 
-			s.Rename(r.Name);
-			s.SetAnnualFrequency(r.AnnualFrequency);
-			s.SetImpactPctRevenue(r.ImpactPctRevenue);
-			s.SetTags(r.Tags);
+        public async Task<ScenarioDto?> UpdateAsync(UpdateScenarioRequest r, CancellationToken ct = default)
+        {
+            var s = await _repo.GetByIdAsync(r.Id, ct);
+            if (s == null) return null;
 
-			await _repo.UpdateAsync(s, ct);
-			return Map(s);
-		}
+            s.Rename(r.Name);
+            s.SetAnnualFrequency(r.AnnualFrequency);
+            s.SetImpactPctRevenue(r.ImpactPctRevenue);
+            s.SetTags(r.TagIds); // UpdateRequest: TagIds
 
-		public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
-		{
-			var s = await _repo.GetByIdAsync(id, ct);
-			if (s == null) return false;
-			await _repo.DeleteAsync(s, ct);
-			return true;
-		}
+            await _repo.UpdateAsync(s, ct);
+            return Map(s);
+        }
 
-		// Provision aus LibraryScenarios
-		public async Task<List<ScenarioDto>> ProvisionFromLibraryAsync(Guid customerId, IEnumerable<Guid> libraryScenarioIds, CancellationToken ct = default)
-		{
-			var libs = await _libRepo.GetByIdsAsync(libraryScenarioIds, ct);
-			var scenarios = ProvisioningService.MaterializeScenarios(customerId, libs);
-			await _repo.AddRangeAsync(scenarios, ct);
-			return scenarios.Select(Map).ToList();
-		}
+        public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
+        {
+            var s = await _repo.GetByIdAsync(id, ct);
+            if (s == null) return false;
+            await _repo.DeleteAsync(s, ct);
+            return true;
+        }
 
-		private static ScenarioDto Map(Scenario s) => new ScenarioDto
-		{
-			Id = s.Id,
-			CustomerId = s.CustomerId,
-			LibraryScenarioId = s.LibraryScenarioId,
-			Name = s.Name,
-			AnnualFrequency = s.AnnualFrequency,
-			ImpactPctRevenue = s.ImpactPctRevenue,
-			Tags = s.Tags,
-			CreatedAt = s.CreatedAt.UtcDateTime,
-			UpdatedAt = s.UpdatedAt.UtcDateTime
-		};
-	}
+        // Provision aus LibraryScenarios
+        public async Task<List<ScenarioDto>> ProvisionFromLibraryAsync(Guid customerId, IEnumerable<Guid> libraryScenarioIds, CancellationToken ct = default)
+        {
+            var libs = await _libRepo.GetByIdsAsync(libraryScenarioIds, ct);
+            var scenarios = ProvisioningService.MaterializeScenarios(customerId, libs);
+            await _repo.AddRangeAsync(scenarios, ct);
+            return scenarios.Select(Map).ToList();
+        }
+
+        private static ScenarioDto Map(Scenario s) => new ScenarioDto
+        {
+            Id = s.Id,
+            CustomerId = s.CustomerId,
+            LibraryScenarioId = s.LibraryScenarioId,
+            Name = s.Name,
+            AnnualFrequency = s.AnnualFrequency,
+            ImpactPctRevenue = s.ImpactPctRevenue,
+            TagIds = s.GetTagIds(),
+            TagLabels = Array.Empty<string>(),
+            CreatedAt = s.CreatedAt,   // << DateTimeOffset
+            UpdatedAt = s.UpdatedAt
+        };
+    }
 }

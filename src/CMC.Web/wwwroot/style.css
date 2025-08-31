@@ -2586,10 +2586,6 @@
     --tw-shadow-colored: 0 10px 25px -10px var(--tw-shadow-color);
     box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
   }
-  html,	body {
-    -webkit-user-select: none;
-    user-select: none;
-  }
   main {
     margin: auto;
     box-sizing: border-box;

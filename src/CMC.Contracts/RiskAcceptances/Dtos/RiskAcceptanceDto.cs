@@ -21,12 +21,12 @@ namespace CMC.Contracts.RiskAcceptances
 		public string RiskAcceptedBy { get; set; } = string.Empty;
 
 		[Display(Name = "Gültig bis"), DisplayFormat(DataFormatString = "{0:dd.MM.yyyy HH:mm}")]
-		public DateTime ExpiresAt { get; set; }
+		public DateTimeOffset ExpiresAt { get; set; }
 
 		[Display(Name = "Erstellt am"), DisplayFormat(DataFormatString = "{0:dd.MM.yyyy HH:mm}")]
-		public DateTime CreatedAt { get; set; }
+		public DateTimeOffset CreatedAt { get; set; }
 
 		[Display(Name = "Aktualisiert am"), DisplayFormat(DataFormatString = "{0:dd.MM.yyyy HH:mm}")]
-		public DateTime UpdatedAt { get; set; }
+		public DateTimeOffset UpdatedAt { get; set; }
 	}
 }

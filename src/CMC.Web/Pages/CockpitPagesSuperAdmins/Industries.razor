@@ -1,0 +1,136 @@
+@attribute [Authorize(Roles = "super-admin")]
+@using System
+@using System.Linq
+@using CMC.Contracts.Industries
+@using CMC.Web.Services
+@inject CMC.Application.Services.IndustryService IndustryService
+@inject EFEditService EFEditService
+@inject DialogService ConfirmService
+
+<div class="card">
+  <EFTable TItem="IndustryDto"
+           Items="_industries"
+           AllowEdit="true"
+           OnEdit="StartEdit"
+           AllowCreate="true"
+           OnCreate="StartCreate" />
+</div>
+
+@code {
+    private List<IndustryDto> _industries = new();
+
+    protected override async Task OnInitializedAsync()
+        => _industries = await IndustryService.GetAllAsync();
+
+    private async Task Reload()
+    {
+        _industries = await IndustryService.GetAllAsync();
+        StateHasChanged();
+    }
+
+    private void StartEdit(IndustryDto f)
+    {
+        var req = new EFEditRequest
+        {
+            Title = "Industry bearbeiten",
+            Model = f,
+            ContractsAssembly = typeof(IndustryDto).Assembly,
+            IsCreate = false,
+            OnSave = async ctx =>
+            {
+                try
+                {
+                    var up = (UpdateIndustryRequest)ctx.Build("Update");
+                    _ = await IndustryService.UpdateAsync(up);
+                    await Reload();
+                    EFEditService.Close();
+                }
+                catch (Exception ex)
+                {
+                    ConfirmService.Open(new DialogRequest
+                    {
+                        Title = "Fehler beim Speichern",
+                        Message = ex.Message,
+                        ConfirmText = "Okay",
+                        OnConfirm = () => Task.CompletedTask
+                    });
+                }
+            },
+            OnDelete = ctx =>
+            {
+                var model = (IndustryDto)ctx.Model;
+
+                ConfirmService.Open(new DialogRequest
+                {
+                    Title = "Löschen bestätigen",
+                    Message = "Industry " + model.Name + " wirklich löschen?",
+                    ConfirmText = "Löschen",
+                    CancelText = "Abbrechen",
+                    OnConfirm = async () =>
+                    {
+                        try
+                        {
+                            await IndustryService.DeleteAsync(model.Id);
+                            await Reload();
+                            EFEditService.Close();
+                        }
+                        catch (Exception ex)
+                        {
+                            ConfirmService.Open(new DialogRequest
+                            {
+                                Title = "Löschen fehlgeschlagen",
+                                Message = ex.Message,
+                                ConfirmText = "Okay",
+                                OnConfirm = () => Task.CompletedTask
+                            });
+                        }
+                    }
+                });
+
+                return Task.CompletedTask;
+            },
+            OnAfterRestore = async () =>
+            {
+                await Reload();
+                EFEditService.Close();
+            }
+        };
+
+        EFEditService.Open(req);
+    }
+
+    private void StartCreate()
+    {
+        var empty = new IndustryDto { Id = Guid.Empty, Name = string.Empty };
+
+        var req = new EFEditRequest
+        {
+            Title = "Industry anlegen",
+            Model = empty,
+            ContractsAssembly = typeof(IndustryDto).Assembly,
+            IsCreate = true,
+            OnSave = async ctx =>
+            {
+                try
+                {
+                    var create = (CreateIndustryRequest)ctx.Build("Create");
+                    _ = await IndustryService.CreateAsync(create);
+                    await Reload();
+                    EFEditService.Close();
+                }
+                catch (Exception ex)
+                {
+                    ConfirmService.Open(new DialogRequest
+                    {
+                        Title = "Fehler beim Anlegen",
+                        Message = ex.Message,
+                        ConfirmText = "Okay",
+                        OnConfirm = () => Task.CompletedTask
+                    });
+                }
+            }
+        };
+
+        EFEditService.Open(req);
+    }
+}

@@ -5,7 +5,6 @@
 @attribute [Authorize]
 
 <div class="relative">
-
   <div class="btn-group aud-table-interface">
     @if (AllowCreate)
     {
@@ -14,6 +13,7 @@
       </button>
     }
   </div>
+
   <table class="aud-table">
     <thead>
       <tr>
@@ -60,93 +60,107 @@
 </div>
 
 @code {
-	[Parameter] public IEnumerable<TItem>? Items { get; set; }
-	[Parameter] public bool AutoGenerate { get; set; } = true;
+    [Parameter] public IEnumerable<TItem>? Items { get; set; }
+    [Parameter] public bool AutoGenerate { get; set; } = true;
 
-	// Edit
-	[Parameter] public bool AllowEdit { get; set; } = false;
-	[Parameter] public EventCallback<TItem> OnEdit { get; set; }
-	[Parameter] public RenderFragment<TItem>? EditTemplate { get; set; }
+    [Parameter] public bool AllowEdit { get; set; } = false;
+    [Parameter] public EventCallback<TItem> OnEdit { get; set; }
+    [Parameter] public RenderFragment<TItem>? EditTemplate { get; set; }
 
-	// Create (+)
-	[Parameter] public bool AllowCreate { get; set; } = false;
-	[Parameter] public EventCallback OnCreate { get; set; }
-	[Parameter] public string CreateLabel { get; set; } = "+";
+    [Parameter] public bool AllowCreate { get; set; } = false;
+    [Parameter] public EventCallback OnCreate { get; set; }
+    [Parameter] public string CreateLabel { get; set; } = "+";
 
-	private record Col(string Header, Func<TItem, object?> Getter, string? Format)
-	{
-		public RenderFragment Render(TItem item) => builder =>
-		{
-			var val = Getter(item);
-			if (val is null) { builder.AddContent(0, string.Empty); return; }
-			if (!string.IsNullOrWhiteSpace(Format) && val is IFormattable f)
-				builder.AddContent(0, f.ToString(Format, null));
-			else
-				builder.AddContent(0, val.ToString());
-		};
-	}
+    private record Col(string Header, Func<TItem, object?> Getter, string? Format)
+    {
+        public RenderFragment Render(TItem item) => builder =>
+        {
+            var val = Getter(item);
 
-	private List<Col> _cols = new();
+            if (val is null)
+            {
+                builder.AddContent(0, string.Empty);
+                return;
+            }
 
-	protected override void OnParametersSet()
-	{
-		if (!AutoGenerate || typeof(TItem).IsPrimitive) return;
+            if (val is System.Collections.IEnumerable seq && val is not string)
+            {
+                var parts = new List<string>();
+                foreach (var e in seq)
+                {
+                    if (e is null) continue;
+                    parts.Add(e.ToString() ?? "");
+                }
+                builder.AddContent(0, string.Join(", ", parts));
+                return;
+            }
 
-		var props = typeof(TItem).GetProperties(BindingFlags.Public | BindingFlags.Instance)
-			.Where(p => p.GetIndexParameters().Length == 0)
-			.Where(p =>
-			{
-				var scaffoldAttr = p.GetCustomAttributes(true).OfType<ScaffoldColumnAttribute>().FirstOrDefault();
-				if (scaffoldAttr is not null && scaffoldAttr.Scaffold == false) return false;
-				var displayAttr = p.GetCustomAttributes(true).OfType<DisplayAttribute>().FirstOrDefault();
-				if (displayAttr is not null && displayAttr.GetAutoGenerateField() == false) return false;
-				return true;
-			})
-			.Select(p =>
-			{
-				var display = p.GetCustomAttributes(true).OfType<DisplayAttribute>().FirstOrDefault();
-				var fmtAttr = p.GetCustomAttributes(true).OfType<DisplayFormatAttribute>().FirstOrDefault();
+            if (!string.IsNullOrWhiteSpace(Format) && val is IFormattable f)
+                builder.AddContent(0, f.ToString(Format, null));
+            else
+                builder.AddContent(0, val.ToString());
+        };
+    }
 
-				var header = display?.GetName() ?? SplitPascal(p.Name);
-				var order = display?.GetOrder() ?? int.MaxValue;
+    private List<Col> _cols = new();
 
-				string? cleanFmt = null;
-				var fmt = fmtAttr?.DataFormatString;
-				if (!string.IsNullOrWhiteSpace(fmt))
-					cleanFmt = fmt.Contains(':') ? fmt[(fmt.IndexOf(':') + 1)..].TrimEnd('}') : fmt;
+    protected override void OnParametersSet()
+    {
+        if (!AutoGenerate || typeof(TItem).IsPrimitive) return;
 
-				Func<TItem, object?> getter = (TItem it) => p.GetValue(it);
-				return (order, col: new Col(header, getter, cleanFmt));
-			})
-			.OrderBy(t => t.order)
-			.Select(t => t.col)
-			.ToList();
+        var props = typeof(TItem).GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Where(p => p.GetIndexParameters().Length == 0)
+            .Where(p =>
+            {
+                var scaffoldAttr = p.GetCustomAttributes(true).OfType<ScaffoldColumnAttribute>().FirstOrDefault();
+                if (scaffoldAttr is not null && scaffoldAttr.Scaffold == false) return false;
+                var displayAttr = p.GetCustomAttributes(true).OfType<DisplayAttribute>().FirstOrDefault();
+                if (displayAttr is not null && displayAttr.GetAutoGenerateField() == false) return false;
+                return true;
+            })
+            .Select(p =>
+            {
+                var display = p.GetCustomAttributes(true).OfType<DisplayAttribute>().FirstOrDefault();
+                var fmtAttr = p.GetCustomAttributes(true).OfType<DisplayFormatAttribute>().FirstOrDefault();
 
-		_cols = props;
-	}
+                var header = display?.GetName() ?? SplitPascal(p.Name);
+                var order = display?.GetOrder() ?? int.MaxValue;
 
-	private static string SplitPascal(string s)
-	{
-		var sb = new System.Text.StringBuilder();
-		for (int i = 0; i < s.Length; i++)
-		{
-			if (i > 0 && char.IsUpper(s[i]) && !char.IsUpper(s[i - 1])) sb.Append(' ');
-			sb.Append(s[i]);
-		}
-		return sb.ToString();
-	}
+                string? cleanFmt = null;
+                var fmt = fmtAttr?.DataFormatString;
+                if (!string.IsNullOrWhiteSpace(fmt))
+                    cleanFmt = fmt.Contains(':') ? fmt[(fmt.IndexOf(':') + 1)..].TrimEnd('}') : fmt;
 
-  private async Task RequestEdit(TItem item)
-  {
-    Console.WriteLine($"EFTable: RequestEdit -> {typeof(TItem).Name}");
-    if (OnEdit.HasDelegate)
-      await OnEdit.InvokeAsync(item);
-  }
+                Func<TItem, object?> getter = (TItem it) => p.GetValue(it);
+                return (order, col: new Col(header, getter, cleanFmt));
+            })
+            .OrderBy(t => t.order)
+            .Select(t => t.col)
+            .ToList();
 
-  private async Task RequestCreate()
-  {
-    Console.WriteLine($"EFTable: RequestCreate -> {typeof(TItem).Name}");
-    if (OnCreate.HasDelegate)
-      await OnCreate.InvokeAsync();
-  }
+        _cols = props;
+    }
+
+    private static string SplitPascal(string s)
+    {
+        var sb = new System.Text.StringBuilder();
+        for (int i = 0; i < s.Length; i++)
+        {
+            if (i > 0 && char.IsUpper(s[i]) && !char.IsUpper(s[i - 1])) sb.Append(' ');
+            sb.Append(s[i]);
+        }
+        return sb.ToString();
+    }
+
+    private async Task RequestEdit(TItem item)
+    {
+        if (OnEdit.HasDelegate)
+            await OnEdit.InvokeAsync(item);
+    }
+
+    private async Task RequestCreate()
+    {
+        if (OnCreate.HasDelegate)
+            await OnCreate.InvokeAsync();
+    }
 }

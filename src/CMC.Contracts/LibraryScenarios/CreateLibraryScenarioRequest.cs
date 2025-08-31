@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
 namespace CMC.Contracts.LibraryScenarios
@@ -10,6 +12,8 @@ namespace CMC.Contracts.LibraryScenarios
 		[property: Required, Display(Name = "Impact (% Umsatz)")]
 		decimal ImpactPctRevenue,
 		[property: Display(Name = "Tags")]
-		string? Tags = null
+		IReadOnlyList<Guid>? TagIds = null,
+		[property: Display(Name = "Branchen")]
+		IReadOnlyList<Guid>? IndustryIds = null
 	);
 }

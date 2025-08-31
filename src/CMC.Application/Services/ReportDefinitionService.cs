@@ -80,8 +80,8 @@ namespace CMC.Application.Services
 			Kind = e.Kind,
 			WindowDays = e.WindowDays,
 			Sections = e.Sections,
-			CreatedAt = e.CreatedAt.UtcDateTime,
-			UpdatedAt = e.UpdatedAt.UtcDateTime
+			CreatedAt = e.CreatedAt,
+            UpdatedAt = e.UpdatedAt
 		};
 	}
 }

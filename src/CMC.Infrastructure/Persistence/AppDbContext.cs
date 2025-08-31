@@ -1,5 +1,5 @@
 using CMC.Domain.Entities;
-using CMC.Domain.ValueObjects;
+using CMC.Domain.Entities.Joins;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 
@@ -7,9 +7,7 @@ namespace CMC.Infrastructure.Persistence;
 
 public class AppDbContext : DbContext
 {
-    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
-    {
-    }
+    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
     // Core sets
     public DbSet<User> Users => Set<User>();
@@ -21,6 +19,7 @@ public class AppDbContext : DbContext
     public DbSet<LibraryControl> LibraryControls => Set<LibraryControl>();
     public DbSet<LibraryScenario> LibraryScenarios => Set<LibraryScenario>();
     public DbSet<Industry> Industries => Set<Industry>();
+    public DbSet<Tag> Tags => Set<Tag>();
 
     // Joins (explicit entities)
     public DbSet<LibraryControlFramework> LibraryControlFrameworks => Set<LibraryControlFramework>();
@@ -29,6 +28,15 @@ public class AppDbContext : DbContext
     public DbSet<FrameworkIndustry> FrameworkIndustries => Set<FrameworkIndustry>();
     public DbSet<CustomerIndustry> CustomerIndustries => Set<CustomerIndustry>();
     public DbSet<LibraryScenarioIndustry> LibraryScenarioIndustries => Set<LibraryScenarioIndustry>();
+    public DbSet<LibraryScenarioTag> LibraryScenarioTags => Set<LibraryScenarioTag>();
+    public DbSet<LibraryControlTag> LibraryControlTags => Set<LibraryControlTag>();
+    public DbSet<ScenarioTag> ScenarioTags => Set<ScenarioTag>();
+    public DbSet<ControlScenario>         ControlScenarios         => Set<ControlScenario>();
+
+
+// 👇 NEU – Provisionierungs-Maps
+    public DbSet<ProvisionedScenarioMap> ProvisionedScenarioMaps => Set<ProvisionedScenarioMap>();
+    public DbSet<ProvisionedControlMap> ProvisionedControlMaps => Set<ProvisionedControlMap>();
 
     // Customer data
     public DbSet<Control> Controls => Set<Control>();
@@ -41,7 +49,6 @@ public class AppDbContext : DbContext
 
     protected override void ConfigureConventions(ModelConfigurationBuilder cb)
     {
-        // existing
         cb.Properties<DateTimeOffset>().HaveColumnType("timestamp with time zone");
         cb.Properties<DateTimeOffset?>().HaveColumnType("timestamp with time zone");
         cb.Properties<decimal>().HavePrecision(18, 2);
@@ -50,6 +57,11 @@ public class AppDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+
+        // globaler Soft-Delete-Filter
+        modelBuilder.ApplySoftDeleteFilters();
+
+        // ggf. Revisionsmodel
         CMC.Infrastructure.RevisionsRegistration.ConfigureRevisionsModel(modelBuilder);
     }
 
@@ -75,11 +87,8 @@ public class AppDbContext : DbContext
 
     private static void SetIfExists(EntityEntry entry, string propName, DateTimeOffset value)
     {
-        // Implementation missing - this method needs to be completed
         var property = entry.Entity.GetType().GetProperty(propName);
         if (property != null && property.CanWrite)
-        {
             property.SetValue(entry.Entity, value);
-        }
     }
 }

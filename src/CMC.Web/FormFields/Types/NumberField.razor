@@ -1,5 +1,6 @@
 @using CMC.Web.FormFields
 @inherits FormFieldBase
+@using System.Globalization
 
 <div class="form-row">
     <label class="form-label" for="@Name">@Label</label>
@@ -10,7 +11,7 @@
         step="@Step"
         min="@Min"
         max="@Max"
-        value="@(Value?.ToString() ?? string.Empty)"
+        value="@FormatNumeric(Value)"
         disabled="@ReadOnly"
         required="@Required"
         @oninput="HandleInput"
@@ -27,22 +28,36 @@
     [Parameter] public string? Min { get; set; }
     [Parameter] public string? Max { get; set; }
 
+    private static string FormatNumeric(object? v)
+    {
+        if (v is null) return string.Empty;
+        // HTML number erwartet invariant ('.' als Dezimaltrennzeichen)
+        return v switch
+        {
+            decimal d => d.ToString(CultureInfo.InvariantCulture),
+            double  d => d.ToString(CultureInfo.InvariantCulture),
+            float   f => f.ToString(CultureInfo.InvariantCulture),
+            IFormattable f => f.ToString(null, CultureInfo.InvariantCulture),
+            _ => v.ToString() ?? string.Empty
+        };
+    }
+
     private async Task HandleInput(ChangeEventArgs e)
     {
-        var input = e.Value?.ToString();
+        var s = e.Value?.ToString();
         object? newValue = null;
 
-        if (!string.IsNullOrWhiteSpace(input))
+        if (!string.IsNullOrWhiteSpace(s))
         {
-            // Versuche verschiedene numerische Typen
-            if (decimal.TryParse(input, System.Globalization.NumberStyles.Any,
-                System.Globalization.CultureInfo.InvariantCulture, out var decValue))
-                newValue = decValue;
-            else if (double.TryParse(input, System.Globalization.NumberStyles.Any,
-                System.Globalization.CultureInfo.InvariantCulture, out var doubleValue))
-                newValue = doubleValue;
-            else if (long.TryParse(input, out var longValue))
-                newValue = longValue;
+            // zuerst invariant (Browservorgabe), dann CurrentCulture als Fallback
+            if (decimal.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out var dec))
+                newValue = dec;
+            else if (decimal.TryParse(s, NumberStyles.Any, CultureInfo.CurrentCulture, out var decLoc))
+                newValue = decLoc;
+            else if (double.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out var dbl))
+                newValue = dbl;
+            else if (long.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out var lng))
+                newValue = lng;
         }
 
         await OnChanged(newValue);

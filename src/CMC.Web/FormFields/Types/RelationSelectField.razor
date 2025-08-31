@@ -48,6 +48,8 @@
 
     private async Task LoadOptionsAsync()
     {
+        _options.Clear();
+
         if (ParentType is null || string.IsNullOrWhiteSpace(RelationName))
         {
             _isLoading = false;
@@ -57,9 +59,12 @@
         try
         {
             _isLoading = true;
-            var descriptor = Rels.GetDescriptor(ParentType, RelationName);
 
-            if (descriptor.Kind != RelationKind.Reference)
+            // 🔎 auch hier: Guess + Alias
+            var descriptor = TryGetDescriptor(RelationName)
+                          ?? TryGetDescriptor(ParentType.Name + RelationName);
+
+            if (descriptor is null || descriptor.Kind != RelationKind.Reference)
             {
                 _isLoading = false;
                 return;
@@ -68,15 +73,20 @@
             var relationOptions = await descriptor.LoadOptions();
             _options = relationOptions.Select(o => new KeyValuePair<string, string>(o.Label, o.Value)).ToList();
         }
-        catch (Exception ex)
+        catch
         {
-            Console.WriteLine($"Error loading options for {RelationName}: {ex.Message}");
             _options = new();
         }
         finally
         {
             _isLoading = false;
         }
+    }
+
+    private RelationDescriptor? TryGetDescriptor(string rel)
+    {
+        try { return Rels.GetDescriptor(ParentType!, rel); }
+        catch { return null; }
     }
 
     private async Task HandleChange(ChangeEventArgs e)

@@ -71,12 +71,12 @@ namespace CMC.Application.Services
 			Id = e.Id,
 			CustomerId = e.CustomerId,
 			DefinitionId = e.DefinitionId,
-			PeriodStart = e.PeriodStart.UtcDateTime,
-			PeriodEnd = e.PeriodEnd.UtcDateTime,
-			GeneratedAt = e.GeneratedAt.UtcDateTime,
+			PeriodStart = e.PeriodStart,
+            PeriodEnd   = e.PeriodEnd,
+			GeneratedAt = e.GeneratedAt,
 			Frozen = e.Frozen,
-			CreatedAt = e.CreatedAt.UtcDateTime,
-			UpdatedAt = e.UpdatedAt.UtcDateTime
+			CreatedAt   = e.CreatedAt,
+            UpdatedAt   = e.UpdatedAt
 		};
 	}
 }

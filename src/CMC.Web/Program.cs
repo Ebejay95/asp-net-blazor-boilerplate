@@ -50,7 +50,11 @@ builder.Services.AddHttpClient("default", client =>
 builder.Services.AddScoped<DialogService>();
 builder.Services.AddScoped<RelationDialogService>();
 builder.Services.AddScoped<EFEditService>();
+
+// ✅ RelationshipManager an deinen konkreten DbContext binden
 builder.Services.AddScoped<IRelationshipManager, RelationshipManager<AppDbContext>>();
+
+// ✅ DB-gestützte Revisions-/Papierkorb-Services (wie gehabt)
 builder.Services.AddScoped<IRevisionKeyResolver, DefaultRevisionKeyResolver>();
 builder.Services.AddScoped<IRevisionsClient, EfRevisionsClient>();
 builder.Services.AddScoped<CMC.Infrastructure.Services.RevisionService>();
@@ -65,7 +69,7 @@ builder.Services.AddScoped<ControlService>();
 builder.Services.AddScoped<RiskAcceptanceService>();
 builder.Services.AddScoped<ToDoService>();
 builder.Services.AddScoped<EvidenceService>();
-
+builder.Services.AddScoped<IndustryService>();
 
 // ✅ DB-gestützte Claims-Aktualisierung
 builder.Services.AddScoped<IClaimsTransformation, DbBackedClaimsTransformation>();
@@ -99,8 +103,12 @@ builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddHttpContextAccessor();
 
 // Infrastruktur (ConnectionString via Config/Env)
+// Registriert u. a. AppDbContext
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddRevisionsSupport();
+
+// 🔌 WICHTIG: Bridge-Registrierung, damit @inject DbContext Db funktioniert
+builder.Services.AddScoped<DbContext>(sp => sp.GetRequiredService<AppDbContext>());
 
 var app = builder.Build();
 
@@ -133,9 +141,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-
 app.MapBlazorHub();
-
 app.MapRazorPages();
 app.MapFallbackToPage("/_Host");
 

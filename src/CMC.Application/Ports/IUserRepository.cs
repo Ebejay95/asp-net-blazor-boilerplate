@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using CMC.Domain.Entities;
@@ -15,6 +16,7 @@ public interface IUserRepository {
   Task<List<User>> GetAllAsync(CancellationToken cancellationToken = default);
   Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken = default);
   Task<User?> GetByPasswordResetTokenAsync(string token, CancellationToken cancellationToken = default);
+  Task<List<User>> GetByCustomerIdAsync(Guid customerId, CancellationToken cancellationToken = default);
 
   // CREATE
   Task AddAsync(User user, CancellationToken cancellationToken = default);

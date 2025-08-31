@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
 namespace CMC.Contracts.LibraryControls
@@ -10,9 +11,6 @@ namespace CMC.Contracts.LibraryControls
 
 		[Display(Name = "Name")]
 		public string Name { get; set; } = string.Empty;
-
-		[Display(Name = "Tag")]
-		public string Tag { get; set; } = string.Empty;
 
 		[Display(Name = "Capex (EUR)"), DisplayFormat(DataFormatString = "{0:C}")]
 		public decimal CapexEur { get; set; }
@@ -29,10 +27,24 @@ namespace CMC.Contracts.LibraryControls
 		[Display(Name = "Gesamt Tage")]
 		public int TotalDays { get; set; }
 
+		// M:N – Tags
+		[ScaffoldColumn(false)]
+		public IReadOnlyList<Guid> TagIds { get; set; } = Array.Empty<Guid>();
+
+		[Display(Name = "Tags")]
+		public IReadOnlyList<string> TagLabels { get; set; } = Array.Empty<string>();
+
+		// M:N – Branchen
+		[ScaffoldColumn(false)]
+		public IReadOnlyList<Guid> IndustryIds { get; set; } = Array.Empty<Guid>();
+
+		[Display(Name = "Branchen")]
+		public IReadOnlyList<string> IndustryLabels { get; set; } = Array.Empty<string>();
+
 		[Display(Name = "Erstellt am"), DisplayFormat(DataFormatString = "{0:dd.MM.yyyy HH:mm}")]
-		public DateTime CreatedAt { get; set; }
+		public DateTimeOffset CreatedAt { get; set; }
 
 		[Display(Name = "Aktualisiert am"), DisplayFormat(DataFormatString = "{0:dd.MM.yyyy HH:mm}")]
-		public DateTime UpdatedAt { get; set; }
+		public DateTimeOffset UpdatedAt { get; set; }
 	}
 }

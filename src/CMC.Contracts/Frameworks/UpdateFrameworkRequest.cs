@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
 namespace CMC.Contracts.Frameworks;
@@ -7,20 +8,19 @@ namespace CMC.Contracts.Frameworks;
 /// Request zum Aktualisieren eines bestehenden Framework-Eintrags.
 /// </summary>
 public record UpdateFrameworkRequest(
-	[Required]
+	[property: Required]
 	Guid Id,
 
-	[Required]
-	[StringLength(200, MinimumLength = 1)]
-	[Display(Name = "Framework")]
+	[property: Required]
+	[property: StringLength(200, MinimumLength = 1)]
+	[property: Display(Name = "Framework")]
 	string Name,
 
-	[Required]
-	[StringLength(64, MinimumLength = 1)]
-	[Display(Name = "Version")]
+	[property: Required]
+	[property: StringLength(64, MinimumLength = 1)]
+	[property: Display(Name = "Version")]
 	string Version,
 
-	[StringLength(100)]
-	[Display(Name = "Branche")]
-	string? Industry = null
+	[property: Display(Name = "Branchen")]
+	IReadOnlyList<Guid>? IndustryIds = null
 );

@@ -44,11 +44,8 @@
         object? newValue = null;
 
         if (!string.IsNullOrWhiteSpace(input) &&
-             DateTime.TryParseExact(input,
-                 "yyyy-MM-ddTHH:mm",
-                 CultureInfo.InvariantCulture,
-                 DateTimeStyles.AssumeLocal,
-                 out var parsed))
+             DateTime.TryParseExact(input, "yyyy-MM-ddTHH:mm",
+                 CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var parsed))
         {
             newValue = DateTime.SpecifyKind(parsed, DateTimeKind.Local);
         }

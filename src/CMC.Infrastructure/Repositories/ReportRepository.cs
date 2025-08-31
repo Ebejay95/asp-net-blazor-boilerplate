@@ -28,11 +28,26 @@ public class ReportRepository : IReportRepository
 		await _db.SaveChangesAsync(ct);
 	}
 
-	public async Task DeleteAsync(Report e, CancellationToken ct = default)
-	{
-		_db.Reports.Remove(e);
-		await _db.SaveChangesAsync(ct);
-	}
+    public async Task DeleteAsync(Report e, CancellationToken ct = default)
+    {
+        e.Delete();
+        _db.Reports.Update(e);
+        await _db.SaveChangesAsync(ct);
+    }
+
+    public Task<Report?> GetForPeriodAsync(Guid definitionId, DateTimeOffset startUtc, DateTimeOffset endUtc, Guid? customerId, CancellationToken ct = default)
+        => _db.Reports.AsNoTracking()
+            .Where(r => r.DefinitionId == definitionId
+                && r.PeriodStart == startUtc.ToUniversalTime()
+                && r.PeriodEnd   == endUtc.ToUniversalTime()
+                && r.CustomerId == customerId)
+            .FirstOrDefaultAsync(ct);
+
+    public Task<Report?> GetLatestAsync(Guid definitionId, Guid? customerId, CancellationToken ct = default)
+        => _db.Reports.AsNoTracking()
+            .Where(r => r.DefinitionId == definitionId && r.CustomerId == customerId)
+            .OrderByDescending(r => r.GeneratedAt)
+            .FirstOrDefaultAsync(ct);
 
 	public Task<List<Report>> GetByCustomerAsync(Guid customerId, CancellationToken ct = default)
 		=> _db.Reports.AsNoTracking()
