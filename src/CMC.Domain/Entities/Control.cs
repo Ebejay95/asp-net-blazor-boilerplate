@@ -4,7 +4,7 @@ using System.Linq;
 
 namespace CMC.Domain.Entities
 {
-    public class Control : ISoftDeletable
+    public class Control : ISoftDeletable, IVersionedEntity
     {
         private static readonly HashSet<string> ValidStatuses = new(StringComparer.OrdinalIgnoreCase)
         { "proposed", "planned", "in_progress", "blocked", "active", "retired" };

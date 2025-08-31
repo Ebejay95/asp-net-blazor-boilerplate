@@ -6,7 +6,7 @@ using System.Collections.Generic;
 
 namespace CMC.Domain.Entities
 {
-	public class ReportDefinition : ISoftDeletable
+	public class ReportDefinition : ISoftDeletable, IVersionedEntity
 	{
 		public Guid Id { get; private set; }
 

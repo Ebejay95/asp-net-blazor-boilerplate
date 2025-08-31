@@ -2,7 +2,7 @@ using System;
 
 namespace CMC.Domain.Entities
 {
-	public class Report : ISoftDeletable
+	public class Report : ISoftDeletable, IVersionedEntity
 	{
 		public Guid Id { get; private set; }
 

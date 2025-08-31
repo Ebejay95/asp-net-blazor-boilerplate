@@ -89,8 +89,6 @@
 
 				return Task.CompletedTask;
 			},
-
-			// optional – nur falls du EFEditRequest.OnAfterRestore ergänzt hast
 			OnAfterRestore = async () =>
 			{
 				await Reload();
@@ -103,14 +101,15 @@
 
 	private void StartCreate()
 	{
-		// record: positional ctor muss komplett befüllt werden
+		// Neuer ctor: (Id, Name, Version, IndustryIds, IndustryNames, CreatedAt, UpdatedAt)
 		var empty = new FrameworkDto(
 			Id: Guid.Empty,
 			Name: string.Empty,
 			Version: string.Empty,
-			Industry: string.Empty,
-			CreatedAt: DateTime.UtcNow,
-			UpdatedAt: DateTime.UtcNow
+			IndustryIds: Array.Empty<Guid>(),
+			IndustryNames: Array.Empty<string>(),
+			CreatedAt: DateTimeOffset.UtcNow,
+			UpdatedAt: DateTimeOffset.UtcNow
 		);
 
 		var req = new EFEditRequest

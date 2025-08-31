@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using CMC.Contracts.Common;
 
 namespace CMC.Contracts.LibraryScenarios
 {
@@ -18,17 +19,23 @@ namespace CMC.Contracts.LibraryScenarios
 		[Display(Name = "Impact (% Umsatz)"), DisplayFormat(DataFormatString = "{0:P2}")]
 		public decimal ImpactPctRevenue { get; set; }
 
-		// M:N – Tags
+		// M:N – Tags (IDs editierbar)
 		[Display(Name = "Tags")]
+		[RelationFrom(IsMany = true)]
 		public IReadOnlyList<Guid> TagIds { get; set; } = Array.Empty<Guid>();
 
+		// nur fürs Grid
+		[EditorHidden]
 		[Display(Name = "Tag-Namen")]
 		public IReadOnlyList<string> TagLabels { get; set; } = Array.Empty<string>();
 
-		// M:N – Branchen
+		// M:N – Branchen (IDs editierbar)
 		[Display(Name = "Branchen")]
+		[RelationFrom(IsMany = true)]
 		public IReadOnlyList<Guid> IndustryIds { get; set; } = Array.Empty<Guid>();
 
+		// nur fürs Grid
+		[EditorHidden]
 		[Display(Name = "Branchen-Namen")]
 		public IReadOnlyList<string> IndustryLabels { get; set; } = Array.Empty<string>();
 

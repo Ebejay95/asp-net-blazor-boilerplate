@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel.DataAnnotations;
+using CMC.Contracts.Common;
 
 namespace CMC.Contracts.ToDos
 {
@@ -8,7 +9,8 @@ namespace CMC.Contracts.ToDos
 		[ScaffoldColumn(false)]
 		public Guid Id { get; set; }
 
-		[Display(Name = "Control-ID")]
+		// 👉 direkt auswählbar
+		[Display(Name = "Control")]
 		public Guid ControlId { get; set; }
 
 		[Display(Name = "Abhängig von Task-ID")]
@@ -32,8 +34,15 @@ namespace CMC.Contracts.ToDos
 		[Display(Name = "Ende"), DisplayFormat(DataFormatString = "{0:dd.MM.yyyy HH:mm}")]
 		public DateTimeOffset? EndDate { get; set; }
 
-		[Display(Name = "Status")]
+		// 👉 Anzeige im Grid
+		[EditorHidden]
+		[Display(Name = "Status (Label)")]
 		public string Status { get; set; } = string.Empty;
+
+		// 👉 Auswahl im Editor (mappt auf UpdateToDoRequest.StatusTag)
+		[SelectFrom("CMC.Contracts.ToDos.ToDoStatuses.Statuses")]
+		[Display(Name = "Status")]
+		public string? StatusTag { get; set; }
 
 		[Display(Name = "Zuständig")]
 		public string Assignee { get; set; } = string.Empty;

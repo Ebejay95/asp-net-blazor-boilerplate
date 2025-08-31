@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel.DataAnnotations;
+using CMC.Contracts.Common;
 
 namespace CMC.Contracts.Controls
 {
@@ -8,10 +9,12 @@ namespace CMC.Contracts.Controls
 		[ScaffoldColumn(false)]
 		public Guid Id { get; set; }
 
-		[ScaffoldColumn(false)]
+		// 👉 direkt im Formular auswählbar
+		[Display(Name = "Kunde")]
 		public Guid CustomerId { get; set; }
 
-		[ScaffoldColumn(false)]
+		// 👉 Vorlage (Library-Control) auswählbar
+		[Display(Name = "Vorlage")]
 		public Guid LibraryControlId { get; set; }
 
 		[Display(Name = "Evidence")]
@@ -44,8 +47,15 @@ namespace CMC.Contracts.Controls
 		[Display(Name = "Score")]
 		public decimal Score { get; set; }
 
-		[Display(Name = "Status")]
+		// 👉 Lesbares Label fürs Grid
+		[EditorHidden]
+		[Display(Name = "Status (Label)")]
 		public string Status { get; set; } = string.Empty;
+
+		// 👉 Tag-Auswahl fürs Formular (mappt auf UpdateControlRequest.StatusTag)
+		[SelectFrom("CMC.Contracts.Controls.ControlStatuses.Statuses")]
+		[Display(Name = "Status")]
+		public string? StatusTag { get; set; }
 
 		[Display(Name = "Fällig am"), DisplayFormat(DataFormatString = "{0:dd.MM.yyyy HH:mm}")]
 		public DateTimeOffset? DueDate { get; set; }

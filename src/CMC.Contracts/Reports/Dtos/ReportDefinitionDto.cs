@@ -8,8 +8,9 @@ namespace CMC.Contracts.Reports
 		[ScaffoldColumn(false)]
 		public Guid Id { get; set; }
 
+		// 👉 auswählbar im Formular
 		[Display(Name = "Kunde")]
-		public Guid CustomerId { get; init; }
+		public Guid CustomerId { get; set; }
 
 		[Display(Name = "Name")]
 		public string Name { get; set; } = string.Empty;
@@ -24,7 +25,7 @@ namespace CMC.Contracts.Reports
 		public string Sections { get; set; } = string.Empty;
 
 		[Display(Name = "Erstellt am"), DisplayFormat(DataFormatString = "{0:dd.MM.yyyy HH:mm}")]
-		public DateTimeOffset CreatedAt { get; set; }
+		public DateTimeOffset Created At { get; set; }
 
 		[Display(Name = "Aktualisiert am"), DisplayFormat(DataFormatString = "{0:dd.MM.yyyy HH:mm}")]
 		public DateTimeOffset UpdatedAt { get; set; }

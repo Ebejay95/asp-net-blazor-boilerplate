@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace CMC.Domain.Entities
 {
-    public class Evidence : ISoftDeletable
+    public class Evidence : ISoftDeletable, IVersionedEntity
     {
         public Guid Id { get; private set; }
         public Guid CustomerId { get; private set; }

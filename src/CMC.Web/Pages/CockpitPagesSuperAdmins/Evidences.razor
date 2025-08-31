@@ -1,15 +1,16 @@
-@* Pages/CockpitPagesSuperAdmins/LibraryControls.razor *@
 @attribute [Authorize(Roles = "super-admin")]
 @using System.Linq
-@using CMC.Contracts.LibraryControls
+@using CMC.Contracts.Evidences
 @using CMC.Web.Services
-@inject CMC.Application.Services.LibraryControlService LibraryControlService
+@using CMC.Web.Util
+@using CMC.Domain.Entities
+@inject CMC.Application.Services.EvidenceService EvidenceService
 @inject EFEditService EFEditService
 @inject DialogService ConfirmService
 
 <div class="card">
-    <EFTable TItem="LibraryControlDto"
-               Items="_controls"
+    <EFTable TItem="EvidenceDto"
+               Items="_evidences"
                AllowEdit="true"
                OnEdit="StartEdit"
                AllowCreate="true"
@@ -17,31 +18,33 @@
 </div>
 
 @code {
-    private List<LibraryControlDto> _controls = new();
+    private List<EvidenceDto> _evidences = new();
 
     protected override async Task OnInitializedAsync()
-        => _controls = await LibraryControlService.GetAllAsync();
+        => _evidences = await EvidenceService.GetAllAsync();
 
     private async Task Reload()
     {
-        _controls = await LibraryControlService.GetAllAsync();
+        _evidences = await EvidenceService.GetAllAsync();
         StateHasChanged();
     }
 
-    private void StartEdit(LibraryControlDto control)
+    private void StartEdit(EvidenceDto evidence)
     {
         var req = new EFEditRequest
         {
-            Title = "Control bearbeiten",
-            Model = control,
-            ContractsAssembly = typeof(LibraryControlDto).Assembly,
+            Title = "Nachweis bearbeiten",
+            Model = evidence,
+            ContractsAssembly = typeof(EvidenceDto).Assembly,
+            EfParentType = typeof(Evidence),
+            GetParentKey = m => ((EvidenceDto)m).Id,
             IsCreate = false,
             OnSave = async ctx =>
             {
                 try
                 {
-                    var up = (UpdateLibraryControlRequest)ctx.Build("Update");
-                    _ = await LibraryControlService.UpdateAsync(up);
+                    var up = (UpdateEvidenceRequest)ctx.Build("Update");
+                    _ = await EvidenceService.UpdateAsync(up);
                     await Reload();
                     EFEditService.Close();
                 }
@@ -58,19 +61,19 @@
             },
             OnDelete = ctx =>
             {
-                var model = (LibraryControlDto)ctx.Model;
+                var model = (EvidenceDto)ctx.Model;
 
                 ConfirmService.Open(new DialogRequest
                 {
                     Title = "Löschen bestätigen",
-                    Message = "Control " + model.Name + " wirklich löschen?",
+                    Message = "Nachweis wirklich löschen?",
                     ConfirmText = "Löschen",
                     CancelText = "Abbrechen",
                     OnConfirm = async () =>
                     {
                         try
                         {
-                            await LibraryControlService.DeleteAsync(model.Id);
+                            await EvidenceService.DeleteAsync(model.Id);
                             await Reload();
                             EFEditService.Close();
                         }
@@ -96,37 +99,48 @@
             }
         };
 
+        // Relation: Evidence → Customer
+        req.ExtraFields.Add(new ExtraField(
+            Name: "CustomerId",
+            Label: "Kunde",
+            Type: typeof(Guid),
+            DataType: "relation-auto",
+            Value: evidence.CustomerId
+        ));
+
         EFEditService.Open(req);
     }
 
     private void StartCreate()
     {
-        var empty = new LibraryControlDto
+        var empty = new EvidenceDto
         {
             Id = Guid.Empty,
-            Name = string.Empty,
-            Tag = string.Empty,
-            CapexEur = 0m,
-            OpexYearEur = 0m,
-            InternalDays = 0,
-            ExternalDays = 0,
-            TotalDays = 0,
+            CustomerId = Guid.Empty,
+            Source = string.Empty,
+            Location = string.Empty,
+            CollectedAt = DateTime.UtcNow,
+            ValidUntil = (DateTime?)null,
+            HashSha256 = string.Empty,
+            Confidentiality = string.Empty,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
 
         var req = new EFEditRequest
         {
-            Title = "Control anlegen",
+            Title = "Nachweis anlegen",
             Model = empty,
-            ContractsAssembly = typeof(LibraryControlDto).Assembly,
+            ContractsAssembly = typeof(EvidenceDto).Assembly,
+            EfParentType = typeof(Evidence),
+            GetParentKey = m => ((EvidenceDto)m).Id,
             IsCreate = true,
             OnSave = async ctx =>
             {
                 try
                 {
-                    var create = (CreateLibraryControlRequest)ctx.Build("Create");
-                    _ = await LibraryControlService.CreateAsync(create);
+                    var create = (CreateEvidenceRequest)ctx.Build("Create");
+                    _ = await EvidenceService.CreateAsync(create);
                     await Reload();
                     EFEditService.Close();
                 }
@@ -142,6 +156,14 @@
                 }
             }
         };
+
+        req.ExtraFields.Add(new ExtraField(
+            Name: "CustomerId",
+            Label: "Kunde",
+            Type: typeof(Guid),
+            DataType: "relation-auto",
+            Value: Guid.Empty
+        ));
 
         EFEditService.Open(req);
     }

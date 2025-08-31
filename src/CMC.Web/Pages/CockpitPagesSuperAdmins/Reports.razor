@@ -1,16 +1,16 @@
 @attribute [Authorize(Roles = "super-admin")]
 @using System.Linq
-@using CMC.Contracts.ToDos
+@using CMC.Contracts.Reports
 @using CMC.Web.Services
 @using CMC.Web.Util
 @using CMC.Domain.Entities
-@inject CMC.Application.Services.ToDoService ToDoService
+@inject CMC.Application.Services.ReportService ReportService
 @inject EFEditService EFEditService
 @inject DialogService ConfirmService
 
 <div class="card">
-    <EFTable TItem="ToDoDto"
-               Items="_todos"
+    <EFTable TItem="ReportDto"
+               Items="_reports"
                AllowEdit="true"
                OnEdit="StartEdit"
                AllowCreate="true"
@@ -18,35 +18,33 @@
 </div>
 
 @code {
-    private List<ToDoDto> _todos = new();
+    private List<ReportDto> _reports = new();
 
     protected override async Task OnInitializedAsync()
-    {
-        _todos = await ToDoService.GetAllAsync();
-    }
+        => _reports = await ReportService.GetAllAsync();
 
     private async Task Reload()
     {
-        _todos = await ToDoService.GetAllAsync();
+        _reports = await ReportService.GetAllAsync();
         StateHasChanged();
     }
 
-    private void StartEdit(ToDoDto todo)
+    private void StartEdit(ReportDto report)
     {
         var req = new EFEditRequest
         {
-            Title = "Aufgabe bearbeiten",
-            Model = todo,
-            ContractsAssembly = typeof(ToDoDto).Assembly,
-            EfParentType = typeof(ToDo),
-            GetParentKey = m => ((ToDoDto)m).Id,
+            Title = "Bericht bearbeiten",
+            Model = report,
+            ContractsAssembly = typeof(ReportDto).Assembly,
+            EfParentType = typeof(Report),
+            GetParentKey = m => ((ReportDto)m).Id,
             IsCreate = false,
             OnSave = async ctx =>
             {
                 try
                 {
-                    var up = (UpdateToDoRequest)ctx.Build("Update");
-                    _ = await ToDoService.UpdateAsync(up);
+                    var up = (UpdateReportRequest)ctx.Build("Update");
+                    _ = await ReportService.UpdateAsync(up);
                     await Reload();
                     EFEditService.Close();
                 }
@@ -63,19 +61,19 @@
             },
             OnDelete = ctx =>
             {
-                var model = (ToDoDto)ctx.Model;
+                var model = (ReportDto)ctx.Model;
 
                 ConfirmService.Open(new DialogRequest
                 {
                     Title = "Löschen bestätigen",
-                    Message = $"Aufgabe \"{model.Name}\" wirklich löschen?",
+                    Message = "Bericht wirklich löschen?",
                     ConfirmText = "Löschen",
                     CancelText = "Abbrechen",
                     OnConfirm = async () =>
                     {
                         try
                         {
-                            await ToDoService.DeleteAsync(model.Id);
+                            await ReportService.DeleteAsync(model.Id);
                             await Reload();
                             EFEditService.Close();
                         }
@@ -93,16 +91,29 @@
                 });
 
                 return Task.CompletedTask;
+            },
+            OnAfterRestore = async () =>
+            {
+                await Reload();
+                EFEditService.Close();
             }
         };
 
-        // Relation Fields
+        // Relationen: Report → (optional) Customer, Report → Definition
         req.ExtraFields.Add(new ExtraField(
-            Name: "ControlId",
-            Label: "Control",
+            Name: "CustomerId",
+            Label: "Kunde",
+            Type: typeof(Guid?),
+            DataType: "relation-auto",
+            Value: report.CustomerId
+        ));
+
+        req.ExtraFields.Add(new ExtraField(
+            Name: "DefinitionId",
+            Label: "Vorlage",
             Type: typeof(Guid),
             DataType: "relation-auto",
-            Value: todo.ControlId
+            Value: report.DefinitionId
         ));
 
         EFEditService.Open(req);
@@ -110,36 +121,33 @@
 
     private void StartCreate()
     {
-        var empty = new ToDoDto
+        var empty = new ReportDto
         {
             Id = Guid.Empty,
-            ControlId = Guid.Empty,
-            Name = string.Empty,
-            InternalDays = 0,
-            ExternalDays = 0,
-            TotalDays = 0,
-            StartDate = null,
-            EndDate = null,
-            Status = "todo",
-            Assignee = string.Empty,
+            CustomerId = null,
+            DefinitionId = Guid.Empty,
+            PeriodStart = DateTime.UtcNow.AddDays(-30),
+            PeriodEnd = DateTime.UtcNow,
+            GeneratedAt = DateTime.UtcNow,
+            Frozen = false,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
 
         var req = new EFEditRequest
         {
-            Title = "Aufgabe anlegen",
+            Title = "Bericht anlegen",
             Model = empty,
-            ContractsAssembly = typeof(ToDoDto).Assembly,
-            EfParentType = typeof(ToDo),
-            GetParentKey = m => ((ToDoDto)m).Id,
+            ContractsAssembly = typeof(ReportDto).Assembly,
+            EfParentType = typeof(Report),
+            GetParentKey = m => ((ReportDto)m).Id,
             IsCreate = true,
             OnSave = async ctx =>
             {
                 try
                 {
-                    var create = (CreateToDoRequest)ctx.Build("Create");
-                    _ = await ToDoService.CreateAsync(create);
+                    var create = (CreateReportRequest)ctx.Build("Create");
+                    _ = await ReportService.CreateAsync(create);
                     await Reload();
                     EFEditService.Close();
                 }
@@ -157,8 +165,16 @@
         };
 
         req.ExtraFields.Add(new ExtraField(
-            Name: "ControlId",
-            Label: "Control",
+            Name: "CustomerId",
+            Label: "Kunde",
+            Type: typeof(Guid?),
+            DataType: "relation-auto",
+            Value: null
+        ));
+
+        req.ExtraFields.Add(new ExtraField(
+            Name: "DefinitionId",
+            Label: "Vorlage",
             Type: typeof(Guid),
             DataType: "relation-auto",
             Value: Guid.Empty

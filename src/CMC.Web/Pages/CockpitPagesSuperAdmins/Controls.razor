@@ -91,6 +91,11 @@
                 });
 
                 return Task.CompletedTask;
+            },
+            OnAfterRestore = async () =>
+            {
+                await Reload();
+                EFEditService.Close();
             }
         };
 
@@ -98,7 +103,7 @@
         req.ExtraFields.Add(new ExtraField(
             Name: "CustomerId",
             Label: "Kunde",
-            Type: typeof(Guid?),
+            Type: typeof(Guid),
             DataType: "relation-auto",
             Value: control.CustomerId
         ));
@@ -114,75 +119,74 @@
         EFEditService.Open(req);
     }
 
-private void StartCreate()
-{
-	var empty = new ControlDto
-	{
-		Id = Guid.Empty,
-		CustomerId = Guid.Empty, // <— statt null
-		LibraryControlId = Guid.Empty,
-		Implemented = false,
-		Coverage = 0m,
-		Maturity = 0,
-		EvidenceWeight = 0m,
-		Freshness = 0m,
-		CostTotalEur = 0m,
-		DeltaEalEur = 0m,
-		Score = 0m,
-		Status = "proposed",
-		DueDate = null,
-		CreatedAt = DateTime.UtcNow,
-		UpdatedAt = DateTime.UtcNow
-	};
+    private void StartCreate()
+    {
+        var empty = new ControlDto
+        {
+            Id = Guid.Empty,
+            CustomerId = Guid.Empty,
+            LibraryControlId = Guid.Empty,
+            Implemented = false,
+            Coverage = 0m,
+            Maturity = 0,
+            EvidenceWeight = 0m,
+            Freshness = 0m,
+            CostTotalEur = 0m,
+            DeltaEalEur = 0m,
+            Score = 0m,
+            Status = "proposed",
+            DueDate = null,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
 
-	var req = new EFEditRequest
-	{
-		Title = "Control anlegen",
-		Model = empty,
-		ContractsAssembly = typeof(ControlDto).Assembly,
-		EfParentType = typeof(Control),
-		GetParentKey = m => ((ControlDto)m).Id,
-		IsCreate = true,
-		OnSave = async ctx =>
-		{
-			try
-			{
-				var create = (CreateControlRequest)ctx.Build("Create");
-				_ = await ControlService.CreateAsync(create);
-				await Reload();
-				EFEditService.Close();
-			}
-			catch (Exception ex)
-			{
-				ConfirmService.Open(new DialogRequest
-				{
-					Title = "Fehler beim Anlegen",
-					Message = ex.Message,
-					ConfirmText = "Okay",
-					OnConfirm = () => Task.CompletedTask
-				});
-			}
-		}
-	};
+        var req = new EFEditRequest
+        {
+            Title = "Control anlegen",
+            Model = empty,
+            ContractsAssembly = typeof(ControlDto).Assembly,
+            EfParentType = typeof(Control),
+            GetParentKey = m => ((ControlDto)m).Id,
+            IsCreate = true,
+            OnSave = async ctx =>
+            {
+                try
+                {
+                    var create = (CreateControlRequest)ctx.Build("Create");
+                    _ = await ControlService.CreateAsync(create);
+                    await Reload();
+                    EFEditService.Close();
+                }
+                catch (Exception ex)
+                {
+                    ConfirmService.Open(new DialogRequest
+                    {
+                        Title = "Fehler beim Anlegen",
+                        Message = ex.Message,
+                        ConfirmText = "Okay",
+                        OnConfirm = () => Task.CompletedTask
+                    });
+                }
+            }
+        };
 
-	// Relation Fields für neue Controls
-	req.ExtraFields.Add(new ExtraField(
-		Name: "CustomerId",
-		Label: "Kunde",
-		Type: typeof(Guid),   // <— non-nullable, passend zum DTO
-		DataType: "relation-auto",
-		Value: Guid.Empty     // <— statt null
-	));
+        // Relation Fields für neue Controls
+        req.ExtraFields.Add(new ExtraField(
+            Name: "CustomerId",
+            Label: "Kunde",
+            Type: typeof(Guid),
+            DataType: "relation-auto",
+            Value: Guid.Empty
+        ));
 
-	req.ExtraFields.Add(new ExtraField(
-		Name: "LibraryControlId",
-		Label: "Vorlage",
-		Type: typeof(Guid),
-		DataType: "relation-auto",
-		Value: Guid.Empty
-	));
+        req.ExtraFields.Add(new ExtraField(
+            Name: "LibraryControlId",
+            Label: "Vorlage",
+            Type: typeof(Guid),
+            DataType: "relation-auto",
+            Value: Guid.Empty
+        ));
 
-	EFEditService.Open(req);
-}
-
+        EFEditService.Open(req);
+    }
 }

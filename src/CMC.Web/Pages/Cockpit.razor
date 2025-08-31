@@ -105,105 +105,106 @@
 				Component = typeof(Users)
 			});
 
-			//n.Add(new MenuNode
-			//{
-			//	Id = "libraries",
-			//	Text = "Vorlagen",
-			//	Href = "/cockpit/library/scenarios", // Parent ist Link (führt aufs erste Kind)
-			//	Match = NavLinkMatch.Prefix,
-			//	Component = typeof(LibraryScenarios),
-			//	Children = new List<MenuNode>
-			//	{
-			//		new MenuNode
-			//		{
-			//			Id = "lib-scenarios",
-			//			Text = "Szenarien",
-			//			Href = "/cockpit/library/scenarios",
-			//			Match = NavLinkMatch.All,
-			//			Component = typeof(LibraryScenarios)
-			//		},
-			//		new MenuNode
-			//		{
-			//			Id = "lib-controls",
-			//			Text = "Controls",
-			//			Href = "/cockpit/library/controls",
-			//			Match = NavLinkMatch.All,
-			//			Component = typeof(LibraryControls)
-			//		},
-			//		new MenuNode
-			//		{
-			//			Id = "lib-frameworks",
-			//			Text = "Frameworks",
-			//			Href = "/cockpit/library/frameworks",
-			//			Match = NavLinkMatch.All,
-			//			Component = typeof(Frameworks)
-			//		}
-			//	}
-			//});
-//
-			//n.Add(new MenuNode
-			//{
-			//	Id = "reports",
-			//	Text = "Reports",
-			//	Href = "/cockpit/reports/instances",
-			//	Match = NavLinkMatch.Prefix,
-			//	Component = typeof(Reports),
-			//	Children = new List<MenuNode>
-			//	{
-			//		new MenuNode
-			//		{
-			//			Id = "report-definitions",
-			//			Text = "Vorlagen",
-			//			Href = "/cockpit/reports/definitions",
-			//			Match = NavLinkMatch.All,
-			//			Component = typeof(ReportDefinitions)
-			//		}
-			//	}
-			//});
-//
-			//n.Add(new MenuNode
-			//{
-			//	Id = "secnarios",
-			//	Text = "Szenarien",
-			//	Href = "/cockpit/scenarios",
-			//	Match = NavLinkMatch.All,
-			//	Component = typeof(Scenarios)
-			//});
-//
-			//n.Add(new MenuNode
-			//{
-			//	Id = "controls",
-			//	Text = "Controls",
-			//	Href = "/cockpit/controls",
-			//	Match = NavLinkMatch.All,
-			//	Component = typeof(Controls)
-			//});
-//
-			//n.Add(new MenuNode
-			//{
-			//	Id = "exception",
-			//	Text = "Ausnahmen",
-			//	Href = "/cockpit/exceptions",
-			//	Match = NavLinkMatch.All,
-			//	Component = typeof(RiskAcceptances)
-			//});
-//
-			//n.Add(new MenuNode
-			//{
-			//	Id = "tasks",
-			//	Text = "Aufgaben",
-			//	Href = "/cockpit/tasks",
-			//	Match = NavLinkMatch.All,
-			//	Component = typeof(ToDos)
-			//});
-			//n.Add(new MenuNode
-			//{
-			//	Id = "evidences",
-			//	Text = "Nachweise",
-			//	Href = "/cockpit/evidences",
-			//	Match = NavLinkMatch.All,
-			//	Component = typeof(Evidences)
-			//});
+			n.Add(new MenuNode
+			{
+				Id = "libraries",
+				Text = "Vorlagen",
+				Href = "/cockpit/library/scenarios", // führt aufs erste Kind
+				Match = NavLinkMatch.Prefix,
+				Component = typeof(LibraryScenarios),
+				Children = new List<MenuNode>
+				{
+					new MenuNode
+					{
+						Id = "lib-scenarios",
+						Text = "Szenarien",
+						Href = "/cockpit/library/scenarios",
+						Match = NavLinkMatch.All,
+						Component = typeof(LibraryScenarios)
+					},
+					new MenuNode
+					{
+						Id = "lib-controls",
+						Text = "Controls",
+						Href = "/cockpit/library/controls",
+						Match = NavLinkMatch.All,
+						Component = typeof(LibraryControls)
+					},
+					new MenuNode
+					{
+						Id = "lib-frameworks",
+						Text = "Frameworks",
+						Href = "/cockpit/library/frameworks",
+						Match = NavLinkMatch.All,
+						Component = typeof(Frameworks)
+					}
+				}
+			});
+
+			n.Add(new MenuNode
+			{
+				Id = "reports",
+				Text = "Reports",
+				Href = "/cockpit/reports/instances",
+				Match = NavLinkMatch.Prefix,
+				Component = typeof(Reports),
+				Children = new List<MenuNode>
+				{
+					new MenuNode
+					{
+						Id = "report-definitions",
+						Text = "Vorlagen",
+						Href = "/cockpit/reports/definitions",
+						Match = NavLinkMatch.All,
+						Component = typeof(ReportDefinitions)
+					}
+				}
+			});
+
+			n.Add(new MenuNode
+			{
+				Id = "secnarios",
+				Text = "Szenarien",
+				Href = "/cockpit/scenarios",
+				Match = NavLinkMatch.All,
+				Component = typeof(Scenarios)
+			});
+
+			n.Add(new MenuNode
+			{
+				Id = "controls",
+				Text = "Controls",
+				Href = "/cockpit/controls",
+				Match = NavLinkMatch.All,
+				Component = typeof(Controls)
+			});
+
+			n.Add(new MenuNode
+			{
+				Id = "exception",
+				Text = "Ausnahmen",
+				Href = "/cockpit/exceptions",
+				Match = NavLinkMatch.All,
+				Component = typeof(RiskAcceptances)
+			});
+
+			n.Add(new MenuNode
+			{
+				Id = "tasks",
+				Text = "Aufgaben",
+				Href = "/cockpit/tasks",
+				Match = NavLinkMatch.All,
+				Component = typeof(ToDos)
+			});
+
+			n.Add(new MenuNode
+			{
+				Id = "evidences",
+				Text = "Nachweise",
+				Href = "/cockpit/evidences",
+				Match = NavLinkMatch.All,
+				Component = typeof(Evidences)
+			});
 
 			n.Add(new MenuNode
 			{
@@ -233,7 +234,7 @@
 				Text = "Dashboard",
 				Href = "/cockpit/",
 				Match = NavLinkMatch.All,
-				Component = typeof(Dashboard)
+				Component = typeof(CockpitPagesUsers.Dashboard)
 			});
 			n.Add(new MenuNode
 			{
@@ -241,7 +242,7 @@
 				Text = "Controls",
 				Href = "/cockpit/user-controls",
 				Match = NavLinkMatch.All,
-				Component = typeof(UserControls)
+				Component = typeof(CockpitPagesUsers.UserControls)
 			});
 			n.Add(new MenuNode
 			{
@@ -249,7 +250,7 @@
 				Text = "Szenarien",
 				Href = "/cockpit/user-scenarios",
 				Match = NavLinkMatch.All,
-				Component = typeof(UserScenarios)
+				Component = typeof(CockpitPagesUsers.UserScenarios)
 			});
 			n.Add(new MenuNode
 			{
@@ -257,7 +258,7 @@
 				Text = "Aufgaben",
 				Href = "/cockpit/user-tasks",
 				Match = NavLinkMatch.All,
-				Component = typeof(UserTasks)
+				Component = typeof(CockpitPagesUsers.UserTasks)
 			});
 			n.Add(new MenuNode
 			{
@@ -265,7 +266,7 @@
 				Text = "Reports",
 				Href = "/cockpit/reports",
 				Match = NavLinkMatch.All,
-				Component = typeof(UserReports),
+				Component = typeof(CockpitPagesUsers.UserReports),
 				Children = new List<MenuNode>
 				{
 					new MenuNode
@@ -274,7 +275,7 @@
 						Text = "Vorlagen",
 						Href = "/cockpit/reports/user-report-definitions",
 						Match = NavLinkMatch.All,
-						Component = typeof(UserReportDefinitions)
+						Component = typeof(CockpitPagesUsers.UserReportDefinitions)
 					}
 				}
 			});

@@ -8,11 +8,13 @@ namespace CMC.Contracts.Reports
 		[ScaffoldColumn(false)]
 		public Guid Id { get; set; }
 
+		// 👉 optional auswählbar
 		[Display(Name = "Kunde")]
-		public Guid? CustomerId { get; init; }
+		public Guid? CustomerId { get; set; }
 
+		// 👉 Definition auswählbar
 		[Display(Name = "Definition")]
-		public Guid DefinitionId { get; init; }
+		public Guid DefinitionId { get; set; }
 
 		[Display(Name = "Zeitraum von"), DisplayFormat(DataFormatString = "{0:dd.MM.yyyy HH:mm}")]
 		public DateTimeOffset PeriodStart { get; set; }

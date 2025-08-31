@@ -302,43 +302,42 @@
     };
 
     private IEnumerable<PropertyInfo> GetVisibleProps()
+{
+    if (Model is null) yield break;
+
+    var type = Model.GetType();
+    var allProps = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                       .Where(p => p.CanRead)
+                       .ToList();
+
+    foreach (var p in allProps)
     {
-        if (Model is null) yield break;
+        // Primärschlüssel nie anzeigen
+        if (string.Equals(p.Name, "Id", StringComparison.Ordinal)) continue;
 
-        var type    = Model.GetType();
-        var allProps = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                           .Where(p => p.CanRead)
-                           .ToList();
+        var effective = EffectiveType(p.PropertyType);
 
-        foreach (var p in allProps)
-        {
-            var effective = EffectiveType(p.PropertyType);
+        var isRelationCandidate =
+            p.GetCustomAttribute<RelationFromAttribute>() != null ||
+            (p.Name.EndsWith("Ids", StringComparison.Ordinal) &&
+             typeof(System.Collections.IEnumerable).IsAssignableFrom(effective) &&
+             effective != typeof(string)) ||
+            // Exakt "Id" nicht als Relation behandeln:
+            (p.Name.EndsWith("Id", StringComparison.Ordinal) &&
+             !string.Equals(p.Name, "Id", StringComparison.Ordinal) &&
+             (effective == typeof(Guid) || effective == typeof(Guid?) || effective == typeof(string)));
 
-            var isRelationCandidate =
-                p.GetCustomAttribute<RelationFromAttribute>() != null ||
-                // Many-to-Many via *Ids
-                (p.Name.EndsWith("Ids", StringComparison.Ordinal) &&
-                 typeof(System.Collections.IEnumerable).IsAssignableFrom(effective) &&
-                 effective != typeof(string)) ||
-                // Single-Reference via *Id
-                (p.Name.EndsWith("Id", StringComparison.Ordinal) &&
-                 !p.Name.EndsWith("Ids", StringComparison.Ordinal) &&
-                 (effective == typeof(Guid) || effective == typeof(Guid?) || effective == typeof(string)));
+        var scaffold = p.GetCustomAttribute<ScaffoldColumnAttribute>();
+        if (scaffold is { Scaffold: false } && !isRelationCandidate) continue;
 
-            // In Tabellen ausblenden (Scaffold=false), **aber** im Editor anzeigen, wenn RelationCandidate
-            var scaffold = p.GetCustomAttribute<ScaffoldColumnAttribute>();
-            if (scaffold is { Scaffold: false } && !isRelationCandidate) continue;
+        var disp = p.GetCustomAttribute<DisplayAttribute>();
+        if (disp?.GetAutoGenerateField() == false && !isRelationCandidate) continue;
 
-            // AutoGenerateField=false respektieren – außer es ist eine Relation
-            var disp = p.GetCustomAttribute<DisplayAttribute>();
-            if (disp?.GetAutoGenerateField() == false && !isRelationCandidate) continue;
+        if (p.GetCustomAttribute<EditorHiddenAttribute>() is not null && !isRelationCandidate) continue;
 
-            // EditorHidden: im Editor ausblenden (keine Relation)
-            if (p.GetCustomAttribute<EditorHiddenAttribute>() is not null && !isRelationCandidate) continue;
-
-            yield return p;
-        }
+        yield return p;
     }
+}
 
     // --- Namensableitung für Relationen (mit einfacher Pluralisierung) ---
     private static string DeriveRelationName(string fieldName, bool isMany)

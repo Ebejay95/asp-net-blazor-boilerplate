@@ -1,14 +1,16 @@
 @attribute [Authorize(Roles = "super-admin")]
 @using System.Linq
-@using CMC.Contracts.LibraryScenarios
+@using CMC.Contracts.ToDos
 @using CMC.Web.Services
-@inject CMC.Application.Services.LibraryScenarioService LibraryScenarioService
+@using CMC.Web.Util
+@using CMC.Domain.Entities
+@inject CMC.Application.Services.ToDoService ToDoService
 @inject EFEditService EFEditService
 @inject DialogService ConfirmService
 
 <div class="card">
-    <EFTable TItem="LibraryScenarioDto"
-               Items="_scenarios"
+    <EFTable TItem="ToDoDto"
+               Items="_todos"
                AllowEdit="true"
                OnEdit="StartEdit"
                AllowCreate="true"
@@ -16,31 +18,35 @@
 </div>
 
 @code {
-    private List<LibraryScenarioDto> _scenarios = new();
+    private List<ToDoDto> _todos = new();
 
     protected override async Task OnInitializedAsync()
-        => _scenarios = await LibraryScenarioService.GetAllAsync();
+    {
+        _todos = await ToDoService.GetAllAsync();
+    }
 
     private async Task Reload()
     {
-        _scenarios = await LibraryScenarioService.GetAllAsync();
+        _todos = await ToDoService.GetAllAsync();
         StateHasChanged();
     }
 
-    private void StartEdit(LibraryScenarioDto scenario)
+    private void StartEdit(ToDoDto todo)
     {
         var req = new EFEditRequest
         {
-            Title = "Szenario bearbeiten",
-            Model = scenario,
-            ContractsAssembly = typeof(LibraryScenarioDto).Assembly,
+            Title = "Aufgabe bearbeiten",
+            Model = todo,
+            ContractsAssembly = typeof(ToDoDto).Assembly,
+            EfParentType = typeof(ToDo),
+            GetParentKey = m => ((ToDoDto)m).Id,
             IsCreate = false,
             OnSave = async ctx =>
             {
                 try
                 {
-                    var up = (UpdateLibraryScenarioRequest)ctx.Build("Update");
-                    _ = await LibraryScenarioService.UpdateAsync(up);
+                    var up = (UpdateToDoRequest)ctx.Build("Update");
+                    _ = await ToDoService.UpdateAsync(up);
                     await Reload();
                     EFEditService.Close();
                 }
@@ -57,19 +63,19 @@
             },
             OnDelete = ctx =>
             {
-                var model = (LibraryScenarioDto)ctx.Model;
+                var model = (ToDoDto)ctx.Model;
 
                 ConfirmService.Open(new DialogRequest
                 {
                     Title = "Löschen bestätigen",
-                    Message = "Szenario " + model.Name + " wirklich löschen?",
+                    Message = $"Aufgabe \"{model.Name}\" wirklich löschen?",
                     ConfirmText = "Löschen",
                     CancelText = "Abbrechen",
                     OnConfirm = async () =>
                     {
                         try
                         {
-                            await LibraryScenarioService.DeleteAsync(model.Id);
+                            await ToDoService.DeleteAsync(model.Id);
                             await Reload();
                             EFEditService.Close();
                         }
@@ -95,34 +101,50 @@
             }
         };
 
+        // Relation: ToDo → Control
+        req.ExtraFields.Add(new ExtraField(
+            Name: "ControlId",
+            Label: "Control",
+            Type: typeof(Guid),
+            DataType: "relation-auto",
+            Value: todo.ControlId
+        ));
+
         EFEditService.Open(req);
     }
 
     private void StartCreate()
     {
-        var empty = new LibraryScenarioDto
+        var empty = new ToDoDto
         {
             Id = Guid.Empty,
+            ControlId = Guid.Empty,
             Name = string.Empty,
-            AnnualFrequency = 0m,
-            ImpactPctRevenue = 0m,
-            Tags = string.Empty,
+            InternalDays = 0,
+            ExternalDays = 0,
+            TotalDays = 0,
+            StartDate = null,
+            EndDate = null,
+            Status = "todo",
+            Assignee = string.Empty,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
 
         var req = new EFEditRequest
         {
-            Title = "Szenario anlegen",
+            Title = "Aufgabe anlegen",
             Model = empty,
-            ContractsAssembly = typeof(LibraryScenarioDto).Assembly,
+            ContractsAssembly = typeof(ToDoDto).Assembly,
+            EfParentType = typeof(ToDo),
+            GetParentKey = m => ((ToDoDto)m).Id,
             IsCreate = true,
             OnSave = async ctx =>
             {
                 try
                 {
-                    var create = (CreateLibraryScenarioRequest)ctx.Build("Create");
-                    _ = await LibraryScenarioService.CreateAsync(create);
+                    var create = (CreateToDoRequest)ctx.Build("Create");
+                    _ = await ToDoService.CreateAsync(create);
                     await Reload();
                     EFEditService.Close();
                 }
@@ -138,6 +160,14 @@
                 }
             }
         };
+
+        req.ExtraFields.Add(new ExtraField(
+            Name: "ControlId",
+            Label: "Control",
+            Type: typeof(Guid),
+            DataType: "relation-auto",
+            Value: Guid.Empty
+        ));
 
         EFEditService.Open(req);
     }

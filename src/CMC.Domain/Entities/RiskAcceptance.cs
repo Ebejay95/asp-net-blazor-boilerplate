@@ -3,7 +3,7 @@ using System;
 
 namespace CMC.Domain.Entities
 {
-	public class RiskAcceptance : ISoftDeletable
+	public class RiskAcceptance : ISoftDeletable, IVersionedEntity
 	{
 		public Guid Id { get; private set; }
 

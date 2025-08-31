@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace CMC.Domain.Entities
 {
-    public class ToDo : ISoftDeletable
+    public class ToDo : ISoftDeletable, IVersionedEntity
     {
         public Guid Id { get; private set; }
 

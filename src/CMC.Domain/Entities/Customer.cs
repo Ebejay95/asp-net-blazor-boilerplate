@@ -5,7 +5,7 @@ using CMC.Domain.Entities.Joins;
 
 namespace CMC.Domain.Entities
 {
-    public class Customer
+    public class Customer : ISoftDeletable, IVersionedEntity
     {
         #region Properties - Identity
         public Guid Id { get; private set; }
@@ -21,6 +21,12 @@ namespace CMC.Domain.Entities
         public bool IsActive { get; private set; } = true;
         public DateTimeOffset CreatedAt { get; private set; }
         public DateTimeOffset UpdatedAt { get; private set; }
+        #endregion
+
+        #region Properties - Soft Delete
+        public bool IsDeleted { get; set; }
+        public DateTimeOffset? DeletedAt { get; set; }
+        public string? DeletedBy { get; set; }
         #endregion
 
         #region Navigation (Join-only + 1:n)
@@ -80,6 +86,29 @@ namespace CMC.Domain.Entities
         }
         #endregion
 
+        #region Domain Methods - Soft Delete
+        public void Delete(string? deletedBy = null)
+        {
+            if (!IsDeleted)
+            {
+                IsDeleted = true;
+                DeletedAt = DateTimeOffset.UtcNow;
+                DeletedBy = deletedBy;
+            }
+        }
+
+        public void Restore()
+        {
+            if (IsDeleted)
+            {
+                IsDeleted = false;
+                DeletedAt = null;
+                DeletedBy = null;
+                UpdatedAt = DateTimeOffset.UtcNow;
+            }
+        }
+        #endregion
+
         #region Domain Methods - Industries (Join-only API)
         /// <summary>
         /// Ersetzt die Zuordnung zu Branchen (Industry) anhand einer Menge von Industry-Ids.
@@ -105,19 +134,21 @@ namespace CMC.Domain.Entities
 
             UpdatedAt = DateTimeOffset.UtcNow;
         }
-public void AddIndustries(IEnumerable<Guid> industryIds)
-{
-    var current = GetIndustryIds();
-    var combined = current.Concat(industryIds).Distinct().ToArray();
-    SetIndustries(combined);
-}
 
-public void RemoveIndustries(IEnumerable<Guid> industryIds)
-{
-    var current = GetIndustryIds();
-    var remaining = current.Except(industryIds).ToArray();
-    SetIndustries(remaining);
-}
+        public void AddIndustries(IEnumerable<Guid> industryIds)
+        {
+            var current = GetIndustryIds();
+            var combined = current.Concat(industryIds).Distinct().ToArray();
+            SetIndustries(combined);
+        }
+
+        public void RemoveIndustries(IEnumerable<Guid> industryIds)
+        {
+            var current = GetIndustryIds();
+            var remaining = current.Except(industryIds).ToArray();
+            SetIndustries(remaining);
+        }
+
         public IReadOnlyList<Guid> GetIndustryIds()
             => CustomerIndustries.Select(l => l.IndustryId).Distinct().ToArray();
         #endregion

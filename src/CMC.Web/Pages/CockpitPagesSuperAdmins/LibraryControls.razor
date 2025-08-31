@@ -1,16 +1,15 @@
+@* Pages/CockpitPagesSuperAdmins/LibraryControls.razor *@
 @attribute [Authorize(Roles = "super-admin")]
 @using System.Linq
-@using CMC.Contracts.Reports
+@using CMC.Contracts.LibraryControls
 @using CMC.Web.Services
-@using CMC.Web.Util
-@using CMC.Domain.Entities
-@inject CMC.Application.Services.ReportDefinitionService ReportDefinitionService
+@inject CMC.Application.Services.LibraryControlService LibraryControlService
 @inject EFEditService EFEditService
 @inject DialogService ConfirmService
 
 <div class="card">
-    <EFTable TItem="ReportDefinitionDto"
-               Items="_definitions"
+    <EFTable TItem="LibraryControlDto"
+               Items="_controls"
                AllowEdit="true"
                OnEdit="StartEdit"
                AllowCreate="true"
@@ -18,33 +17,31 @@
 </div>
 
 @code {
-    private List<ReportDefinitionDto> _definitions = new();
+    private List<LibraryControlDto> _controls = new();
 
     protected override async Task OnInitializedAsync()
-        => _definitions = await ReportDefinitionService.GetAllAsync();
+        => _controls = await LibraryControlService.GetAllAsync();
 
     private async Task Reload()
     {
-        _definitions = await ReportDefinitionService.GetAllAsync();
+        _controls = await LibraryControlService.GetAllAsync();
         StateHasChanged();
     }
 
-    private void StartEdit(ReportDefinitionDto definition)
+    private void StartEdit(LibraryControlDto control)
     {
         var req = new EFEditRequest
         {
-            Title = "Report-Vorlage bearbeiten",
-            Model = definition,
-            ContractsAssembly = typeof(ReportDefinitionDto).Assembly,
-            EfParentType = typeof(ReportDefinition),
-            GetParentKey = m => ((ReportDefinitionDto)m).Id,
+            Title = "Control bearbeiten",
+            Model = control,
+            ContractsAssembly = typeof(LibraryControlDto).Assembly,
             IsCreate = false,
             OnSave = async ctx =>
             {
                 try
                 {
-                    var up = (UpdateReportDefinitionRequest)ctx.Build("Update");
-                    _ = await ReportDefinitionService.UpdateAsync(up);
+                    var up = (UpdateLibraryControlRequest)ctx.Build("Update");
+                    _ = await LibraryControlService.UpdateAsync(up);
                     await Reload();
                     EFEditService.Close();
                 }
@@ -61,19 +58,19 @@
             },
             OnDelete = ctx =>
             {
-                var model = (ReportDefinitionDto)ctx.Model;
+                var model = (LibraryControlDto)ctx.Model;
 
                 ConfirmService.Open(new DialogRequest
                 {
                     Title = "Löschen bestätigen",
-                    Message = "Report-Vorlage " + model.Name + " wirklich löschen?",
+                    Message = "Control " + model.Name + " wirklich löschen?",
                     ConfirmText = "Löschen",
                     CancelText = "Abbrechen",
                     OnConfirm = async () =>
                     {
                         try
                         {
-                            await ReportDefinitionService.DeleteAsync(model.Id);
+                            await LibraryControlService.DeleteAsync(model.Id);
                             await Reload();
                             EFEditService.Close();
                         }
@@ -91,49 +88,44 @@
                 });
 
                 return Task.CompletedTask;
+            },
+            OnAfterRestore = async () =>
+            {
+                await Reload();
+                EFEditService.Close();
             }
         };
-
-        // Relation Fields
-        req.ExtraFields.Add(new ExtraField(
-            Name: "CustomerId",
-            Label: "Kunde",
-            Type: typeof(Guid),
-            DataType: "relation-auto",
-            Value: definition.CustomerId
-        ));
 
         EFEditService.Open(req);
     }
 
     private void StartCreate()
     {
-        var empty = new ReportDefinitionDto
+        var empty = new LibraryControlDto
         {
             Id = Guid.Empty,
-            CustomerId = Guid.Empty,
             Name = string.Empty,
-            Kind = "monthly",
-            WindowDays = 30,
-            Sections = string.Empty,
+            CapexEur = 0m,
+            OpexYearEur = 0m,
+            InternalDays = 0,
+            ExternalDays = 0,
+            TotalDays = 0,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
 
         var req = new EFEditRequest
         {
-            Title = "Report-Vorlage anlegen",
+            Title = "Control anlegen",
             Model = empty,
-            ContractsAssembly = typeof(ReportDefinitionDto).Assembly,
-            EfParentType = typeof(ReportDefinition),
-            GetParentKey = m => ((ReportDefinitionDto)m).Id,
+            ContractsAssembly = typeof(LibraryControlDto).Assembly,
             IsCreate = true,
             OnSave = async ctx =>
             {
                 try
                 {
-                    var create = (CreateReportDefinitionRequest)ctx.Build("Create");
-                    _ = await ReportDefinitionService.CreateAsync(create);
+                    var create = (CreateLibraryControlRequest)ctx.Build("Create");
+                    _ = await LibraryControlService.CreateAsync(create);
                     await Reload();
                     EFEditService.Close();
                 }
@@ -149,14 +141,6 @@
                 }
             }
         };
-
-        req.ExtraFields.Add(new ExtraField(
-            Name: "CustomerId",
-            Label: "Kunde",
-            Type: typeof(Guid),
-            DataType: "relation-auto",
-            Value: Guid.Empty
-        ));
 
         EFEditService.Open(req);
     }

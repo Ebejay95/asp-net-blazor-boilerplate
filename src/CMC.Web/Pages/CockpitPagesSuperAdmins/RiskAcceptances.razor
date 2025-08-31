@@ -91,10 +91,15 @@
                 });
 
                 return Task.CompletedTask;
+            },
+            OnAfterRestore = async () =>
+            {
+                await Reload();
+                EFEditService.Close();
             }
         };
 
-        // Relation Fields
+        // Relationen: RiskAcceptance → Customer, → Control
         req.ExtraFields.Add(new ExtraField(
             Name: "CustomerId",
             Label: "Kunde",

@@ -1,16 +1,16 @@
 @attribute [Authorize(Roles = "super-admin")]
 @using System.Linq
-@using CMC.Contracts.Scenarios
+@using CMC.Contracts.Reports
 @using CMC.Web.Services
 @using CMC.Web.Util
 @using CMC.Domain.Entities
-@inject CMC.Application.Services.ScenarioService ScenarioService
+@inject CMC.Application.Services.ReportDefinitionService ReportDefinitionService
 @inject EFEditService EFEditService
 @inject DialogService ConfirmService
 
 <div class="card">
-    <EFTable TItem="ScenarioDto"
-               Items="_scenarios"
+    <EFTable TItem="ReportDefinitionDto"
+               Items="_definitions"
                AllowEdit="true"
                OnEdit="StartEdit"
                AllowCreate="true"
@@ -18,33 +18,33 @@
 </div>
 
 @code {
-    private List<ScenarioDto> _scenarios = new();
+    private List<ReportDefinitionDto> _definitions = new();
 
     protected override async Task OnInitializedAsync()
-        => _scenarios = await ScenarioService.GetAllAsync();
+        => _definitions = await ReportDefinitionService.GetAllAsync();
 
     private async Task Reload()
     {
-        _scenarios = await ScenarioService.GetAllAsync();
+        _definitions = await ReportDefinitionService.GetAllAsync();
         StateHasChanged();
     }
 
-    private void StartEdit(ScenarioDto scenario)
+    private void StartEdit(ReportDefinitionDto definition)
     {
         var req = new EFEditRequest
         {
-            Title = "Szenario bearbeiten",
-            Model = scenario,
-            ContractsAssembly = typeof(ScenarioDto).Assembly,
-            EfParentType = typeof(Scenario),
-            GetParentKey = m => ((ScenarioDto)m).Id,
+            Title = "Report-Vorlage bearbeiten",
+            Model = definition,
+            ContractsAssembly = typeof(ReportDefinitionDto).Assembly,
+            EfParentType = typeof(ReportDefinition),
+            GetParentKey = m => ((ReportDefinitionDto)m).Id,
             IsCreate = false,
             OnSave = async ctx =>
             {
                 try
                 {
-                    var up = (UpdateScenarioRequest)ctx.Build("Update");
-                    _ = await ScenarioService.UpdateAsync(up);
+                    var up = (UpdateReportDefinitionRequest)ctx.Build("Update");
+                    _ = await ReportDefinitionService.UpdateAsync(up);
                     await Reload();
                     EFEditService.Close();
                 }
@@ -61,19 +61,19 @@
             },
             OnDelete = ctx =>
             {
-                var model = (ScenarioDto)ctx.Model;
+                var model = (ReportDefinitionDto)ctx.Model;
 
                 ConfirmService.Open(new DialogRequest
                 {
                     Title = "Löschen bestätigen",
-                    Message = "Szenario " + model.Name + " wirklich löschen?",
+                    Message = "Report-Vorlage " + model.Name + " wirklich löschen?",
                     ConfirmText = "Löschen",
                     CancelText = "Abbrechen",
                     OnConfirm = async () =>
                     {
                         try
                         {
-                            await ScenarioService.DeleteAsync(model.Id);
+                            await ReportDefinitionService.DeleteAsync(model.Id);
                             await Reload();
                             EFEditService.Close();
                         }
@@ -91,6 +91,11 @@
                 });
 
                 return Task.CompletedTask;
+            },
+            OnAfterRestore = async () =>
+            {
+                await Reload();
+                EFEditService.Close();
             }
         };
 
@@ -100,15 +105,7 @@
             Label: "Kunde",
             Type: typeof(Guid),
             DataType: "relation-auto",
-            Value: scenario.CustomerId
-        ));
-
-        req.ExtraFields.Add(new ExtraField(
-            Name: "LibraryScenarioId",
-            Label: "Vorlage",
-            Type: typeof(Guid),
-            DataType: "relation-auto",
-            Value: scenario.LibraryScenarioId
+            Value: definition.CustomerId
         ));
 
         EFEditService.Open(req);
@@ -116,33 +113,32 @@
 
     private void StartCreate()
     {
-        var empty = new ScenarioDto
+        var empty = new ReportDefinitionDto
         {
             Id = Guid.Empty,
             CustomerId = Guid.Empty,
-            LibraryScenarioId = Guid.Empty,
             Name = string.Empty,
-            AnnualFrequency = 0m,
-            ImpactPctRevenue = 0m,
-            Tags = string.Empty,
+            Kind = "monthly",
+            WindowDays = 30,
+            Sections = string.Empty,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
 
         var req = new EFEditRequest
         {
-            Title = "Szenario anlegen",
+            Title = "Report-Vorlage anlegen",
             Model = empty,
-            ContractsAssembly = typeof(ScenarioDto).Assembly,
-            EfParentType = typeof(Scenario),
-            GetParentKey = m => ((ScenarioDto)m).Id,
+            ContractsAssembly = typeof(ReportDefinitionDto).Assembly,
+            EfParentType = typeof(ReportDefinition),
+            GetParentKey = m => ((ReportDefinitionDto)m).Id,
             IsCreate = true,
             OnSave = async ctx =>
             {
                 try
                 {
-                    var create = (CreateScenarioRequest)ctx.Build("Create");
-                    _ = await ScenarioService.CreateAsync(create);
+                    var create = (CreateReportDefinitionRequest)ctx.Build("Create");
+                    _ = await ReportDefinitionService.CreateAsync(create);
                     await Reload();
                     EFEditService.Close();
                 }
@@ -159,18 +155,9 @@
             }
         };
 
-        // Relation Fields für neue Scenarios
         req.ExtraFields.Add(new ExtraField(
             Name: "CustomerId",
             Label: "Kunde",
-            Type: typeof(Guid),
-            DataType: "relation-auto",
-            Value: Guid.Empty
-        ));
-
-        req.ExtraFields.Add(new ExtraField(
-            Name: "LibraryScenarioId",
-            Label: "Vorlage",
             Type: typeof(Guid),
             DataType: "relation-auto",
             Value: Guid.Empty

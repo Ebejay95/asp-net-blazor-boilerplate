@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using CMC.Contracts.Common;
 
 namespace CMC.Contracts.LibraryControls
 {
@@ -27,18 +28,24 @@ namespace CMC.Contracts.LibraryControls
 		[Display(Name = "Gesamt Tage")]
 		public int TotalDays { get; set; }
 
-		// M:N – Tags
-		[ScaffoldColumn(false)]
+		// 👉 M:N – Tags über IDs (editierbar)
+		[Display(Name = "Tags")]
+		[RelationFrom(IsMany = true)]
 		public IReadOnlyList<Guid> TagIds { get; set; } = Array.Empty<Guid>();
 
-		[Display(Name = "Tags")]
+		// nur Anzeige
+		[EditorHidden]
+		[Display(Name = "Tags (Namen)")]
 		public IReadOnlyList<string> TagLabels { get; set; } = Array.Empty<string>();
 
-		// M:N – Branchen
-		[ScaffoldColumn(false)]
+		// 👉 M:N – Branchen
+		[Display(Name = "Branchen")]
+		[RelationFrom(IsMany = true)]
 		public IReadOnlyList<Guid> IndustryIds { get; set; } = Array.Empty<Guid>();
 
-		[Display(Name = "Branchen")]
+		// nur Anzeige
+		[EditorHidden]
+		[Display(Name = "Branchen (Namen)")]
 		public IReadOnlyList<string> IndustryLabels { get; set; } = Array.Empty<string>();
 
 		[Display(Name = "Erstellt am"), DisplayFormat(DataFormatString = "{0:dd.MM.yyyy HH:mm}")]

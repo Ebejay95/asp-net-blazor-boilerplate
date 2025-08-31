@@ -4,7 +4,7 @@ using System.Linq;
 
 namespace CMC.Domain.Entities
 {
-    public class Scenario : ISoftDeletable
+    public class Scenario : ISoftDeletable, IVersionedEntity
     {
         public Guid Id { get; private set; }
 
