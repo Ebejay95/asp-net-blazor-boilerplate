@@ -60,7 +60,6 @@
         {
             _isLoading = true;
 
-            // 🔎 auch hier: Guess + Alias
             var descriptor = TryGetDescriptor(RelationName)
                           ?? TryGetDescriptor(ParentType.Name + RelationName);
 

@@ -14,13 +14,15 @@
 @inject EFEditService EFEdit
 @inject DbContextOptions<AppDbContext> DbOptions
 
-<EFTable TItem="CustomerDto"
-         Items="CustomerList"
-         AutoGenerate="true"
-         AllowEdit="true"
-         AllowCreate="true"
-         OnEdit="EditCustomer"
-         OnCreate="CreateCustomer" />
+<div class="card">
+    <EFTable TItem="CustomerDto"
+             Items="CustomerList"
+             AutoGenerate="true"
+             AllowEdit="true"
+             AllowCreate="true"
+             OnEdit="EditCustomer"
+             OnCreate="CreateCustomer" />
+</div>
 
 @code {
     private List<CustomerDto> CustomerList = new();
@@ -84,7 +86,11 @@
             Title = isCreate ? "Kunde anlegen" : $"Kunde bearbeiten – {dto.Name}",
             Model = dto,
             ContractsAssembly = typeof(CustomerDto).Assembly,
+
+            // wichtig für Relation-Fields (IndustryIds → CustomerIndustries)
             EfParentType = typeof(Customer),
+            GetParentKey = m => ((CustomerDto)m).Id,
+
             IsCreate = isCreate,
             OnSave = OnSaveCustomer
         });
@@ -98,10 +104,30 @@
             var dto = (CustomerDto)ctx.Model;
             Guid customerId = dto.Id;
 
-            // 2) Create/Update Stammfelder (schreibender injizierter DbContext)
+            // 2) geänderte Werte robust aus dem Editor lesen
+            var name = ctx.TryGetValue("Name", out var rawName)
+                ? (rawName?.ToString()?.Trim() ?? "")
+                : dto.Name;
+
+            var employeeCount = TryGetInt(ctx, "EmployeeCount", dto.EmployeeCount);
+            var revenue       = TryGetDecimal(ctx, "RevenuePerYear", dto.RevenuePerYear);
+
+            var isActive = ctx.TryGetValue("IsActive", out var rawActive)
+                ? ToBool(rawActive, dto.IsActive)
+                : dto.IsActive;
+
+            // M:N aus Editor (nicht aus altem DTO)
+            var industryIds = ExtractGuids(ctx.TryGetValue("IndustryIds", out var rawInds) ? rawInds : dto.IndustryIds);
+
+            // 3) Create/Update Stammfelder (schreibender injizierter DbContext)
             if (dto.Id == Guid.Empty)
             {
-                var entity = new Customer(dto.Name, dto.EmployeeCount, dto.RevenuePerYear);
+                if (string.IsNullOrWhiteSpace(name))
+                    throw new ArgumentException("Customer name cannot be null or empty", nameof(name));
+
+                var entity = new Customer(name, employeeCount, revenue);
+                if (!isActive) entity.Deactivate(); else entity.Activate();
+
                 Db.Add(entity);
                 await Db.SaveChangesAsync(); // Id wird gesetzt
                 customerId = entity.Id;
@@ -113,36 +139,25 @@
                 var existing = await Db.Set<Customer>().FindAsync(dto.Id);
                 if (existing is not null)
                 {
-                    existing.UpdateBusinessInfo(dto.Name, dto.EmployeeCount, dto.RevenuePerYear);
-                    if (dto.IsActive) existing.Activate(); else existing.Deactivate();
+                    existing.UpdateBusinessInfo(name, employeeCount, revenue);
+                    if (isActive) existing.Activate(); else existing.Deactivate();
                     await Db.SaveChangesAsync();
 
                     Console.WriteLine($"✏️  Customer updated: {existing.Id} – {existing.Name}");
                 }
             }
 
-            // 3) M:N – aktuelle Auswahl AUS DEM CONTEXT holen (nicht nur dto)
-            var selectedIndustryIds = ExtractGuidArray(
-                ctx.TryGetValue("IndustryIds", out var raw) ? raw : dto.IndustryIds
-            );
-
-            Console.WriteLine("🧾 ctx dump:");
-            foreach (var kv in ctx.Values)
-                Console.WriteLine($"   - {kv.Key} => {DescribeValue(kv.Value)}");
-
-            Console.WriteLine($"🔗 Apply relations IndustryIds → {selectedIndustryIds.Length} key(s): {string.Join(", ", selectedIndustryIds)}");
-
+            // 4) M:N anwenden (CustomerIndustries) – mit den *neuen* IDs
             await RelationSaveHelper.ApplyAsync(
                 rels: Rels,
                 parentType: typeof(Customer),
                 parentKey: customerId,
-                values: new Dictionary<string, object?> { ["IndustryIds"] = selectedIndustryIds });
+                values: new Dictionary<string, object?> { ["IndustryIds"] = industryIds });
 
-            // Domain-Setter-Pfad speichert ggf. nicht -> explizit persistieren
             await Db.SaveChangesAsync();
             Console.WriteLine("✅ Relations persisted to DB.");
 
-            // 4) UI schließen & Liste neu laden
+            // 5) UI schließen & Liste neu laden (separater Lese-DbContext)
             EFEdit.Close();
             await ReloadListAsync();
             StateHasChanged();
@@ -157,31 +172,61 @@
                 ConfirmText = "Okay",
                 OnConfirm = () => Task.CompletedTask
             });
-            // Drawer bleibt offen
+            // Drawer bleibt offen, damit der Nutzer korrigieren kann.
         }
     }
 
     // ---------- Helpers ----------
 
-    private static Guid[] ExtractGuidArray(object? value)
+    private static int TryGetInt(EditContextAdapter ctx, string name, int fallback)
+    {
+        if (!ctx.TryGetValue(name, out var raw) || raw is null) return fallback;
+        if (raw is int i) return i;
+        if (raw is long l) return checked((int)l);
+        var s = raw.ToString();
+        return int.TryParse(s, out var parsed) ? parsed : fallback;
+    }
+
+    private static decimal TryGetDecimal(EditContextAdapter ctx, string name, decimal fallback)
+    {
+        if (!ctx.TryGetValue(name, out var raw) || raw is null) return fallback;
+
+        if (raw is decimal d) return d;
+        if (raw is double dbl) return (decimal)dbl;
+        if (raw is float fl) return (decimal)fl;
+        if (raw is int i) return i;
+        if (raw is long l) return l;
+
+        var s = raw.ToString();
+        return decimal.TryParse(s, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var parsed)
+            ? parsed
+            : decimal.TryParse(s, out parsed) ? parsed : fallback;
+    }
+
+    private static bool ToBool(object? raw, bool fallback)
+    {
+        if (raw is bool b) return b;
+        var s = raw?.ToString();
+        if (bool.TryParse(s, out var parsed)) return parsed;
+        if (string.Equals(s, "on", StringComparison.OrdinalIgnoreCase)) return true;
+        return fallback;
+    }
+
+    private static Guid[] ExtractGuids(object? value)
     {
         var list = new List<Guid>();
-
         switch (value)
         {
             case null:
                 return Array.Empty<Guid>();
-
             case IEnumerable<Guid> gs:
                 list.AddRange(gs.Where(g => g != Guid.Empty));
                 break;
-
             case IEnumerable<string> ss:
                 foreach (var s in ss)
                     if (Guid.TryParse(s, out var g) && g != Guid.Empty)
                         list.Add(g);
                 break;
-
             case System.Collections.IEnumerable seq when value is not string:
                 foreach (var e in seq)
                 {
@@ -190,29 +235,12 @@
                         list.Add(g);
                 }
                 break;
-
             default:
                 var one = value.ToString();
                 if (!string.IsNullOrWhiteSpace(one) && Guid.TryParse(one, out var g1) && g1 != Guid.Empty)
                     list.Add(g1);
                 break;
         }
-
         return list.Distinct().ToArray();
-    }
-
-    private static string DescribeValue(object? v)
-    {
-        if (v is null) return "null";
-        if (v is string s) return $"string({s})";
-        if (v is IEnumerable<Guid> gs) return "IEnumerable<Guid>(" + string.Join(",", gs) + ")";
-        if (v is IEnumerable<string> ss) return "IEnumerable<string>(" + string.Join(",", ss) + ")";
-        if (v is System.Collections.IEnumerable seq && v is not string)
-        {
-            var parts = new List<string>();
-            foreach (var e in seq) parts.Add(e?.ToString() ?? "null");
-            return "IEnumerable(" + string.Join(",", parts) + ")";
-        }
-        return v.GetType().Name + "(" + v + ")";
     }
 }

@@ -16,12 +16,12 @@ namespace CMC.Application.Services
 
         public async Task<LibraryScenarioDto> CreateAsync(CreateLibraryScenarioRequest r, CancellationToken ct = default)
         {
-            // WICHTIG: Tags werden als GUID-IDs geliefert (keine Strings).
             var e = new LibraryScenario(
                 name: r.Name,
                 annualFrequency: r.AnnualFrequency,
                 impactPctRevenue: r.ImpactPctRevenue,
-                tagIds: r.TagIds ?? Array.Empty<Guid>()
+                tagIds: r.TagIds ?? Array.Empty<Guid>(),
+                industryIds: r.IndustryIds ?? Array.Empty<Guid>() // ← NEU
             );
             await _repo.AddAsync(e, ct);
             return Map(e);
@@ -36,6 +36,7 @@ namespace CMC.Application.Services
             e.SetAnnualFrequency(r.AnnualFrequency);
             e.SetImpactPctRevenue(r.ImpactPctRevenue);
             e.SetTags(r.TagIds ?? Array.Empty<Guid>());
+            e.SetIndustries(r.IndustryIds ?? Array.Empty<Guid>()); // ← NEU
 
             await _repo.UpdateAsync(e, ct);
             return Map(e);
@@ -67,8 +68,25 @@ namespace CMC.Application.Services
             Name = e.Name,
             AnnualFrequency = e.AnnualFrequency,
             ImpactPctRevenue = e.ImpactPctRevenue,
-            TagIds = e.GetTagIds(),           // GUID[]
-            TagLabels = Array.Empty<string>(),// optional falls separat auflösbar
+
+            TagIds = e.GetTagIds(),
+            IndustryIds = e.GetIndustryIds(), // ← NEU
+
+            // Labels nur, wenn via Repo inkludiert (sonst leer)
+            TagLabels = e.TagLinks?
+                .Select(l => l.Tag?.Name)
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Cast<string>()
+                .Distinct()
+                .ToArray() ?? Array.Empty<string>(),
+
+            IndustryLabels = e.IndustryLinks?
+                .Select(l => l.Industry?.Name)
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Cast<string>()
+                .Distinct()
+                .ToArray() ?? Array.Empty<string>(),
+
             CreatedAt = e.CreatedAt,
             UpdatedAt = e.UpdatedAt
         };

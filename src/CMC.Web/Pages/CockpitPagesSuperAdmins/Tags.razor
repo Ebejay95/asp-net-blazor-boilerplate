@@ -1,0 +1,136 @@
+@attribute [Authorize(Roles = "super-admin")]
+@using System
+@using System.Linq
+@using CMC.Contracts.Tags
+@using CMC.Web.Services
+@inject CMC.Application.Services.TagService TagService
+@inject EFEditService EFEditService
+@inject DialogService ConfirmService
+
+<div class="card">
+  <EFTable TItem="TagDto"
+           Items="_tags"
+           AllowEdit="true"
+           OnEdit="StartEdit"
+           AllowCreate="true"
+           OnCreate="StartCreate" />
+</div>
+
+@code {
+    private List<TagDto> _tags = new();
+
+    protected override async Task OnInitializedAsync()
+        => _tags = await TagService.GetAllAsync();
+
+    private async Task Reload()
+    {
+        _tags = await TagService.GetAllAsync();
+        StateHasChanged();
+    }
+
+    private void StartEdit(TagDto f)
+    {
+        var req = new EFEditRequest
+        {
+            Title = "Tag bearbeiten",
+            Model = f,
+            ContractsAssembly = typeof(TagDto).Assembly,
+            IsCreate = false,
+            OnSave = async ctx =>
+            {
+                try
+                {
+                    var up = (UpdateTagRequest)ctx.Build("Update");
+                    _ = await TagService.UpdateAsync(up);
+                    await Reload();
+                    EFEditService.Close();
+                }
+                catch (Exception ex)
+                {
+                    ConfirmService.Open(new DialogRequest
+                    {
+                        Title = "Fehler beim Speichern",
+                        Message = ex.Message,
+                        ConfirmText = "Okay",
+                        OnConfirm = () => Task.CompletedTask
+                    });
+                }
+            },
+            OnDelete = ctx =>
+            {
+                var model = (TagDto)ctx.Model;
+
+                ConfirmService.Open(new DialogRequest
+                {
+                    Title = "Löschen bestätigen",
+                    Message = "Tag " + model.Name + " wirklich löschen?",
+                    ConfirmText = "Löschen",
+                    CancelText = "Abbrechen",
+                    OnConfirm = async () =>
+                    {
+                        try
+                        {
+                            await TagService.DeleteAsync(model.Id);
+                            await Reload();
+                            EFEditService.Close();
+                        }
+                        catch (Exception ex)
+                        {
+                            ConfirmService.Open(new DialogRequest
+                            {
+                                Title = "Löschen fehlgeschlagen",
+                                Message = ex.Message,
+                                ConfirmText = "Okay",
+                                OnConfirm = () => Task.CompletedTask
+                            });
+                        }
+                    }
+                });
+
+                return Task.CompletedTask;
+            },
+            OnAfterRestore = async () =>
+            {
+                await Reload();
+                EFEditService.Close();
+            }
+        };
+
+        EFEditService.Open(req);
+    }
+
+    private void StartCreate()
+    {
+        var empty = new TagDto { Id = Guid.Empty, Name = string.Empty };
+
+        var req = new EFEditRequest
+        {
+            Title = "Tag anlegen",
+            Model = empty,
+            ContractsAssembly = typeof(TagDto).Assembly,
+            IsCreate = true,
+            OnSave = async ctx =>
+            {
+                try
+                {
+                    var create = (CreateTagRequest)ctx.Build("Create");
+                    _ = await TagService.CreateAsync(create);
+                    await Reload();
+                    EFEditService.Close();
+                }
+                catch (Exception ex)
+                {
+                    ConfirmService.Open(new DialogRequest
+                    {
+                        Title = "Fehler beim Anlegen",
+                        Message = ex.Message,
+                        ConfirmText = "Okay",
+                        OnConfirm = () => Task.CompletedTask
+                    });
+                }
+            }
+        };
+
+        EFEditService.Open(req);
+    }
+}

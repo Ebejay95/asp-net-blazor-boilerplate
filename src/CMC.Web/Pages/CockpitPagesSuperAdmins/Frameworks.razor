@@ -3,6 +3,9 @@
 @using System.Linq
 @using CMC.Contracts.Frameworks
 @using CMC.Web.Services
+@using CMC.Web.Util
+@using CMC.Domain.Entities
+
 @inject CMC.Application.Services.FrameworkService FrameworkService
 @inject EFEditService EFEditService
 @inject DialogService ConfirmService
@@ -35,13 +38,36 @@
 			Title = "Framework bearbeiten",
 			Model = f,
 			ContractsAssembly = typeof(FrameworkDto).Assembly,
+			EfParentType = typeof(Framework),
 			IsCreate = false,
 			OnSave = async ctx =>
 			{
 				try
 				{
-					var up = (UpdateFrameworkRequest)ctx.Build("Update");
+					var dto = (FrameworkDto)ctx.Model;
+
+					// 🔧 Werte aus dem EditContext ziehen (nicht nur aus dto)
+					var name = ctx.TryGetValue("Name", out var rawName)
+						? rawName?.ToString()?.Trim() ?? ""
+						: dto.Name;
+
+					var version = ctx.TryGetValue("Version", out var rawVersion)
+						? rawVersion?.ToString()?.Trim() ?? ""
+						: dto.Version;
+
+					var selectedIndustryIds = ExtractGuidArray(
+						ctx.TryGetValue("IndustryIds", out var rawIds) ? rawIds : dto.IndustryIds
+					);
+
+					var up = new UpdateFrameworkRequest(
+						dto.Id,
+						name,
+						version,
+						selectedIndustryIds
+					);
+
 					_ = await FrameworkService.UpdateAsync(up);
+
 					await Reload();
 					EFEditService.Close();
 				}
@@ -101,15 +127,14 @@
 
 	private void StartCreate()
 	{
-		// Neuer ctor: (Id, Name, Version, IndustryIds, IndustryNames, CreatedAt, UpdatedAt)
 		var empty = new FrameworkDto(
-			Id: Guid.Empty,
-			Name: string.Empty,
-			Version: string.Empty,
-			IndustryIds: Array.Empty<Guid>(),
-			IndustryNames: Array.Empty<string>(),
-			CreatedAt: DateTimeOffset.UtcNow,
-			UpdatedAt: DateTimeOffset.UtcNow
+			Guid.Empty,
+			string.Empty,
+			string.Empty,
+			Array.Empty<Guid>(),
+			Array.Empty<string>(),
+			DateTimeOffset.UtcNow,
+			DateTimeOffset.UtcNow
 		);
 
 		var req = new EFEditRequest
@@ -117,13 +142,35 @@
 			Title = "Framework anlegen",
 			Model = empty,
 			ContractsAssembly = typeof(FrameworkDto).Assembly,
+			EfParentType = typeof(Framework),
 			IsCreate = true,
 			OnSave = async ctx =>
 			{
 				try
 				{
-					var create = (CreateFrameworkRequest)ctx.Build("Create");
+					var dto = (FrameworkDto)ctx.Model;
+
+					// 🔧 Werte aus dem EditContext ziehen (nicht nur aus dto)
+					var name = ctx.TryGetValue("Name", out var rawName)
+						? rawName?.ToString()?.Trim() ?? ""
+						: dto.Name;
+
+					var version = ctx.TryGetValue("Version", out var rawVersion)
+						? rawVersion?.ToString()?.Trim() ?? ""
+						: dto.Version;
+
+					var selectedIndustryIds = ExtractGuidArray(
+						ctx.TryGetValue("IndustryIds", out var rawIds) ? rawIds : dto.IndustryIds
+					);
+
+					var create = new CreateFrameworkRequest(
+						name,
+						version,
+						selectedIndustryIds
+					);
+
 					_ = await FrameworkService.CreateAsync(create);
+
 					await Reload();
 					EFEditService.Close();
 				}
@@ -141,5 +188,44 @@
 		};
 
 		EFEditService.Open(req);
+	}
+
+	// Helper: robustes Parsen verschiedenster Formwerte zu Guid[]
+	private static Guid[] ExtractGuidArray(object? value)
+	{
+		var list = new List<Guid>();
+
+		switch (value)
+		{
+			case null:
+				return Array.Empty<Guid>();
+
+			case IEnumerable<Guid> gs:
+				list.AddRange(gs.Where(g => g != Guid.Empty));
+				break;
+
+			case IEnumerable<string> ss:
+				foreach (var s in ss)
+					if (Guid.TryParse(s, out var g) && g != Guid.Empty)
+						list.Add(g);
+				break;
+
+			case System.Collections.IEnumerable seq when value is not string:
+				foreach (var e in seq)
+				{
+					var s = e?.ToString();
+					if (!string.IsNullOrWhiteSpace(s) && Guid.TryParse(s, out var g) && g != Guid.Empty)
+						list.Add(g);
+				}
+				break;
+
+			default:
+				var one = value.ToString();
+				if (!string.IsNullOrWhiteSpace(one) && Guid.TryParse(one, out var g1) && g1 != Guid.Empty)
+					list.Add(g1);
+				break;
+		}
+
+		return list.Distinct().ToArray();
 	}
 }

@@ -25,7 +25,7 @@ namespace CMC.Contracts.Reports
 		public string Sections { get; set; } = string.Empty;
 
 		[Display(Name = "Erstellt am"), DisplayFormat(DataFormatString = "{0:dd.MM.yyyy HH:mm}")]
-		public DateTimeOffset Created At { get; set; }
+		public DateTimeOffset CreatedAt { get; set; }
 
 		[Display(Name = "Aktualisiert am"), DisplayFormat(DataFormatString = "{0:dd.MM.yyyy HH:mm}")]
 		public DateTimeOffset UpdatedAt { get; set; }

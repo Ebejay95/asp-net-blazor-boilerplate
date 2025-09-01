@@ -69,7 +69,7 @@
         {
             _isLoading = true;
 
-            // 🔎 robust: zuerst "Industries", dann "CustomerIndustries"
+            // robust: erst direkte Nav, dann Alias (ParentType.Name + RelationName)
             var descriptor = TryGetDescriptor(RelationName)
                           ?? TryGetDescriptor(ParentType.Name + RelationName);
 
@@ -81,6 +81,9 @@
 
             var relationOptions = await descriptor.LoadOptions();
             _options = relationOptions.Select(o => new KeyValuePair<string, string>(o.Label, o.Value)).ToList();
+
+            Console.WriteLine($"[CheckboxList] Parent={ParentType?.Name}, Rel={RelationName}, Found=True, Kind={descriptor.Kind}");
+            Console.WriteLine($"[CheckboxList] Options count = {_options.Count}");
         }
         catch
         {

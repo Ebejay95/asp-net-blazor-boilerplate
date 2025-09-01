@@ -5,13 +5,13 @@
     }
 
     @font-face {
-        font-family: 'Rubik';
-        src: url('/fonts/rubik/Rubik-Light.ttf') format('truetype');
+        font-family: 'SourceSans3';
+        src: url('/fonts/sourcesans3/SourceSans3-Regular.ttf') format('truetype');
     }
 
     @font-face {
-        font-family: 'Rubik Bold';
-        src: url('/fonts/rubik/Rubik-Medium.ttf') format('truetype');
+        font-family: 'SourceSans3 Bold';
+        src: url('/fonts/sourcesans3/SourceSans3-Medium.ttf') format('truetype');
     }
 
 
@@ -27,7 +27,7 @@
     h1,
     .like-h1 {
         @apply text-4xl mb-6;
-        font-family: 'Rubik Bold', sans-serif;
+        font-family: 'SourceSans3 Bold', sans-serif;
     }
 
     h2,
@@ -71,6 +71,6 @@
 
     html,
     body {
-        font-family: 'Rubik', sans-serif;
+        font-family: 'SourceSans3', sans-serif;
     }
 }

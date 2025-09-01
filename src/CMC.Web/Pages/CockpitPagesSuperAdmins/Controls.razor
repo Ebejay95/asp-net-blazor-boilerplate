@@ -10,11 +10,11 @@
 
 <div class="card">
     <EFTable TItem="ControlDto"
-               Items="_controls"
-               AllowEdit="true"
-               OnEdit="StartEdit"
-               AllowCreate="true"
-               OnCreate="StartCreate" />
+             Items="_controls"
+             AllowEdit="true"
+             OnEdit="StartEdit"
+             AllowCreate="true"
+             OnCreate="StartCreate" />
 </div>
 
 @code {
@@ -37,7 +37,7 @@
             Model = control,
             ContractsAssembly = typeof(ControlDto).Assembly,
             EfParentType = typeof(Control),
-            GetParentKey = m => ((ControlDto)m).Id,
+            GetParentKey  = m => ((ControlDto)m).Id,
             IsCreate = false,
             OnSave = async ctx =>
             {
@@ -99,23 +99,6 @@
             }
         };
 
-        // Relation Fields für Controls
-        req.ExtraFields.Add(new ExtraField(
-            Name: "CustomerId",
-            Label: "Kunde",
-            Type: typeof(Guid),
-            DataType: "relation-auto",
-            Value: control.CustomerId
-        ));
-
-        req.ExtraFields.Add(new ExtraField(
-            Name: "LibraryControlId",
-            Label: "Vorlage",
-            Type: typeof(Guid),
-            DataType: "relation-auto",
-            Value: control.LibraryControlId
-        ));
-
         EFEditService.Open(req);
     }
 
@@ -135,9 +118,14 @@
             DeltaEalEur = 0m,
             Score = 0m,
             Status = "proposed",
-            DueDate = null,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
+
+            TagIds = Array.Empty<Guid>(),
+            IndustryIds = Array.Empty<Guid>(),
+            TagLabels = Array.Empty<string>(),
+            IndustryLabels = Array.Empty<string>(),
+
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
         };
 
         var req = new EFEditRequest
@@ -146,7 +134,7 @@
             Model = empty,
             ContractsAssembly = typeof(ControlDto).Assembly,
             EfParentType = typeof(Control),
-            GetParentKey = m => ((ControlDto)m).Id,
+            GetParentKey  = m => ((ControlDto)m).Id,
             IsCreate = true,
             OnSave = async ctx =>
             {
@@ -169,23 +157,6 @@
                 }
             }
         };
-
-        // Relation Fields für neue Controls
-        req.ExtraFields.Add(new ExtraField(
-            Name: "CustomerId",
-            Label: "Kunde",
-            Type: typeof(Guid),
-            DataType: "relation-auto",
-            Value: Guid.Empty
-        ));
-
-        req.ExtraFields.Add(new ExtraField(
-            Name: "LibraryControlId",
-            Label: "Vorlage",
-            Type: typeof(Guid),
-            DataType: "relation-auto",
-            Value: Guid.Empty
-        ));
 
         EFEditService.Open(req);
     }

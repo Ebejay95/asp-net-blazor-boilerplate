@@ -81,12 +81,13 @@ namespace CMC.Infrastructure.Repositories
 			await _context.SaveChangesAsync(cancellationToken);
 		}
 
+		// FIX: Exists ignoriert Soft-Deleted
 		public Task<bool> ExistsAsync(string name, string version, Guid? excludeId = null, CancellationToken cancellationToken = default)
 		{
 			if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException(nameof(name));
 			if (string.IsNullOrWhiteSpace(version)) throw new ArgumentException(nameof(version));
 
-			var q = _context.Frameworks.Where(x => x.Name == name && x.Version == version);
+			var q = _context.Frameworks.Where(x => x.Name == name && x.Version == version && !x.IsDeleted);
 			if (excludeId.HasValue) q = q.Where(x => x.Id != excludeId.Value);
 			return q.AnyAsync(cancellationToken);
 		}

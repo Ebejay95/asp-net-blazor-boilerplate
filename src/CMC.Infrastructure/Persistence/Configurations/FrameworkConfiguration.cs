@@ -18,7 +18,14 @@ namespace CMC.Infrastructure.Persistence.Configurations
 			e.Property(x => x.IsDeleted).HasDefaultValue(false);
 			e.Property(x => x.DeletedBy).HasMaxLength(320);
 
-			e.HasIndex(x => new { x.Name, x.Version }).IsUnique(false);
+			// Globaler QueryFilter: blende Soft-Deleted aus
+			e.HasQueryFilter(x => !x.IsDeleted);
+
+			// Eindeutiger Index (optional unique) + Filter auf nicht gelöschte
+			e.HasIndex(x => new { x.Name, x.Version })
+			 .IsUnique()
+			 .HasDatabaseName("UX_Frameworks_Name_Version_Active")
+			 .HasFilter("\"IsDeleted\" = false");
 
 			// n:m Framework <-> Industry
 			e.HasMany(x => x.IndustryLinks)

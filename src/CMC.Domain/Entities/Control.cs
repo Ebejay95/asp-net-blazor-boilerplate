@@ -32,10 +32,12 @@ namespace CMC.Domain.Entities
         public Guid? EvidenceId { get; private set; }
         public virtual Evidence? Evidence { get; private set; }
 
-        // M:N ↔ Scenario
-        public virtual ICollection<ControlScenario> ScenarioLinks { get; private set; } = new List<ControlScenario>();
+        // ====== M:N ======
+        public virtual ICollection<ControlScenario>  ScenarioLinks  { get; private set; } = new List<ControlScenario>();
+        public virtual ICollection<ControlTag>       TagLinks       { get; private set; } = new List<ControlTag>();
+        public virtual ICollection<ControlIndustry>  IndustryLinks  { get; private set; } = new List<ControlIndustry>();
 
-        // 1:n ↔ ToDo
+        // 1:n
         public virtual ICollection<ToDo> ToDos { get; private set; } = new List<ToDo>();
 
         public bool Implemented { get; private set; }
@@ -198,7 +200,6 @@ namespace CMC.Domain.Entities
                 IsDeleted = false; DeletedAt = null; DeletedBy = null; Touch();
             }
         }
-        private void ClearStatus() { Status = string.Empty; Touch(); }
         private void Touch() => UpdatedAt = DateTimeOffset.UtcNow;
 
         public bool HasValidEvidence(DateTimeOffset asOfUtc)
@@ -214,40 +215,11 @@ namespace CMC.Domain.Entities
             return validUntil.Value.ToUniversalTime() >= asOfUtc;
         }
 
-        public void RecalculateScoreFromEal(decimal baseEal, decimal residualEal)
-        {
-            var delta = baseEal - residualEal; if (delta < 0m) delta = 0m;
-            DeltaEalEur = delta;
-            var denom = CostTotalEur <= 0m ? 1m : CostTotalEur;
-            var baseScore = 100m * Clamp01(delta / denom);
-            var maturityFactor = Clamp01(Maturity / 3m);
-            var score = baseScore * (0.5m + 0.5m * maturityFactor);
-            Score = Clamp100(score);
-            Touch();
-        }
-        private static decimal Clamp01(decimal v) => v < 0m ? 0m : (v > 1m ? 1m : v);
-        private static decimal Clamp100(decimal v) => v < 0m ? 0m : (v > 100m ? 100m : v);
-
-        public bool IsReadyForActivation(DateTimeOffset asOfUtc, out string explanation)
-        {
-            var issues = new List<string>();
-            if (!Implemented) issues.Add("not implemented");
-            if (Coverage <= 0m) issues.Add("coverage = 0");
-            if (EvidenceWeight <= 0m) issues.Add("evidence_weight = 0");
-            if (Freshness <= 0m) issues.Add("freshness = 0");
-            if (EvidenceId.HasValue && EvidenceId.Value != Guid.Empty)
-            {
-                if (!HasValidEvidence(asOfUtc)) issues.Add("evidence invalid/expired");
-            }
-            if (issues.Count == 0) { explanation = "ready"; return true; }
-            explanation = string.Join(", ", issues); return false;
-        }
-
         public bool CanTransitionTo(string newStatus, DateTimeOffset asOfUtc, out string? reason)
         {
             reason = null;
             var currentNorm = Normalize(Status).ToLowerInvariant();
-            var targetNorm = Normalize(newStatus).ToLowerInvariant();
+            var targetNorm  = Normalize(newStatus).ToLowerInvariant();
 
             if (!ValidStatuses.Contains(targetNorm)) { reason = $"unknown status '{newStatus}'"; return false; }
             if (!AllowedTransitions.TryGetValue(currentNorm, out var targets) || !targets.Contains(targetNorm))
@@ -270,9 +242,7 @@ namespace CMC.Domain.Entities
             SetStatus(targetNorm);
         }
 
-        // ==== M:N Convenience ====
-
-        /// <summary>Ersetzt die Zuordnung auf genau ein Scenario (Kompatibilität zum alten AttachScenario).</summary>
+        // ==== M:N Scenarios (bestehend) ====
         public void AttachScenario(Guid? scenarioId)
         {
             ScenarioLinks.Clear();
@@ -281,7 +251,6 @@ namespace CMC.Domain.Entities
             Touch();
         }
 
-        /// <summary>Ersetzt die Zuordnung auf eine Menge von Scenarios.</summary>
         public void SetScenarios(IEnumerable<Guid>? scenarioIds)
         {
             var target = (scenarioIds ?? Array.Empty<Guid>()).Where(x => x != Guid.Empty).Distinct().ToHashSet();
@@ -299,11 +268,57 @@ namespace CMC.Domain.Entities
 
         public IReadOnlyList<Guid> GetScenarioIds() => ScenarioLinks.Select(l => l.ScenarioId).Distinct().ToArray();
 
+        // ==== M:N Tags & Industries (NEU) ====
+        public void SetTags(IEnumerable<Guid>? tagIds)
+        {
+            var target = new HashSet<Guid>((tagIds ?? Enumerable.Empty<Guid>()).Where(x => x != Guid.Empty));
+
+            var toRemove = TagLinks.Where(l => !target.Contains(l.TagId)).ToList();
+            foreach (var r in toRemove) TagLinks.Remove(r);
+
+            var existing = new HashSet<Guid>(TagLinks.Select(l => l.TagId));
+            foreach (var id in target.Except(existing))
+                TagLinks.Add(new ControlTag(Id, id));
+
+            Touch();
+        }
+
+        public void SetIndustries(IEnumerable<Guid>? industryIds)
+        {
+            var target = new HashSet<Guid>((industryIds ?? Enumerable.Empty<Guid>()).Where(x => x != Guid.Empty));
+
+            var toRemove = IndustryLinks.Where(l => !target.Contains(l.IndustryId)).ToList();
+            foreach (var r in toRemove) IndustryLinks.Remove(r);
+
+            var existing = new HashSet<Guid>(IndustryLinks.Select(l => l.IndustryId));
+            foreach (var id in target.Except(existing))
+                IndustryLinks.Add(new ControlIndustry(Id, id));
+
+            Touch();
+        }
+
+        public IReadOnlyList<Guid> GetTagIds() => TagLinks.Select(x => x.TagId).ToArray();
+        public IReadOnlyList<Guid> GetIndustryIds() => IndustryLinks.Select(x => x.IndustryId).ToArray();
+
         // Convenience
-        public void Plan() => TransitionTo("planned", DateTimeOffset.UtcNow);
-        public void Start() => TransitionTo("in_progress", DateTimeOffset.UtcNow);
-        public void Block() => TransitionTo("blocked", DateTimeOffset.UtcNow);
+        public void Plan()      => TransitionTo("planned",     DateTimeOffset.UtcNow);
+        public void Start()     => TransitionTo("in_progress", DateTimeOffset.UtcNow);
+        public void Block()     => TransitionTo("blocked",     DateTimeOffset.UtcNow);
         public void Activate(DateTimeOffset now) => TransitionTo("active", now.ToUniversalTime());
-        public void Retire() => TransitionTo("retired", DateTimeOffset.UtcNow);
+        public void Retire()    => TransitionTo("retired",     DateTimeOffset.UtcNow);
+
+        public bool IsReadyForActivation(DateTimeOffset asOfUtc, out string explanation)
+        {
+            var issues = new List<string>();
+            if (!Implemented) issues.Add("not implemented");
+            if (Coverage <= 0m) issues.Add("coverage = 0");
+            if (EvidenceWeight <= 0m) issues.Add("evidence_weight = 0");
+            if (Freshness <= 0m) issues.Add("freshness = 0");
+            if (EvidenceId.HasValue && EvidenceId.Value != Guid.Empty)
+                if (!HasValidEvidence(asOfUtc)) issues.Add("evidence invalid/expired");
+
+            if (issues.Count == 0) { explanation = "ready"; return true; }
+            explanation = string.Join(", ", issues); return false;
+        }
     }
 }

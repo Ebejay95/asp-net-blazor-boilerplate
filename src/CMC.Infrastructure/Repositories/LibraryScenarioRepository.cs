@@ -11,10 +11,18 @@ namespace CMC.Infrastructure.Repositories
 		public LibraryScenarioRepository(AppDbContext db) => _db = db ?? throw new ArgumentNullException(nameof(db));
 
 		public Task<LibraryScenario?> GetByIdAsync(Guid id, CancellationToken ct = default)
-			=> _db.LibraryScenarios.FirstOrDefaultAsync(x => x.Id == id, ct);
+			=> _db.LibraryScenarios
+				.Include(x => x.TagLinks).ThenInclude(t => t.Tag)
+				.Include(x => x.IndustryLinks).ThenInclude(i => i.Industry)
+				.FirstOrDefaultAsync(x => x.Id == id, ct);
 
 		public Task<List<LibraryScenario>> GetAllAsync(CancellationToken ct = default)
-			=> _db.LibraryScenarios.AsNoTracking().OrderBy(x => x.Name).ToListAsync(ct);
+			=> _db.LibraryScenarios
+				.Include(x => x.TagLinks).ThenInclude(t => t.Tag)
+				.Include(x => x.IndustryLinks).ThenInclude(i => i.Industry)
+				.AsNoTracking()
+				.OrderBy(x => x.Name)
+				.ToListAsync(ct);
 
 		public async Task AddAsync(LibraryScenario e, CancellationToken ct = default)
 		{
@@ -39,7 +47,10 @@ namespace CMC.Infrastructure.Repositories
 		public Task<List<LibraryScenario>> GetByIdsAsync(IEnumerable<Guid> ids, CancellationToken ct = default)
 		{
 			var list = (ids ?? Enumerable.Empty<Guid>()).ToList();
-			return _db.LibraryScenarios.AsNoTracking()
+			return _db.LibraryScenarios
+				.Include(x => x.TagLinks).ThenInclude(t => t.Tag)
+				.Include(x => x.IndustryLinks).ThenInclude(i => i.Industry)
+				.AsNoTracking()
 				.Where(x => list.Contains(x.Id))
 				.OrderBy(x => x.Name)
 				.ToListAsync(ct);

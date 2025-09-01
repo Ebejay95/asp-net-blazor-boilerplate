@@ -37,17 +37,14 @@ namespace CMC.Web.Services
     }
 
     /// <summary>
-    /// Ermittelt Relations-Metadaten aus dem EF Core Modell und stellt generische Loader/Mutatoren
-    /// für Reference, 1:n und M:n bereit (Skip-Navigation ODER explizite Join-Entity).
-    ///
-    /// Nutzt wenn möglich Convention-basierte Domain-Methoden:
-    /// - Add{RelationSuffix}(IEnumerable&lt;Guid&gt;)
-    /// - Remove{RelationSuffix}(IEnumerable&lt;Guid&gt;)
-    /// - Get{RelationSuffix}Keys() : IEnumerable&lt;Guid&gt; (optional)
+    /// Generischer Relationship-Explorer + Mutator für EF Core (1:1, 1:n, n:m inkl. expliziter Join-Entity).
+    /// WICHTIG: Alle DB-Operationen laufen seriell über ein Semaphore – verhindert
+    /// "A second operation was started on this context…" wenn mehrere Checkboxlisten parallel laden.
     /// </summary>
     public sealed class RelationshipManager<TDbContext> : IRelationshipManager where TDbContext : DbContext
     {
         private readonly TDbContext _db;
+        private readonly SemaphoreSlim _gate = new(1, 1);
 
         public RelationshipManager(TDbContext db) { _db = db; }
 
@@ -60,19 +57,19 @@ namespace CMC.Web.Services
             var parentEt = model.FindEntityType(parentType)
                 ?? throw new InvalidOperationException($"EntityType not found: {parentType.Name}");
 
-            // 1) Normale Navigation (Reference oder 1:n)
+            // 1) Normale Navigation (Reference oder Collection)
             var nav = parentEt.FindNavigation(relationName);
             if (nav is not null)
             {
                 var targetEt = nav.TargetEntityType;
 
-                // Explizite Join-Collection als M:N erkennen (Collection of JoinEntity)
+                // Explizite Join-Collection: Collection<JoinEntity> mit genau 2 FKs
                 if (nav.IsCollection && LooksLikeExplicitJoinCollection(parentEt, nav.TargetEntityType))
                 {
                     var fks = nav.TargetEntityType.GetForeignKeys().ToList();
                     var fkToParent = fks.FirstOrDefault(fk => fk.PrincipalEntityType == parentEt);
                     var fkToTarget = fks.FirstOrDefault(fk => fk.PrincipalEntityType != parentEt)
-                                     ?? throw new InvalidOperationException($"Join '{relationName}' auf {parentType.Name} hat keine erwarteten FKs.");
+                                     ?? throw new InvalidOperationException($"Join '{relationName}' on {parentType.Name} has no second FK.");
                     var targetEtFromJoin = fkToTarget.PrincipalEntityType;
 
                     return BuildManyToManyViaExplicitJoin(
@@ -89,16 +86,13 @@ namespace CMC.Web.Services
                     : BuildReference(parentType, relationName, targetEt);
             }
 
-            // 2) Skip-Navigation (echtes Many-to-Many ohne explizite Join-Entity)
+            // 2) Skip-Navigation (echtes n:m)
             var skip = parentEt.FindSkipNavigation(relationName);
             if (skip is not null)
-            {
                 return BuildManyToMany(parentType, relationName, skip.TargetEntityType);
-            }
 
-            // 3) Fallback: Explizite Join-Collection über Name (Collection-Navi mit 2 FKs suchen)
-            var joinNav = parentEt
-                .GetNavigations()
+            // 3) Fallback: Join-Collection per Namen finden
+            var joinNav = parentEt.GetNavigations()
                 .FirstOrDefault(n => n.IsCollection && string.Equals(n.Name, relationName, StringComparison.Ordinal));
 
             if (joinNav is not null && LooksLikeExplicitJoinCollection(parentEt, joinNav.TargetEntityType))
@@ -115,24 +109,28 @@ namespace CMC.Web.Services
 
         public async Task<object> FindParentAsync(Type parentType, object key)
         {
-            var et = _db.Model.FindEntityType(parentType)
-                    ?? throw new InvalidOperationException($"EntityType not found: {parentType.Name}");
-
-            var pkProp = et.FindPrimaryKey()!.Properties.Single();
-            var pkClr  = pkProp.ClrType;
-
-            // Key richtig typisieren (Guid, int, …)
-            object? typed = key;
-            if (key is string s)
+            await _gate.WaitAsync();
+            try
             {
-                typed = pkClr == typeof(Guid) || pkClr == typeof(Guid?)
-                    ? Guid.Parse(s)
-                    : Convert.ChangeType(s, Nullable.GetUnderlyingType(pkClr) ?? pkClr);
-            }
+                var et = _db.Model.FindEntityType(parentType)
+                         ?? throw new InvalidOperationException($"EntityType not found: {parentType.Name}");
 
-            var entity = await _db.FindAsync(parentType, new object?[] { typed! }); // ✅ ValueTask<object?>
-            if (entity is null) throw new InvalidOperationException($"{parentType.Name}({key}) not found");
-            return entity;
+                var pkProp = et.FindPrimaryKey()!.Properties.Single();
+                var pkClr = pkProp.ClrType;
+
+                object? typed = key;
+                if (key is string s)
+                {
+                    typed = pkClr == typeof(Guid) || pkClr == typeof(Guid?)
+                        ? Guid.Parse(s)
+                        : Convert.ChangeType(s, Nullable.GetUnderlyingType(pkClr) ?? pkClr);
+                }
+
+                var entity = await _db.FindAsync(parentType, new object?[] { typed! });
+                if (entity is null) throw new InvalidOperationException($"{parentType.Name}({key}) not found");
+                return entity;
+            }
+            finally { _gate.Release(); }
         }
 
         // ------------------------ Builder ------------------------
@@ -150,23 +148,38 @@ namespace CMC.Web.Services
 
                 LoadOptions = async () =>
                 {
-                    var set = GetSetNonGeneric(targetClr);
-                    var list = await ToListAsync(set);
-                    return list.Select(e => new RelationOption(GetDisplay(e), GetKey(e)!));
+                    await _gate.WaitAsync();
+                    try
+                    {
+                        var set = GetSetNonGeneric(targetClr);
+                        var list = await ToListAsync(set);
+                        return list.Select(e => new RelationOption(GetDisplay(e), GetKey(e)!));
+                    }
+                    finally { _gate.Release(); }
                 },
 
                 LoadCurrentKeys = async parent =>
                 {
-                    await _db.Entry(parent).Reference(rel).LoadAsync();
-                    var obj = _db.Entry(parent).Reference(rel).CurrentValue;
-                    return obj is null ? Array.Empty<string>() : new[] { GetKey(obj)! };
+                    await _gate.WaitAsync();
+                    try
+                    {
+                        await _db.Entry(parent).Reference(rel).LoadAsync();
+                        var obj = _db.Entry(parent).Reference(rel).CurrentValue;
+                        return obj is null ? Array.Empty<string>() : new[] { GetKey(obj)! };
+                    }
+                    finally { _gate.Release(); }
                 },
 
                 SetReference = async (parent, key) =>
                 {
-                    var entity = string.IsNullOrWhiteSpace(key) ? null : await FindByKey(targetClr, key);
-                    _db.Entry(parent).Reference(rel).CurrentValue = entity;
-                    await _db.SaveChangesAsync();
+                    await _gate.WaitAsync();
+                    try
+                    {
+                        var entity = string.IsNullOrWhiteSpace(key) ? null : await FindByKey(targetClr, key);
+                        _db.Entry(parent).Reference(rel).CurrentValue = entity;
+                        await _db.SaveChangesAsync();
+                    }
+                    finally { _gate.Release(); }
                 }
             };
         }
@@ -180,14 +193,18 @@ namespace CMC.Web.Services
                 ParentType = parentType,
                 TargetType = targetEt.ClrType,
 
-                // Für 1:n gibt es im Parent-Editor typischerweise keine Auswahl
                 LoadOptions = () => Task.FromResult<IEnumerable<RelationOption>>(Array.Empty<RelationOption>()),
 
                 LoadCurrentKeys = async parent =>
                 {
-                    await _db.Entry(parent).Collection(rel).LoadAsync();
-                    var children = (IEnumerable<object>)(_db.Entry(parent).Collection(rel).CurrentValue ?? Array.Empty<object>());
-                    return children.Select(GetKey!).Where(k => k is not null)!;
+                    await _gate.WaitAsync();
+                    try
+                    {
+                        await _db.Entry(parent).Collection(rel).LoadAsync();
+                        var children = (IEnumerable<object>)(_db.Entry(parent).Collection(rel).CurrentValue ?? Array.Empty<object>());
+                        return children.Select(GetKey!).Where(k => k is not null)!;
+                    }
+                    finally { _gate.Release(); }
                 }
             };
         }
@@ -205,64 +222,76 @@ namespace CMC.Web.Services
 
                 LoadOptions = async () =>
                 {
-                    var set = GetSetNonGeneric(targetClr);
-                    var list = await ToListAsync(set);
-                    return list.Select(e => new RelationOption(GetDisplay(e), GetKey(e)!));
+                    await _gate.WaitAsync();
+                    try
+                    {
+                        var set = GetSetNonGeneric(targetClr);
+                        var list = await ToListAsync(set);
+                        return list.Select(e => new RelationOption(GetDisplay(e), GetKey(e)!));
+                    }
+                    finally { _gate.Release(); }
                 },
 
                 LoadCurrentKeys = async parent =>
                 {
-                    await _db.Entry(parent).Collection(rel).LoadAsync();
-                    var curr = (IEnumerable<object>)(_db.Entry(parent).Collection(rel).CurrentValue ?? Array.Empty<object>());
-                    return curr.Select(GetKey!).Where(k => k is not null)!;
+                    await _gate.WaitAsync();
+                    try
+                    {
+                        await _db.Entry(parent).Collection(rel).LoadAsync();
+                        var curr = (IEnumerable<object>)(_db.Entry(parent).Collection(rel).CurrentValue ?? Array.Empty<object>());
+                        return curr.Select(GetKey!).Where(k => k is not null)!;
+                    }
+                    finally { _gate.Release(); }
                 },
 
                 AddMany = async (parent, keys) =>
                 {
-                    // Domain-Methoden versuchen (Convention-based)
                     if (await TryUseDomainMethodAsync(parent, rel, "Add", keys))
                         return;
 
-                    // Fallback: EF Collection Manipulation
-                    await _db.Entry(parent).Collection(rel).LoadAsync();
-                    var coll = (IList)_db.Entry(parent).Collection(rel).CurrentValue!;
-
-                    foreach (var k in keys)
+                    await _gate.WaitAsync();
+                    try
                     {
-                        var entity = await FindByKey(targetClr, k);
-                        if (!coll.Contains(entity))
-                            coll.Add(entity);
-                    }
+                        await _db.Entry(parent).Collection(rel).LoadAsync();
+                        var coll = (IList)_db.Entry(parent).Collection(rel).CurrentValue!;
 
-                    await _db.SaveChangesAsync();
+                        foreach (var k in keys)
+                        {
+                            var entity = await FindByKey(targetClr, k);
+                            if (!coll.Contains(entity))
+                                coll.Add(entity);
+                        }
+
+                        await _db.SaveChangesAsync();
+                    }
+                    finally { _gate.Release(); }
                 },
 
                 RemoveMany = async (parent, keys) =>
                 {
-                    // Domain-Methoden versuchen
                     if (await TryUseDomainMethodAsync(parent, rel, "Remove", keys))
                         return;
 
-                    // Fallback: EF Collection Manipulation
-                    await _db.Entry(parent).Collection(rel).LoadAsync();
-                    var coll = (IList)_db.Entry(parent).Collection(rel).CurrentValue!;
-
-                    foreach (var k in keys.ToList())
+                    await _gate.WaitAsync();
+                    try
                     {
-                        var entity = await FindByKey(targetClr, k);
-                        if (coll.Contains(entity))
-                            coll.Remove(entity);
-                    }
+                        await _db.Entry(parent).Collection(rel).LoadAsync();
+                        var coll = (IList)_db.Entry(parent).Collection(rel).CurrentValue!;
 
-                    await _db.SaveChangesAsync();
+                        foreach (var k in keys.ToList())
+                        {
+                            var entity = await FindByKey(targetClr, k);
+                            if (coll.Contains(entity))
+                                coll.Remove(entity);
+                        }
+
+                        await _db.SaveChangesAsync();
+                    }
+                    finally { _gate.Release(); }
                 }
             };
         }
 
-        /// <summary>
-        /// M:N unter Verwendung einer *expliziten* Join-Entity (z. B. CustomerIndustries) behandeln.
-        /// Die Navigation am Parent ist hier eine Collection der Join-Entity.
-        /// </summary>
         private RelationDescriptor BuildManyToManyViaExplicitJoin(
             Type parentType,
             string joinCollectionName,
@@ -274,8 +303,8 @@ namespace CMC.Web.Services
             var joinClr = joinEt.ClrType;
             var targetClr = targetEt.ClrType;
 
-            var fkParentProp = fkToParent.Properties.Single().PropertyInfo!; // z.B. CustomerId
-            var fkTargetProp = fkToTarget.Properties.Single().PropertyInfo!; // z.B. IndustryId
+            var fkParentProp = fkToParent.Properties.Single().PropertyInfo!;
+            var fkTargetProp = fkToTarget.Properties.Single().PropertyInfo!;
             var parentPkProp = _db.Model.FindEntityType(parentType)!.FindPrimaryKey()!.Properties.Single().PropertyInfo!;
 
             return new RelationDescriptor
@@ -287,98 +316,107 @@ namespace CMC.Web.Services
 
                 LoadOptions = async () =>
                 {
-                    var set = GetSetNonGeneric(targetClr);
-                    var list = await ToListAsync(set);
-                    return list.Select(e => new RelationOption(GetDisplay(e), GetKey(e)!));
+                    await _gate.WaitAsync();
+                    try
+                    {
+                        var set = GetSetNonGeneric(targetClr);
+                        var list = await ToListAsync(set);
+                        return list.Select(e => new RelationOption(GetDisplay(e), GetKey(e)!));
+                    }
+                    finally { _gate.Release(); }
                 },
 
                 LoadCurrentKeys = async parent =>
                 {
-                    // Optionaler Domain-Reader (Get{Suffix}Keys)
+                    // optionaler Domain-Reader
                     var domainKeys = TryGetDomainKeys(parent, joinCollectionName);
                     if (domainKeys != null)
                         return domainKeys.Select(k => k.ToString()).ToArray();
 
-                    // Fallback: EF-Join-Collection lesen und FK zum Target extrahieren
-                    await _db.Entry(parent).Collection(joinCollectionName).LoadAsync();
-                    var coll = (IEnumerable<object>)(_db.Entry(parent).Collection(joinCollectionName).CurrentValue ?? Array.Empty<object>());
+                    await _gate.WaitAsync();
+                    try
+                    {
+                        await _db.Entry(parent).Collection(joinCollectionName).LoadAsync();
+                        var coll = (IEnumerable<object>)(_db.Entry(parent).Collection(joinCollectionName).CurrentValue ?? Array.Empty<object>());
 
-                    return coll
-                        .Select(j => fkTargetProp.GetValue(j)?.ToString())
-                        .Where(s => !string.IsNullOrWhiteSpace(s))!
-                        .ToArray()!;
+                        return coll
+                            .Select(j => fkTargetProp.GetValue(j)?.ToString())
+                            .Where(s => !string.IsNullOrWhiteSpace(s))!
+                            .ToArray()!;
+                    }
+                    finally { _gate.Release(); }
                 },
 
                 AddMany = async (parent, keys) =>
                 {
-                    // Domain-Methoden versuchen (Add{Suffix})
                     if (await TryUseDomainMethodAsync(parent, joinCollectionName, "Add", keys))
                         return;
 
-                    // Fallback: Join-Entity Instanzen erzeugen
-                    await _db.Entry(parent).Collection(joinCollectionName).LoadAsync();
-                    var coll = (IList)_db.Entry(parent).Collection(joinCollectionName).CurrentValue!;
-
-                    var parentKeyObj = parentPkProp.GetValue(parent)!;
-                    var parentKeyTyped = Convert.ChangeType(parentKeyObj, fkParentProp.PropertyType);
-
-                    var existingTargets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                    foreach (var j in coll)
+                    await _gate.WaitAsync();
+                    try
                     {
-                        var tVal = fkTargetProp.GetValue(j)?.ToString();
-                        if (!string.IsNullOrWhiteSpace(tVal))
-                            existingTargets.Add(tVal);
+                        await _db.Entry(parent).Collection(joinCollectionName).LoadAsync();
+                        var coll = (IList)_db.Entry(parent).Collection(joinCollectionName).CurrentValue!;
+
+                        var parentKeyObj = parentPkProp.GetValue(parent)!;
+                        var parentKeyTyped = Convert.ChangeType(parentKeyObj, fkParentProp.PropertyType);
+
+                        var existingTargets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        foreach (var j in coll)
+                        {
+                            var tVal = fkTargetProp.GetValue(j)?.ToString();
+                            if (!string.IsNullOrWhiteSpace(tVal))
+                                existingTargets.Add(tVal);
+                        }
+
+                        foreach (var k in keys)
+                        {
+                            if (existingTargets.Contains(k)) continue;
+
+                            var targetKeyTyped = Convert.ChangeType(k, fkTargetProp.PropertyType);
+
+                            var joinInstance = Activator.CreateInstance(joinClr)!;
+                            fkParentProp.SetValue(joinInstance, parentKeyTyped);
+                            fkTargetProp.SetValue(joinInstance, targetKeyTyped);
+
+                            coll.Add(joinInstance);
+                        }
+
+                        await _db.SaveChangesAsync();
                     }
-
-                    foreach (var k in keys)
-                    {
-                        if (existingTargets.Contains(k)) continue;
-
-                        var targetKeyTyped = Convert.ChangeType(k, fkTargetProp.PropertyType);
-
-                        var joinInstance = Activator.CreateInstance(joinClr)!;
-                        fkParentProp.SetValue(joinInstance, parentKeyTyped);
-                        fkTargetProp.SetValue(joinInstance, targetKeyTyped);
-
-                        coll.Add(joinInstance);
-                    }
-
-                    await _db.SaveChangesAsync();
+                    finally { _gate.Release(); }
                 },
 
                 RemoveMany = async (parent, keys) =>
                 {
-                    // Domain-Methoden versuchen (Remove{Suffix})
                     if (await TryUseDomainMethodAsync(parent, joinCollectionName, "Remove", keys))
                         return;
 
-                    await _db.Entry(parent).Collection(joinCollectionName).LoadAsync();
-                    var coll = (IList)_db.Entry(parent).Collection(joinCollectionName).CurrentValue!;
-
-                    var keySet = new HashSet<string>(keys, StringComparer.OrdinalIgnoreCase);
-
-                    for (int i = coll.Count - 1; i >= 0; i--)
+                    await _gate.WaitAsync();
+                    try
                     {
-                        var ji = coll[i]!;
-                        var tId = fkTargetProp.GetValue(ji)?.ToString();
-                        if (!string.IsNullOrWhiteSpace(tId) && keySet.Contains(tId))
-                            coll.RemoveAt(i);
-                    }
+                        await _db.Entry(parent).Collection(joinCollectionName).LoadAsync();
+                        var coll = (IList)_db.Entry(parent).Collection(joinCollectionName).CurrentValue!;
 
-                    await _db.SaveChangesAsync();
+                        var keySet = new HashSet<string>(keys, StringComparer.OrdinalIgnoreCase);
+
+                        for (int i = coll.Count - 1; i >= 0; i--)
+                        {
+                            var ji = coll[i]!;
+                            var tId = fkTargetProp.GetValue(ji)?.ToString();
+                            if (!string.IsNullOrWhiteSpace(tId) && keySet.Contains(tId))
+                                coll.RemoveAt(i);
+                        }
+
+                        await _db.SaveChangesAsync();
+                    }
+                    finally { _gate.Release(); }
                 }
             };
         }
 
         // ------------------------ Domain Convention Helpers ------------------------
 
-        /// <summary>
-        /// Versucht Convention-basierte Domain-Methoden:
-        /// - Add{RelationSuffix}(IEnumerable&lt;Guid&gt;)
-        /// - Remove{RelationSuffix}(IEnumerable&lt;Guid&gt;)
-        ///
-        /// Convention: CustomerIndustries -> AddIndustries / RemoveIndustries
-        /// </summary>
         private async Task<bool> TryUseDomainMethodAsync(object parent, string relationName, string operation, IEnumerable<string> keys)
         {
             var relationSuffix = GetRelationSuffix(relationName);
@@ -398,29 +436,25 @@ namespace CMC.Web.Services
                                     .Where(g => g != Guid.Empty)
                                     .ToArray();
 
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine($"🎯 Using domain method: {parent.GetType().Name}.{methodName}() with {guids.Length} keys");
-                    Console.ResetColor();
+                    await _gate.WaitAsync();
+                    try
+                    {
+                        method.Invoke(parent, new object[] { guids });
+                        await _db.SaveChangesAsync();
+                    }
+                    finally { _gate.Release(); }
 
-                    method.Invoke(parent, new object[] { guids });
-                    await _db.SaveChangesAsync();
                     return true;
                 }
-                catch (Exception ex)
+                catch
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine($"❌ Domain method {methodName} failed: {ex.Message}");
-                    Console.ResetColor();
+                    // Domain-Methode fehlgeschlagen → Fallback über EF
                 }
             }
 
             return false;
         }
 
-        /// <summary>
-        /// Optionaler Domain-Leser:
-        /// - Get{RelationSuffix}Keys() : IEnumerable&lt;Guid&gt;
-        /// </summary>
         private IEnumerable<Guid>? TryGetDomainKeys(object parent, string relationName)
         {
             var relationSuffix = GetRelationSuffix(relationName);
@@ -438,28 +472,14 @@ namespace CMC.Web.Services
                 {
                     var result = method.Invoke(parent, null);
                     if (result is IEnumerable<Guid> keys)
-                    {
-                        Console.ForegroundColor = ConsoleColor.Cyan;
-                        Console.WriteLine($"🔑 Using domain method: {parent.GetType().Name}.{methodName}()");
-                        Console.ResetColor();
                         return keys;
-                    }
                 }
-                catch (Exception ex)
-                {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine($"❌ Domain method {methodName} failed: {ex.Message}");
-                    Console.ResetColor();
-                }
+                catch { /* ignore */ }
             }
 
             return null;
         }
 
-        /// <summary>
-        /// Leitet aus dem Relations-Namen den Suffix für Domain-Methoden ab.
-        /// z.B. "CustomerIndustries" -> "Industries"
-        /// </summary>
         private static string GetRelationSuffix(string relationName)
         {
             var mappings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -473,8 +493,7 @@ namespace CMC.Web.Services
             if (mappings.TryGetValue(relationName, out var mapped))
                 return mapped;
 
-            // Allgemeine Convention: Parent-Präfix entfernen (CustomerX -> X)
-            var commonParents = new[] { "Customer", "User", "Order", "Product", "Company" };
+            var commonParents = new[] { "Customer", "User", "Order", "Product", "Company", "LibraryControl", "LibraryScenario" };
             foreach (var parent in commonParents)
             {
                 if (relationName.StartsWith(parent, StringComparison.OrdinalIgnoreCase) &&
@@ -515,17 +534,22 @@ namespace CMC.Web.Services
 
         private async Task<object> FindByKey(Type clr, string key)
         {
-            var et    = _db.Model.FindEntityType(clr)!;
-            var pk    = et.FindPrimaryKey()!.Properties.Single();
-            var pkClr = pk.ClrType;
+            await _gate.WaitAsync();
+            try
+            {
+                var et    = _db.Model.FindEntityType(clr)!;
+                var pk    = et.FindPrimaryKey()!.Properties.Single();
+                var pkClr = pk.ClrType;
 
-            object typed = (pkClr == typeof(Guid) || pkClr == typeof(Guid?))
-                ? Guid.Parse(key)
-                : Convert.ChangeType(key, Nullable.GetUnderlyingType(pkClr) ?? pkClr)!;
+                object typed = (pkClr == typeof(Guid) || pkClr == typeof(Guid?))
+                    ? Guid.Parse(key)
+                    : Convert.ChangeType(key, Nullable.GetUnderlyingType(pkClr) ?? pkClr)!;
 
-            var entity = await _db.FindAsync(clr, new object?[] { typed }); // ✅ ValueTask<object?>
-            if (entity is null) throw new InvalidOperationException($"{clr.Name}({key}) not found");
-            return entity;
+                var entity = await _db.FindAsync(clr, new object?[] { typed });
+                if (entity is null) throw new InvalidOperationException($"{clr.Name}({key}) not found");
+                return entity;
+            }
+            finally { _gate.Release(); }
         }
 
         private static string? GetKey(object e)
@@ -544,7 +568,6 @@ namespace CMC.Web.Services
 
         private object GetSetNonGeneric(Type clr)
         {
-            // 1) DbContext.Set(Type) (non-generic)
             var miNonGeneric = typeof(DbContext).GetMethod("Set", new[] { typeof(Type) });
             if (miNonGeneric != null)
             {
@@ -552,7 +575,6 @@ namespace CMC.Web.Services
                 if (set != null) return set;
             }
 
-            // 2) Fallback: DbContext.Set<TEntity>()
             var miGeneric = typeof(DbContext).GetMethods(BindingFlags.Public | BindingFlags.Instance)
                 .First(m => m.Name == "Set" && m.IsGenericMethodDefinition && m.GetParameters().Length == 0);
 

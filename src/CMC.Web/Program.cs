@@ -69,6 +69,7 @@ builder.Services.AddScoped<ControlService>();
 builder.Services.AddScoped<RiskAcceptanceService>();
 builder.Services.AddScoped<ToDoService>();
 builder.Services.AddScoped<EvidenceService>();
+builder.Services.AddScoped<TagService>();
 builder.Services.AddScoped<IndustryService>();
 
 // ✅ DB-gestützte Claims-Aktualisierung

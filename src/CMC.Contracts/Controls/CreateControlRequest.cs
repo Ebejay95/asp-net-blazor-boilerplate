@@ -1,6 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using CMC.Contracts.Common;
+using CMC.Contracts.Common; // ✅ needed for SelectFrom
 
 namespace CMC.Contracts.Controls
 {
@@ -16,15 +17,16 @@ namespace CMC.Contracts.Controls
         [property: Range(0, 1)] decimal Freshness,
 
         [property: Display(Name = "Kosten (EUR)")] decimal CostTotalEur,
-        // Delta & Score können serverseitig berechnet/überschrieben werden – bleiben im Contract weg
-        //[property: Display(Name = "ΔEAL (EUR)")] decimal DeltaEalEur,
-        //[property: Display(Name = "Score")] decimal Score,
 
-        // Optionaler Initialstatus als Tag (wird beim Anlegen via Transition-Logik validiert)
+        // Optionaler Initialstatus (Tag)
         [property: Display(Name = "Status")]
         [property: SelectFrom("CMC.Contracts.Controls.ControlStatuses.Statuses")]
         string? InitialStatusTag = null,
 
-        [property: Display(Name = "Fällig am")] DateTimeOffset? DueDate = null
+        [property: Display(Name = "Fällig am")] DateTimeOffset? DueDate = null,
+
+        // M:N
+        [property: Display(Name = "Tags")]     IReadOnlyList<Guid>? TagIds = null,
+        [property: Display(Name = "Branchen")] IReadOnlyList<Guid>? IndustryIds = null
     );
 }

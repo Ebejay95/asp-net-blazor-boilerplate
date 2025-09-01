@@ -26,8 +26,23 @@ namespace CMC.Infrastructure.Persistence.Configurations
              .HasForeignKey(x => x.EvidenceId)
              .OnDelete(DeleteBehavior.SetNull);
 
-            // ⚠️ KEIN direkter FK mehr zu Scenario; M:N via ControlScenario
+            // M:N
+            e.HasMany(x => x.ScenarioLinks)
+             .WithOne(l => l.Control)
+             .HasForeignKey(l => l.ControlId)
+             .OnDelete(DeleteBehavior.Cascade);
 
+            e.HasMany(x => x.TagLinks)
+             .WithOne(l => l.Control)
+             .HasForeignKey(l => l.ControlId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasMany(x => x.IndustryLinks)
+             .WithOne(l => l.Control)
+             .HasForeignKey(l => l.ControlId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            // 1:n
             e.HasMany(x => x.ToDos)
              .WithOne()
              .HasForeignKey(t => t.ControlId)
@@ -48,7 +63,6 @@ namespace CMC.Infrastructure.Persistence.Configurations
             e.HasIndex(x => new { x.CustomerId, x.IsDeleted });
             e.HasIndex(x => x.Status);
             e.HasIndex(x => x.LibraryControlId);
-
         }
     }
 }

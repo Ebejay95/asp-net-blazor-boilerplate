@@ -20,7 +20,6 @@ namespace CMC.Application.Services
 
         public async Task<LibraryControlDto> CreateAsync(CreateLibraryControlRequest r, CancellationToken ct = default)
         {
-            // Richtige Parameter-Reihenfolge + Relations aus dem Request
             var e = new LibraryControl(
                 name: r.Name,
                 capexEur: r.CapexEur,
@@ -53,11 +52,9 @@ namespace CMC.Application.Services
             var e = await _repo.GetByIdAsync(r.Id, ct);
             if (e == null) return null;
 
-            // Aufwand & Kosten
             e.UpdateEffort(r.InternalDays, r.ExternalDays, r.TotalDays);
             e.UpdateCosts(r.CapexEur, r.OpexYearEur);
 
-            // Relations (M:N)
             e.SetTags(r.TagIds);
             e.SetIndustries(r.IndustryIds);
 
@@ -83,9 +80,18 @@ namespace CMC.Application.Services
             ExternalDays = e.ExternalDays,
             TotalDays = e.TotalDays,
 
-            // IDs aus Join-Entities; Labels optional (kannst du bei Bedarf per Include/Projection nachziehen)
             TagIds = e.GetTagIds(),
             IndustryIds = e.GetIndustryIds(),
+
+            // Labels, falls via Repository Includes verfügbar
+            TagLabels = e.TagLinks.Select(l => l.Tag?.Name)
+                                  .Where(s => !string.IsNullOrWhiteSpace(s))
+                                  .Distinct()
+                                  .ToArray(),
+            IndustryLabels = e.IndustryLinks.Select(l => l.Industry?.Name)
+                                            .Where(s => !string.IsNullOrWhiteSpace(s))
+                                            .Distinct()
+                                            .ToArray(),
 
             CreatedAt = e.CreatedAt,
             UpdatedAt = e.UpdatedAt

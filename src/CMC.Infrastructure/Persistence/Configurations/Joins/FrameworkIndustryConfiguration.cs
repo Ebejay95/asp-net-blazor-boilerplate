@@ -17,7 +17,7 @@ namespace CMC.Infrastructure.Persistence.Configurations
 				.OnDelete(DeleteBehavior.Cascade);
 
 			e.HasOne(x => x.Industry)
-				.WithMany()
+				.WithMany(i => i.FrameworkIndustries)
 				.HasForeignKey(x => x.IndustryId)
 				.OnDelete(DeleteBehavior.Cascade);
 

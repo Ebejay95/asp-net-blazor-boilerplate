@@ -20,19 +20,18 @@ namespace CMC.Contracts.LibraryScenarios
 		public decimal ImpactPctRevenue { get; set; }
 
 		// M:N – Tags (IDs editierbar)
-		[Display(Name = "Tags")]
-		[RelationFrom(IsMany = true)]
-		public IReadOnlyList<Guid> TagIds { get; set; } = Array.Empty<Guid>();
+[Display(Name = "Tags", AutoGenerateField = false)]
+[RelationFrom(IsMany = true, RelationName = "TagLinks")]
+public IReadOnlyList<Guid> TagIds { get; set; } = Array.Empty<Guid>();
 
 		// nur fürs Grid
 		[EditorHidden]
 		[Display(Name = "Tag-Namen")]
 		public IReadOnlyList<string> TagLabels { get; set; } = Array.Empty<string>();
 
-		// M:N – Branchen (IDs editierbar)
-		[Display(Name = "Branchen")]
-		[RelationFrom(IsMany = true)]
-		public IReadOnlyList<Guid> IndustryIds { get; set; } = Array.Empty<Guid>();
+[Display(Name = "Branchen", AutoGenerateField = false)]
+[RelationFrom(IsMany = true, RelationName = "IndustryLinks")]   // <- WICHTIG
+public IReadOnlyList<Guid> IndustryIds { get; set; } = Array.Empty<Guid>();
 
 		// nur fürs Grid
 		[EditorHidden]

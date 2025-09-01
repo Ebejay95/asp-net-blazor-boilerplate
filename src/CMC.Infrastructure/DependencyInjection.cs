@@ -37,6 +37,7 @@ public static class DependencyInjection
         services.AddScoped<ILibraryControlRepository, LibraryControlRepository>();
         services.AddScoped<ILibraryScenarioRepository, LibraryScenarioRepository>();
         services.AddScoped<IIndustryRepository, IndustryRepository>();
+        services.AddScoped<ITagRepository, TagRepository>();
         services.AddScoped<IRiskAcceptanceRepository, RiskAcceptanceRepository>();
 
         // Services
@@ -47,6 +48,7 @@ public static class DependencyInjection
         services.AddScoped<RevisionService>();
         services.AddScoped<RecycleBinService>();
         services.AddScoped<IndustryService>();
+        services.AddScoped<TagService>();
 
         services.AddScoped<LibraryProvisioningService>();
 

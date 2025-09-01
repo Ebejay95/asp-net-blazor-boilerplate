@@ -106,6 +106,21 @@ namespace CMC.Infrastructure.Migrations
                     b.ToTable("Controls", (string)null);
                 });
 
+            modelBuilder.Entity("CMC.Domain.Entities.ControlIndustry", b =>
+                {
+                    b.Property<Guid>("ControlId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("IndustryId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("ControlId", "IndustryId");
+
+                    b.HasIndex("IndustryId");
+
+                    b.ToTable("ControlIndustries", (string)null);
+                });
+
             modelBuilder.Entity("CMC.Domain.Entities.ControlScenario", b =>
                 {
                     b.Property<Guid>("ControlId")
@@ -121,6 +136,21 @@ namespace CMC.Infrastructure.Migrations
                     b.ToTable("ControlScenarios", (string)null);
                 });
 
+            modelBuilder.Entity("CMC.Domain.Entities.ControlTag", b =>
+                {
+                    b.Property<Guid>("ControlId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TagId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("ControlId", "TagId");
+
+                    b.HasIndex("TagId");
+
+                    b.ToTable("ControlTags", (string)null);
+                });
+
             modelBuilder.Entity("CMC.Domain.Entities.Customer", b =>
                 {
                     b.Property<Guid>("Id")
@@ -134,8 +164,7 @@ namespace CMC.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("DeletedBy")
-                        .HasMaxLength(320)
-                        .HasColumnType("character varying(320)");
+                        .HasColumnType("text");
 
                     b.Property<int>("EmployeeCount")
                         .HasColumnType("integer");
@@ -146,9 +175,7 @@ namespace CMC.Infrastructure.Migrations
                         .HasDefaultValue(true);
 
                     b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
+                        .HasColumnType("boolean");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -167,12 +194,8 @@ namespace CMC.Infrastructure.Migrations
                     b.HasIndex("IsActive")
                         .HasDatabaseName("IX_Customers_IsActive");
 
-                    b.HasIndex("IsDeleted");
-
                     b.HasIndex("Name")
-                        .IsUnique()
-                        .HasDatabaseName("UX_Customers_Name_Active")
-                        .HasFilter("\"IsDeleted\" = false");
+                        .IsUnique();
 
                     b.ToTable("Customers", (string)null);
                 });
@@ -281,7 +304,10 @@ namespace CMC.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Name", "Version");
+                    b.HasIndex("Name", "Version")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Frameworks_Name_Version_Active")
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.ToTable("Frameworks", (string)null);
                 });
@@ -294,14 +320,9 @@ namespace CMC.Infrastructure.Migrations
                     b.Property<Guid>("IndustryId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("IndustryId1")
-                        .HasColumnType("uuid");
-
                     b.HasKey("FrameworkId", "IndustryId");
 
                     b.HasIndex("IndustryId");
-
-                    b.HasIndex("IndustryId1");
 
                     b.ToTable("FrameworkIndustries", (string)null);
                 });
@@ -431,14 +452,9 @@ namespace CMC.Infrastructure.Migrations
                     b.Property<Guid>("IndustryId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("IndustryId1")
-                        .HasColumnType("uuid");
-
                     b.HasKey("LibraryControlId", "IndustryId");
 
                     b.HasIndex("IndustryId");
-
-                    b.HasIndex("IndustryId1");
 
                     b.ToTable("LibraryControlIndustries", (string)null);
                 });
@@ -471,14 +487,9 @@ namespace CMC.Infrastructure.Migrations
                     b.Property<Guid>("TagId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("TagId1")
-                        .HasColumnType("uuid");
-
                     b.HasKey("LibraryControlId", "TagId");
 
                     b.HasIndex("TagId");
-
-                    b.HasIndex("TagId1");
 
                     b.ToTable("LibraryControlTags", (string)null);
                 });
@@ -535,14 +546,9 @@ namespace CMC.Infrastructure.Migrations
                     b.Property<Guid>("IndustryId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("IndustryId1")
-                        .HasColumnType("uuid");
-
                     b.HasKey("LibraryScenarioId", "IndustryId");
 
                     b.HasIndex("IndustryId");
-
-                    b.HasIndex("IndustryId1");
 
                     b.ToTable("LibraryScenarioIndustries", (string)null);
                 });
@@ -555,14 +561,9 @@ namespace CMC.Infrastructure.Migrations
                     b.Property<Guid>("TagId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("TagId1")
-                        .HasColumnType("uuid");
-
                     b.HasKey("LibraryScenarioId", "TagId");
 
                     b.HasIndex("TagId");
-
-                    b.HasIndex("TagId1");
 
                     b.ToTable("LibraryScenarioTags", (string)null);
                 });
@@ -1116,6 +1117,25 @@ namespace CMC.Infrastructure.Migrations
                     b.Navigation("LibraryControl");
                 });
 
+            modelBuilder.Entity("CMC.Domain.Entities.ControlIndustry", b =>
+                {
+                    b.HasOne("CMC.Domain.Entities.Control", "Control")
+                        .WithMany("IndustryLinks")
+                        .HasForeignKey("ControlId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CMC.Domain.Entities.Industry", "Industry")
+                        .WithMany("ControlIndustries")
+                        .HasForeignKey("IndustryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Control");
+
+                    b.Navigation("Industry");
+                });
+
             modelBuilder.Entity("CMC.Domain.Entities.ControlScenario", b =>
                 {
                     b.HasOne("CMC.Domain.Entities.Control", "Control")
@@ -1135,6 +1155,25 @@ namespace CMC.Infrastructure.Migrations
                     b.Navigation("Scenario");
                 });
 
+            modelBuilder.Entity("CMC.Domain.Entities.ControlTag", b =>
+                {
+                    b.HasOne("CMC.Domain.Entities.Control", "Control")
+                        .WithMany("TagLinks")
+                        .HasForeignKey("ControlId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CMC.Domain.Entities.Tag", "Tag")
+                        .WithMany("ControlTags")
+                        .HasForeignKey("TagId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Control");
+
+                    b.Navigation("Tag");
+                });
+
             modelBuilder.Entity("CMC.Domain.Entities.FrameworkIndustry", b =>
                 {
                     b.HasOne("CMC.Domain.Entities.Framework", "Framework")
@@ -1144,14 +1183,10 @@ namespace CMC.Infrastructure.Migrations
                         .IsRequired();
 
                     b.HasOne("CMC.Domain.Entities.Industry", "Industry")
-                        .WithMany()
+                        .WithMany("FrameworkIndustries")
                         .HasForeignKey("IndustryId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.HasOne("CMC.Domain.Entities.Industry", null)
-                        .WithMany("FrameworkIndustries")
-                        .HasForeignKey("IndustryId1");
 
                     b.Navigation("Framework");
 
@@ -1199,14 +1234,10 @@ namespace CMC.Infrastructure.Migrations
             modelBuilder.Entity("CMC.Domain.Entities.LibraryControlIndustry", b =>
                 {
                     b.HasOne("CMC.Domain.Entities.Industry", "Industry")
-                        .WithMany()
+                        .WithMany("LibraryControlIndustries")
                         .HasForeignKey("IndustryId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.HasOne("CMC.Domain.Entities.Industry", null)
-                        .WithMany("LibraryControlIndustries")
-                        .HasForeignKey("IndustryId1");
 
                     b.HasOne("CMC.Domain.Entities.LibraryControl", "LibraryControl")
                         .WithMany("IndustryLinks")
@@ -1251,14 +1282,10 @@ namespace CMC.Infrastructure.Migrations
                         .IsRequired();
 
                     b.HasOne("CMC.Domain.Entities.Tag", "Tag")
-                        .WithMany()
+                        .WithMany("LibraryControlTags")
                         .HasForeignKey("TagId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.HasOne("CMC.Domain.Entities.Tag", null)
-                        .WithMany("LibraryControlTags")
-                        .HasForeignKey("TagId1");
 
                     b.Navigation("LibraryControl");
 
@@ -1268,14 +1295,10 @@ namespace CMC.Infrastructure.Migrations
             modelBuilder.Entity("CMC.Domain.Entities.LibraryScenarioIndustry", b =>
                 {
                     b.HasOne("CMC.Domain.Entities.Industry", "Industry")
-                        .WithMany()
+                        .WithMany("LibraryScenarioIndustries")
                         .HasForeignKey("IndustryId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.HasOne("CMC.Domain.Entities.Industry", null)
-                        .WithMany("LibraryScenarioIndustries")
-                        .HasForeignKey("IndustryId1");
 
                     b.HasOne("CMC.Domain.Entities.LibraryScenario", "LibraryScenario")
                         .WithMany("IndustryLinks")
@@ -1297,14 +1320,10 @@ namespace CMC.Infrastructure.Migrations
                         .IsRequired();
 
                     b.HasOne("CMC.Domain.Entities.Tag", "Tag")
-                        .WithMany()
+                        .WithMany("LibraryScenarioTags")
                         .HasForeignKey("TagId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.HasOne("CMC.Domain.Entities.Tag", null)
-                        .WithMany("LibraryScenarioTags")
-                        .HasForeignKey("TagId1");
 
                     b.Navigation("LibraryScenario");
 
@@ -1465,7 +1484,11 @@ namespace CMC.Infrastructure.Migrations
 
             modelBuilder.Entity("CMC.Domain.Entities.Control", b =>
                 {
+                    b.Navigation("IndustryLinks");
+
                     b.Navigation("ScenarioLinks");
+
+                    b.Navigation("TagLinks");
 
                     b.Navigation("ToDos");
                 });
@@ -1493,6 +1516,8 @@ namespace CMC.Infrastructure.Migrations
 
             modelBuilder.Entity("CMC.Domain.Entities.Industry", b =>
                 {
+                    b.Navigation("ControlIndustries");
+
                     b.Navigation("CustomerIndustries");
 
                     b.Navigation("FrameworkIndustries");
@@ -1531,6 +1556,8 @@ namespace CMC.Infrastructure.Migrations
 
             modelBuilder.Entity("CMC.Domain.Entities.Tag", b =>
                 {
+                    b.Navigation("ControlTags");
+
                     b.Navigation("LibraryControlTags");
 
                     b.Navigation("LibraryScenarioTags");

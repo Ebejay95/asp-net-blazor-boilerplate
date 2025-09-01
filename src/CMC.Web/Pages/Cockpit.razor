@@ -217,6 +217,15 @@
 
 			n.Add(new MenuNode
 			{
+				Id = "tags",
+				Text = "Tags",
+				Href = "/cockpit/tags",
+				Match = NavLinkMatch.All,
+				Component = typeof(Tags)
+			});
+
+			n.Add(new MenuNode
+			{
 				Id = "recycle-bin",
 				Text = "Papierkorb",
 				Href = "/cockpit/recycle-bin",

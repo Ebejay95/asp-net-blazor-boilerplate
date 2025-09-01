@@ -17,7 +17,7 @@ namespace CMC.Infrastructure.Persistence.Configurations
 				.OnDelete(DeleteBehavior.Cascade);
 
 			e.HasOne(x => x.Tag)
-				.WithMany()
+				.WithMany(t => t.LibraryScenarioTags) // ← NEU
 				.HasForeignKey(x => x.TagId)
 				.OnDelete(DeleteBehavior.Cascade);
 

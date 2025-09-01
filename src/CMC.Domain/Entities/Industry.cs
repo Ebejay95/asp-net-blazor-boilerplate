@@ -9,19 +9,18 @@ namespace CMC.Domain.Entities
         public Guid Id { get; private set; }
         public string Name { get; private set; } = string.Empty;
 
-        // Soft Delete Properties
         public bool IsDeleted { get; set; }
         public DateTimeOffset? DeletedAt { get; set; }
         public string? DeletedBy { get; set; }
 
-        // Nur explizite Joins (keine Skip-Navs)
+        // Joins
         public virtual ICollection<CustomerIndustry> CustomerIndustries { get; private set; } = new List<CustomerIndustry>();
         public virtual ICollection<FrameworkIndustry> FrameworkIndustries { get; private set; } = new List<FrameworkIndustry>();
         public virtual ICollection<LibraryControlIndustry> LibraryControlIndustries { get; private set; } = new List<LibraryControlIndustry>();
         public virtual ICollection<LibraryScenarioIndustry> LibraryScenarioIndustries { get; private set; } = new List<LibraryScenarioIndustry>();
+        public virtual ICollection<ControlIndustry> ControlIndustries { get; private set; } = new List<ControlIndustry>();
 
         private Industry() { }
-
         public Industry(string name)
         {
             if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException(nameof(name));
