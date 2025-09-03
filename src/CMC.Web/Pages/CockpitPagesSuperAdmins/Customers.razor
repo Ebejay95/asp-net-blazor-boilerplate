@@ -1,6 +1,7 @@
 @page "/superadmin/customers"
 @attribute [Authorize]
 
+@using System.Linq
 @using CMC.Infrastructure.Persistence
 @using Microsoft.EntityFrameworkCore
 @using CMC.Contracts.Customers
@@ -21,7 +22,17 @@
              AllowEdit="true"
              AllowCreate="true"
              OnEdit="EditCustomer"
-             OnCreate="CreateCustomer" />
+             OnCreate="CreateCustomer">
+
+        @* Aktionen-Spalte selbst rendern (EFTable hat kein AllowDelete/OnDelete) *@
+        <EditTemplate Context="item">
+            <div class="btn-group">
+                <button type="button" class="btn sm flat" @onclick="() => EditCustomer(item)">
+                    Bearbeiten
+                </button>
+            </div>
+        </EditTemplate>
+    </EFTable>
 </div>
 
 @code {
@@ -92,7 +103,10 @@
             GetParentKey = m => ((CustomerDto)m).Id,
 
             IsCreate = isCreate,
-            OnSave = OnSaveCustomer
+            OnSave = OnSaveCustomer,
+
+            // Löschen direkt aus dem Drawer erlauben (bei Edit)
+            OnDelete = _ => ConfirmDelete(dto.Id, dto.Name)
         });
     }
 
@@ -174,6 +188,67 @@
             });
             // Drawer bleibt offen, damit der Nutzer korrigieren kann.
         }
+    }
+
+    // --------- Delete-Flow (Tabelle + Drawer) ---------
+
+    private Task ConfirmDelete(Guid customerId, string name)
+    {
+        ConfirmService.Open(new DialogRequest
+        {
+            Title = "Löschen bestätigen",
+            Message = $"Kunde „{name}“ wirklich löschen?",
+            ConfirmText = "Löschen",
+            OnConfirm = async () =>
+            {
+                try
+                {
+                    await using var tx = await Db.Database.BeginTransactionAsync();
+
+                    // Kunde inkl. Relationen laden
+                    var customer = await Db.Set<Customer>()
+                        .Include(c => c.CustomerIndustries)
+                        .Include(c => c.Users)
+                        .FirstOrDefaultAsync(c => c.Id == customerId);
+
+                    if (customer is null)
+                        throw new InvalidOperationException("Kunde nicht gefunden.");
+
+                    // Geschäftsregel: nicht löschen, wenn noch Benutzer existieren
+                    if (customer.Users.Any())
+                        throw new InvalidOperationException("Kunde kann nicht gelöscht werden, solange diesem noch Benutzer zugeordnet sind.");
+
+                    // M:N aufräumen (falls keine Cascade konfiguriert)
+                    if (customer.CustomerIndustries?.Count > 0)
+                        Db.RemoveRange(customer.CustomerIndustries);
+
+                    // Kunde löschen
+                    Db.Remove(customer);
+                    await Db.SaveChangesAsync();
+                    await tx.CommitAsync();
+
+                    // UI aktualisieren
+                    EFEdit.Close(); // falls aus Drawer ausgelöst
+                    await ReloadListAsync();
+                    StateHasChanged();
+
+                    Console.WriteLine($"🗑️ Customer deleted: {customerId}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("❌ DeleteCustomer failed:\n" + ex);
+                    ConfirmService.Open(new DialogRequest
+                    {
+                        Title = "Löschen fehlgeschlagen",
+                        Message = ex.Message,
+                        ConfirmText = "Okay",
+                        OnConfirm = () => Task.CompletedTask
+                    });
+                }
+            }
+        });
+
+        return Task.CompletedTask;
     }
 
     // ---------- Helpers ----------

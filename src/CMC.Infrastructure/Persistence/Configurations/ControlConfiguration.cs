@@ -11,10 +11,11 @@ namespace CMC.Infrastructure.Persistence.Configurations
             e.ToTable("Controls");
             e.HasKey(x => x.Id);
 
+            // FIXED: Changed from Restrict to Cascade - Controls are owned by Customer
             e.HasOne(x => x.Customer)
              .WithMany(c => c.Controls)
              .HasForeignKey(x => x.CustomerId)
-             .OnDelete(DeleteBehavior.Restrict);
+             .OnDelete(DeleteBehavior.Cascade);
 
             e.HasOne(x => x.LibraryControl)
              .WithMany()
@@ -42,11 +43,11 @@ namespace CMC.Infrastructure.Persistence.Configurations
              .HasForeignKey(l => l.ControlId)
              .OnDelete(DeleteBehavior.Cascade);
 
-            // 1:n
+            // ToDos beim Löschen des Controls mitlöschen
             e.HasMany(x => x.ToDos)
              .WithOne()
              .HasForeignKey(t => t.ControlId)
-             .OnDelete(DeleteBehavior.Restrict);
+             .OnDelete(DeleteBehavior.Cascade);
 
             e.Property(x => x.Status).HasMaxLength(64);
             e.Property(x => x.Coverage).HasPrecision(9, 6);

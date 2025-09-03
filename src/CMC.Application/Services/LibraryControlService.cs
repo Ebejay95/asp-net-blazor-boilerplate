@@ -31,6 +31,9 @@ namespace CMC.Application.Services
                 totalDays: r.TotalDays
             );
 
+            // Szenario-Links initial setzen (optional)
+            e.SetLibraryScenarios(r.LibraryScenarioIds);
+
             await _repo.AddAsync(e, ct);
             return Map(e);
         }
@@ -57,6 +60,7 @@ namespace CMC.Application.Services
 
             e.SetTags(r.TagIds);
             e.SetIndustries(r.IndustryIds);
+            e.SetLibraryScenarios(r.LibraryScenarioIds);
 
             await _repo.UpdateAsync(e, ct);
             return Map(e);
@@ -82,16 +86,11 @@ namespace CMC.Application.Services
 
             TagIds = e.GetTagIds(),
             IndustryIds = e.GetIndustryIds(),
+            LibraryScenarioIds = e.GetLibraryScenarioIds(),
 
-            // Labels, falls via Repository Includes verfügbar
-            TagLabels = e.TagLinks.Select(l => l.Tag?.Name)
-                                  .Where(s => !string.IsNullOrWhiteSpace(s))
-                                  .Distinct()
-                                  .ToArray(),
-            IndustryLabels = e.IndustryLinks.Select(l => l.Industry?.Name)
-                                            .Where(s => !string.IsNullOrWhiteSpace(s))
-                                            .Distinct()
-                                            .ToArray(),
+            TagLabels = e.TagLinks.Select(l => l.Tag?.Name).Where(s => !string.IsNullOrWhiteSpace(s)).Distinct().ToArray(),
+            IndustryLabels = e.IndustryLinks.Select(l => l.Industry?.Name).Where(s => !string.IsNullOrWhiteSpace(s)).Distinct().ToArray(),
+            LibraryScenarioLabels = e.ScenarioLinks.Select(l => l.LibraryScenario?.Name).Where(s => !string.IsNullOrWhiteSpace(s)).Distinct().ToArray(),
 
             CreatedAt = e.CreatedAt,
             UpdatedAt = e.UpdatedAt

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <iframe id="test" src=""></iframe>
+</body>
+<script>
+
+    window.addEventListener("DOMContentLoaded", function () {
+        console.log(document.getElementById("test"))
+        document.getElementById("test").src = "https://de.tradingview.com/chart/6D2o3wLA/";
+
+    })
+</script>
+
+</html>

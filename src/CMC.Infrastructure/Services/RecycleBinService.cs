@@ -99,18 +99,12 @@ public sealed class RecycleBinService
         await using var tx = await _db.Database.BeginTransactionAsync(ct);
         try
         {
-            // 1) Datensatz physisch löschen (falls er noch existiert)
-            var entity = await FindEntityByIdAsync(et, id, ct, ignoreQueryFilters: true);
-            if (entity != null)
-            {
-                _db.Remove(entity);
-                await _db.SaveChangesAsync(ct);
-            }
+            var sql = $"DELETE FROM \"{mappedTable}\" WHERE \"Id\" = @p0";
+            await _db.Database.ExecuteSqlRawAsync(sql, new object[] { id }, ct);
 
-            // 2) Sämtliche Revisions zu (Table + AssetId) löschen
-            await _db.Set<Revision>()
-                .Where(r => r.Table == mappedTable && r.AssetId == id)
-                .ExecuteDeleteAsync(ct);
+            await _db.Database.ExecuteSqlRawAsync(
+                $"DELETE FROM \"Revisions\" WHERE \"Table\" = @p0 AND \"AssetId\" = @p1",
+                new object[] { mappedTable, id }, ct);
 
             await tx.CommitAsync(ct);
         }
@@ -120,6 +114,7 @@ public sealed class RecycleBinService
             throw;
         }
     }
+
 
     // -------------------------------
     // Soft-Delete Sammlung (generisch)

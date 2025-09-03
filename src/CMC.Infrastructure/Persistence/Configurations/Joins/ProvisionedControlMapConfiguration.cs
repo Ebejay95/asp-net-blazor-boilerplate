@@ -13,29 +13,31 @@ namespace CMC.Infrastructure.Persistence.Configurations.Joins
 
             e.Property(x => x.CreatedAt).IsRequired();
 
+            // FIXED: Customer löschen -> Maps mitlöschen
             e.HasOne<Customer>()
              .WithMany()
              .HasForeignKey(x => x.CustomerId)
-             .OnDelete(DeleteBehavior.Restrict);
+             .OnDelete(DeleteBehavior.Cascade);
 
+            // Library bleibt Restrict - soll nicht aus Versehen gelöscht werden
             e.HasOne<LibraryControl>()
              .WithMany()
              .HasForeignKey(x => x.LibraryControlId)
              .OnDelete(DeleteBehavior.Restrict);
 
+            // FIXED: Scenario löschen -> Maps mitlöschen (war vorher Restrict)
             e.HasOne<Scenario>()
              .WithMany()
              .HasForeignKey(x => x.ScenarioId)
-             .OnDelete(DeleteBehavior.Restrict);
+             .OnDelete(DeleteBehavior.Cascade);
 
+            // FIXED: Control löschen -> Maps mitlöschen (war vorher Restrict)
             e.HasOne<Control>()
              .WithMany()
              .HasForeignKey(x => x.ControlId)
-             .OnDelete(DeleteBehavior.Restrict);
+             .OnDelete(DeleteBehavior.Cascade);
 
-            // Ein Control gehört genau zu einem Mapping
             e.HasIndex(x => x.ControlId).IsUnique();
-
             e.HasIndex(x => x.LibraryControlId);
             e.HasIndex(x => x.ScenarioId);
         }

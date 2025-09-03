@@ -19,12 +19,14 @@ namespace CMC.Infrastructure.Repositories
             => _db.LibraryControls
                   .Include(lc => lc.TagLinks).ThenInclude(t => t.Tag)
                   .Include(lc => lc.IndustryLinks).ThenInclude(i => i.Industry)
+                  .Include(lc => lc.ScenarioLinks).ThenInclude(s => s.LibraryScenario) // ✅
                   .FirstOrDefaultAsync(x => x.Id == id, ct);
 
         public Task<List<LibraryControl>> GetAllAsync(CancellationToken ct = default)
             => _db.LibraryControls
                   .Include(lc => lc.TagLinks).ThenInclude(t => t.Tag)
                   .Include(lc => lc.IndustryLinks).ThenInclude(i => i.Industry)
+                  .Include(lc => lc.ScenarioLinks).ThenInclude(s => s.LibraryScenario) // ✅
                   .AsNoTracking()
                   .OrderBy(x => x.Name)
                   .ToListAsync(ct);

@@ -23,10 +23,19 @@ namespace CMC.Infrastructure.Persistence.Configurations
 
             b.HasIndex(x => x.IsActive).HasDatabaseName("IX_Customers_IsActive");
 
-            // Keine Skip-Navigationen mehr! Join wird separat über CustomerIndustryConfiguration gemappt.
             // 1:n
-            b.HasMany(x => x.Users).WithOne(u => u.Customer).HasForeignKey(u => u.CustomerId).OnDelete(DeleteBehavior.SetNull);
-            b.HasMany(x => x.Controls).WithOne(c => c.Customer).HasForeignKey(c => c.CustomerId).OnDelete(DeleteBehavior.Restrict);
+            // Users: darf losgelöst werden, daher SetNull
+            b.HasMany(x => x.Users)
+             .WithOne(u => u.Customer)
+             .HasForeignKey(u => u.CustomerId)
+             .OnDelete(DeleteBehavior.SetNull);
+
+            // Controls: required FK (CustomerId nicht nullable) -> beim Löschen von Customer
+            // müssen Controls mit gelöscht (soft-deleted) werden -> Cascade
+            b.HasMany(x => x.Controls)
+             .WithOne(c => c.Customer)
+             .HasForeignKey(c => c.CustomerId)
+             .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

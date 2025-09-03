@@ -71,6 +71,10 @@ builder.Services.AddScoped<ToDoService>();
 builder.Services.AddScoped<EvidenceService>();
 builder.Services.AddScoped<TagService>();
 builder.Services.AddScoped<IndustryService>();
+builder.Services.AddScoped<LibraryScenarioQuery>();
+builder.Services.AddScoped<LibraryControlQuery>();
+builder.Services.AddScoped<ScenarioQuery>();
+builder.Services.AddScoped<ControlQuery>();
 
 // ✅ DB-gestützte Claims-Aktualisierung
 builder.Services.AddScoped<IClaimsTransformation, DbBackedClaimsTransformation>();

@@ -25,11 +25,11 @@ namespace CMC.Contracts.LibraryControls
         [Display(Name = "Externe Tage")]
         public int ExternalDays { get; set; }
 
-		[Display(Name = "Gesamt Tage")]
-		[EditorHidden]
+        [Display(Name = "Gesamt Tage")]
+        [EditorHidden]
         public int TotalDays { get; set; }
 
-        // ✅ explizit auf Join-Collection zeigen
+        // Tags
         [Display(Name = "Tags", AutoGenerateField = false)]
         [RelationFrom(IsMany = true, RelationName = "TagLinks")]
         public IReadOnlyList<Guid> TagIds { get; set; } = Array.Empty<Guid>();
@@ -38,6 +38,7 @@ namespace CMC.Contracts.LibraryControls
         [Display(Name = "Tags (Namen)")]
         public IReadOnlyList<string> TagLabels { get; set; } = Array.Empty<string>();
 
+        // Branchen
         [Display(Name = "Branchen", AutoGenerateField = false)]
         [RelationFrom(IsMany = true, RelationName = "IndustryLinks")]
         public IReadOnlyList<Guid> IndustryIds { get; set; } = Array.Empty<Guid>();
@@ -45,6 +46,15 @@ namespace CMC.Contracts.LibraryControls
         [EditorHidden]
         [Display(Name = "Branchen (Namen)")]
         public IReadOnlyList<string> IndustryLabels { get; set; } = Array.Empty<string>();
+
+        // Library-Szenarien
+        [Display(Name = "Szenarien", AutoGenerateField = false)]
+        [RelationFrom(IsMany = true, RelationName = "ScenarioLinks")]
+        public IReadOnlyList<Guid> LibraryScenarioIds { get; set; } = Array.Empty<Guid>();
+
+        [EditorHidden]
+        [Display(Name = "Szenarien (Namen)")]
+        public IReadOnlyList<string> LibraryScenarioLabels { get; set; } = Array.Empty<string>();
 
         [Display(Name = "Erstellt am"), DisplayFormat(DataFormatString = "{0:dd.MM.yyyy HH:mm}")]
         public DateTimeOffset CreatedAt { get; set; }

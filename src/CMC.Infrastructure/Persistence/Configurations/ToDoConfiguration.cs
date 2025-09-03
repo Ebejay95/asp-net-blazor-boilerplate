@@ -25,10 +25,11 @@ public class ToDoConfiguration : IEntityTypeConfiguration<ToDo>
         e.Property(x => x.IsDeleted).HasDefaultValue(false);
         e.Property(x => x.DeletedBy).HasMaxLength(320);
 
+        // ⬇️ Änderung: Cascade statt Restrict – ToDos werden mit dem Control gelöscht
         e.HasOne<Control>()
          .WithMany(c => c.ToDos)
          .HasForeignKey(x => x.ControlId)
-         .OnDelete(DeleteBehavior.Restrict);
+         .OnDelete(DeleteBehavior.Cascade);
 
         e.HasOne<ToDo>()
          .WithMany()

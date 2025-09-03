@@ -6,6 +6,7 @@
 @using CMC.Web.Services
 @using CMC.Web.Util
 @using CMC.Domain.Entities
+
 @inject CMC.Application.Services.LibraryControlService LibraryControlService
 @inject EFEditService EFEditService
 @inject DialogService ConfirmService
@@ -38,11 +39,8 @@
             Title = "Control bearbeiten",
             Model = control,
             ContractsAssembly = typeof(LibraryControlDto).Assembly,
-
-            // 🔴 WICHTIG für Relation-Felder (Tags/Branchen):
             EfParentType = typeof(LibraryControl),
             GetParentKey  = m => ((LibraryControlDto)m).Id,
-
             IsCreate = false,
             OnSave = async ctx =>
             {
@@ -58,10 +56,11 @@
                     var opex    = TryGetDecimal(ctx, "OpexYearEur", dto.OpexYearEur);
                     var iDays   = TryGetInt(ctx, "InternalDays", dto.InternalDays);
                     var eDays   = TryGetInt(ctx, "ExternalDays", dto.ExternalDays);
-                    var tDays   = ctx.TryGetValue("TotalDays", out var rawT) ? TryGetInt(ctx, "TotalDays", dto.TotalDays) : (int?)null;
+                    var tDays   = ctx.TryGetValue("TotalDays", out var _) ? TryGetInt(ctx, "TotalDays", dto.TotalDays) : (int?)null;
 
                     var tagIds      = ExtractGuidArray(ctx.TryGetValue("TagIds", out var rawTags) ? rawTags : dto.TagIds);
                     var industryIds = ExtractGuidArray(ctx.TryGetValue("IndustryIds", out var rawInds) ? rawInds : dto.IndustryIds);
+                    var scenIds     = ExtractGuidArray(ctx.TryGetValue("LibraryScenarioIds", out var rawScen) ? rawScen : dto.LibraryScenarioIds);
 
                     var up = new UpdateLibraryControlRequest(
                         Id: dto.Id,
@@ -71,7 +70,8 @@
                         CapexEur: capex,
                         OpexYearEur: opex,
                         TagIds: tagIds,
-                        IndustryIds: industryIds
+                        IndustryIds: industryIds,
+                        LibraryScenarioIds: scenIds
                     );
 
                     _ = await LibraryControlService.UpdateAsync(up);
@@ -146,8 +146,10 @@
 
             TagIds = Array.Empty<Guid>(),
             IndustryIds = Array.Empty<Guid>(),
+            LibraryScenarioIds = Array.Empty<Guid>(),
             TagLabels = Array.Empty<string>(),
             IndustryLabels = Array.Empty<string>(),
+            LibraryScenarioLabels = Array.Empty<string>(),
 
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow
@@ -158,11 +160,8 @@
             Title = "Control anlegen",
             Model = empty,
             ContractsAssembly = typeof(LibraryControlDto).Assembly,
-
-            // 🔴 ebenso hier setzen
             EfParentType = typeof(LibraryControl),
             GetParentKey  = m => ((LibraryControlDto)m).Id,
-
             IsCreate = true,
             OnSave = async ctx =>
             {
@@ -178,10 +177,11 @@
                     var opex  = TryGetDecimal(ctx, "OpexYearEur", dto.OpexYearEur);
                     var iDays = TryGetInt(ctx, "InternalDays", dto.InternalDays);
                     var eDays = TryGetInt(ctx, "ExternalDays", dto.ExternalDays);
-                    var tDays = ctx.TryGetValue("TotalDays", out var rawT) ? TryGetInt(ctx, "TotalDays", dto.TotalDays) : (int?)null;
+                    var tDays = ctx.TryGetValue("TotalDays", out var _) ? TryGetInt(ctx, "TotalDays", dto.TotalDays) : (int?)null;
 
                     var tagIds      = ExtractGuidArray(ctx.TryGetValue("TagIds", out var rawTags) ? rawTags : dto.TagIds);
                     var industryIds = ExtractGuidArray(ctx.TryGetValue("IndustryIds", out var rawInds) ? rawInds : dto.IndustryIds);
+                    var scenIds     = ExtractGuidArray(ctx.TryGetValue("LibraryScenarioIds", out var rawScen) ? rawScen : dto.LibraryScenarioIds);
 
                     var create = new CreateLibraryControlRequest(
                         Name: name,
@@ -191,7 +191,8 @@
                         ExternalDays: eDays,
                         TotalDays: tDays,
                         TagIds: tagIds,
-                        IndustryIds: industryIds
+                        IndustryIds: industryIds,
+                        LibraryScenarioIds: scenIds
                     );
 
                     _ = await LibraryControlService.CreateAsync(create);
@@ -214,7 +215,7 @@
         EFEditService.Open(req);
     }
 
-    // --------- Helpers ---------
+    // ---------- Helpers ----------
 
     private static decimal TryGetDecimal(EditContextAdapter ctx, string name, decimal fallback)
     {
@@ -275,7 +276,7 @@
                 break;
 
             default:
-                var one = value.ToString();
+                var one = value?.ToString();
                 if (!string.IsNullOrWhiteSpace(one) && Guid.TryParse(one, out var g1) && g1 != Guid.Empty)
                     list.Add(g1);
                 break;

@@ -3,6 +3,7 @@ using System;
 using CMC.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CMC.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250903133611_FixCascadeOnProvisionedMaps")]
+    partial class FixCascadeOnProvisionedMaps
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -467,9 +470,14 @@ namespace CMC.Infrastructure.Migrations
                     b.Property<Guid>("LibraryScenarioId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("LibraryScenarioId1")
+                        .HasColumnType("uuid");
+
                     b.HasKey("LibraryControlId", "LibraryScenarioId");
 
                     b.HasIndex("LibraryScenarioId");
+
+                    b.HasIndex("LibraryScenarioId1");
 
                     b.ToTable("LibraryControlScenarios", (string)null);
                 });
@@ -1249,10 +1257,14 @@ namespace CMC.Infrastructure.Migrations
                         .IsRequired();
 
                     b.HasOne("CMC.Domain.Entities.LibraryScenario", "LibraryScenario")
-                        .WithMany("ControlLinks")
+                        .WithMany()
                         .HasForeignKey("LibraryScenarioId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("CMC.Domain.Entities.LibraryScenario", null)
+                        .WithMany("ControlLinks")
+                        .HasForeignKey("LibraryScenarioId1");
 
                     b.Navigation("LibraryControl");
 
@@ -1321,7 +1333,7 @@ namespace CMC.Infrastructure.Migrations
                     b.HasOne("CMC.Domain.Entities.Control", null)
                         .WithMany()
                         .HasForeignKey("ControlId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("CMC.Domain.Entities.Customer", null)
@@ -1339,7 +1351,7 @@ namespace CMC.Infrastructure.Migrations
                     b.HasOne("CMC.Domain.Entities.Scenario", null)
                         .WithMany()
                         .HasForeignKey("ScenarioId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 
@@ -1360,7 +1372,7 @@ namespace CMC.Infrastructure.Migrations
                     b.HasOne("CMC.Domain.Entities.Scenario", null)
                         .WithMany()
                         .HasForeignKey("ScenarioId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 
