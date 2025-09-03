@@ -36,6 +36,7 @@
             Model = f,
             ContractsAssembly = typeof(TagDto).Assembly,
             IsCreate = false,
+
             OnSave = async ctx =>
             {
                 try
@@ -43,7 +44,7 @@
                     var up = (UpdateTagRequest)ctx.Build("Update");
                     _ = await TagService.UpdateAsync(up);
                     await Reload();
-                    EFEditService.Close();
+                    await InvokeAsync(() => EFEditService.Close());
                 }
                 catch (Exception ex)
                 {
@@ -56,43 +57,43 @@
                     });
                 }
             },
-            OnDelete = ctx =>
+
+            OnDelete = async ctx =>
             {
                 var model = (TagDto)ctx.Model;
 
-                ConfirmService.Open(new DialogRequest
+                if (await ConfirmService.ConfirmAsync(
+                        title: "Löschen bestätigen",
+                        message: $"Tag {model.Name} wirklich löschen?",
+                        confirmText: "Löschen",
+                        cancelText: "Abbrechen"))
                 {
-                    Title = "Löschen bestätigen",
-                    Message = "Tag " + model.Name + " wirklich löschen?",
-                    ConfirmText = "Löschen",
-                    CancelText = "Abbrechen",
-                    OnConfirm = async () =>
+                    try
                     {
-                        try
-                        {
-                            await TagService.DeleteAsync(model.Id);
-                            await Reload();
-                            EFEditService.Close();
-                        }
-                        catch (Exception ex)
-                        {
-                            ConfirmService.Open(new DialogRequest
-                            {
-                                Title = "Löschen fehlgeschlagen",
-                                Message = ex.Message,
-                                ConfirmText = "Okay",
-                                OnConfirm = () => Task.CompletedTask
-                            });
-                        }
-                    }
-                });
+                        // 1) Drawer im UI-Kontext schließen
+                        await InvokeAsync(() => EFEditService.Close());
+                        await Task.Yield(); // einen Render-Zyklus zulassen
 
-                return Task.CompletedTask;
+                        // 2) Danach löschen & neu laden
+                        await TagService.DeleteAsync(model.Id);
+                        await Reload();
+                    }
+                    catch (Exception ex)
+                    {
+                        ConfirmService.Open(new DialogRequest {
+                            Title = "Löschen fehlgeschlagen",
+                            Message = ex.Message,
+                            ConfirmText = "Okay",
+                            OnConfirm = () => Task.CompletedTask
+                        });
+                    }
+                }
             },
+
             OnAfterRestore = async () =>
             {
                 await Reload();
-                EFEditService.Close();
+                await InvokeAsync(() => EFEditService.Close());
             }
         };
 
@@ -116,7 +117,7 @@
                     var create = (CreateTagRequest)ctx.Build("Create");
                     _ = await TagService.CreateAsync(create);
                     await Reload();
-                    EFEditService.Close();
+                    await InvokeAsync(() => EFEditService.Close());
                 }
                 catch (Exception ex)
                 {

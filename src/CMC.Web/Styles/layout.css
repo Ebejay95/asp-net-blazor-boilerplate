@@ -9,15 +9,7 @@
 	body {}
 
 	main {
-		@apply min-h-[100vh] w-full box-border m-auto pt-[60px] py-0;
-	}
-
-	header.header-main {
-		@apply fixed w-full flex justify-between items-center h-[60px] z-[3];
-	}
-
-	header.header-main .profile-card {
-		@apply bg-[var(--audicius-blue)] rounded text-[white];
+		@apply min-h-[100vh] w-full box-border m-auto py-0;
 	}
 
 	section {
@@ -44,23 +36,19 @@
 		@apply pb-4;
 	}
 
-	.card {
-		@apply shadow-[var(--audicius-shadow)] relative overflow-hidden touch-none;
-		@apply bg-white rounded border border-solid border-[#ddd] p-4 w-full;
-	}
-
 	footer {
-		@apply px-6 py-2 flex justify-between items-center sticky bottom-0 bg-white border-t border-t-[#ddd] m-auto;
+		@apply px-6 py-2 absolute bottom-0 right-0;
 	}
 
-	footer nav ul {
+	nav.legal-nav ul {
 		@apply flex gap-4 items-center justify-center;
 	}
 
-
-	/* Karten – Ergänzungen */
 	.card {
-		@apply rounded-3xl border border-slate-200 bg-white p-5;
+		@apply rounded-2xl border border-slate-200 bg-white p-5;
+		--tw-shadow: 0 10px 25px -10px rgba(2, 6, 23, .15);
+		--tw-shadow-colored: 0 10px 25px -10px var(--tw-shadow-color);
+		box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
 	}
 
 	.box {

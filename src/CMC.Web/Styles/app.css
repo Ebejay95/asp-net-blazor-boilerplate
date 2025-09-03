@@ -18,7 +18,7 @@
 :root {
 	/* Colors */
 	--audicius-text: #444;
-	--main-bg: #fefefefe;
+	--main-bg: rgb(248 250 252 / var(--tw-bg-opacity, 1));
 	--audicius-blue: #00609c;
 	--audicius-blue-light: #00609ce8;
 	--audicius-orange: #b77502;

@@ -1,0 +1,144 @@
+@page "/overview"
+@attribute [Authorize]
+
+@using Microsoft.AspNetCore.Components.Forms
+@using CMC.Application.Services
+@using CMC.Contracts.Customers
+@using CMC.Contracts.Users
+@using CMC.Web.Services
+@using CMC.Infrastructure.Services
+@using CMC.Web.Pages.Shared.Forms      @* <— für CompanyForm *@
+
+@inherits RoleBasedComponentBase
+@inject UserService Users
+@inject CustomerService Customers
+@inject IndustryService IndustrySvc
+@inject NavigationManager Nav
+
+<section class="slim">
+  @if (IsSuperAdmin)
+  {
+    <div class="card">
+      <h2>Übersicht</h2>
+      <p>Willkommen! Hier siehst du dein SuperAdmin-Dashboard.</p>
+    </div>
+  }
+  else if (IsUser)
+  {
+    @if (_loading)
+    {
+      <div class="card"><p>Lade…</p></div>
+    }
+    else if (_myCompany is null)
+    {
+      <div class="card">
+        <h2>Erstes Setup</h2>
+        <p>Du bist aktuell keinem Unternehmen zugeordnet. Lege jetzt dein Unternehmen an.</p>
+
+        <CompanyForm
+          Model="_form"
+          IndustryOptions="_industryOptions"
+          SelectedIndustryIds="_selectedIndustryIds"
+          IndustryChanged="OnIndustryChanged"
+          OnValidSubmit="CreateCompanyAsync" />
+      </div>
+    }
+    else
+    {
+      <div class="card">
+        <h2>@_myCompany.Name</h2>
+        <p>Willkommen, @GetFullName()! Du kannst deine Firmeneinstellungen unter <b>Settings</b> bearbeiten.</p>
+        <p>
+          <b>Mitarbeiter:</b> @_myCompany.EmployeeCount<br />
+          <b>Umsatz/Jahr:</b> @_myCompany.RevenuePerYear
+        </p>
+      </div>
+    }
+  }
+</section>
+
+@code {
+  private bool _loading = true;
+  private CustomerDto? _myCompany;
+
+  // Gleiche VM wie in Settings verwenden – Id bleibt Guid.Empty beim Create:
+  private UpdateCompanyForm _form = new();
+
+  // Branchen-Optionen + Auswahl (gleiches Pattern wie Settings)
+  private readonly List<(Guid Id, string Name)> _industryOptions = new();
+  private readonly HashSet<Guid> _selectedIndustryIds = new();
+
+  protected override async Task OnInitializedAsync()
+  {
+    await base.OnInitializedAsync(); // lädt Claims etc.
+
+    try
+    {
+      if (IsSuperAdmin)
+      {
+        _loading = false;
+        return;
+      }
+
+      if (IsUser)
+      {
+        var me = await Users.GetByIdAsync(Guid.Parse(GetUserId()));
+        if (me?.CustomerId is Guid cid)
+        {
+          _myCompany = await Customers.GetByIdAsync(cid);
+        }
+      }
+
+      // Branchen laden (wie in Settings)
+      var all = await IndustrySvc.GetAllAsync();
+      _industryOptions.Clear();
+      foreach (var i in all.OrderBy(x => x.Name))
+        _industryOptions.Add((i.Id, i.Name));
+    }
+    finally
+    {
+      _loading = false;
+    }
+  }
+
+  // Checkbox-Handler wiederverwenden (Signatur kompatibel zur CompanyForm)
+  private Task OnIndustryChanged(Guid id, ChangeEventArgs e)
+  {
+    var isChecked = ToChecked(e);
+    if (isChecked) _selectedIndustryIds.Add(id);
+    else _selectedIndustryIds.Remove(id);
+    return Task.CompletedTask;
+  }
+
+  private static bool ToChecked(ChangeEventArgs e)
+  {
+    if (e?.Value is bool b) return b;
+    var s = e?.Value?.ToString();
+    return string.Equals(s, "true", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(s, "on", StringComparison.OrdinalIgnoreCase);
+  }
+
+  private async Task CreateCompanyAsync()
+  {
+    // ausgewählte Branchen in Guid[]
+    var ids = _selectedIndustryIds.ToArray();
+
+    // 1) Company anlegen
+    var created = await Customers.CreateAsync(new CreateCustomerRequest(
+      Name: _form.Name,
+      IndustryIds: ids,
+      EmployeeCount: _form.EmployeeCount,
+      RevenuePerYear: _form.RevenuePerYear
+    ));
+
+    // 2) Mich (aktuellen User) mit Firma verknüpfen
+    var meId = Guid.Parse(GetUserId());
+    await Users.AssignToCustomerAsync(new AssignUserToCustomerRequest(
+      UserId: meId,
+      CustomerId: created.Id
+    ));
+
+    _myCompany = created;
+    Nav.NavigateTo("/cockpit/settings");
+  }
+}

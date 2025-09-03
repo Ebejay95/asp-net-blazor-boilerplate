@@ -10,13 +10,25 @@ namespace CMC.Contracts.Scenarios
         [ScaffoldColumn(false)]
         public Guid Id { get; set; }
 
-        // 👉 direkt auswählbar im Formular
-        [Display(Name = "Kunde")]
+        // Referenz: Kunde (Dropdown im Editor, GUID-Spalte im Grid ausgeblendet)
+        [Display(Name = "Kunde", AutoGenerateField = false)]
+        [RelationFrom(IsMany = false, RelationName = "Customer")]
         public Guid CustomerId { get; set; }
 
-        // 👉 Vorlage auswählbar
-        [Display(Name = "Vorlage")]
+        // Nur fürs Grid (lesbarer Name), im Editor ausgeblendet
+        [EditorHidden]
+        [Display(Name = "Kunde")]
+        public string CustomerName { get; set; } = string.Empty;
+
+        // Referenz: Vorlage (Dropdown im Editor, GUID-Spalte im Grid ausgeblendet)
+        [Display(Name = "Vorlage", AutoGenerateField = false)]
+        [RelationFrom(IsMany = false, RelationName = "LibraryScenario")]
         public Guid LibraryScenarioId { get; set; }
+
+        // Nur fürs Grid (lesbarer Name), im Editor ausgeblendet
+        [EditorHidden]
+        [Display(Name = "Vorlage")]
+        public string LibraryScenarioName { get; set; } = string.Empty;
 
         [Display(Name = "Szenario")]
         public string Name { get; set; } = string.Empty;
@@ -27,12 +39,11 @@ namespace CMC.Contracts.Scenarios
         [Display(Name = "Impact (% Umsatz)"), DisplayFormat(DataFormatString = "{0:P2}")]
         public decimal ImpactPctRevenue { get; set; }
 
-        // 👉 M:N – IDs editierbar
-        [Display(Name = "Tags")]
-        [RelationFrom(IsMany = true)]
+        // M:N – Tags via Join-Collection (Checkboxen im Editor, ID-Spalte im Grid ausblenden)
+        [Display(Name = "Tags", AutoGenerateField = false)]
+        [RelationFrom(IsMany = true, RelationName = "TagLinks")]
         public IReadOnlyList<Guid> TagIds { get; set; } = Array.Empty<Guid>();
 
-        // 👉 nur Anzeige im Grid
         [EditorHidden]
         [Display(Name = "Tag-Namen")]
         public IReadOnlyList<string> TagLabels { get; set; } = Array.Empty<string>();

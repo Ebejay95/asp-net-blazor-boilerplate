@@ -29,6 +29,7 @@
                            checked="@isChecked"
                            disabled="@ReadOnly"
                            @onchange="@(e => HandleCheckboxChange(option.Value, e))" />
+	                <span class="switch-track"></span>
                     @option.Key
                 </label>
             }

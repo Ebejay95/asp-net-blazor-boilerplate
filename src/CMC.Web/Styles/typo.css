@@ -65,6 +65,11 @@
         opacity: 0.5;
     }
 
+    .subtle a,
+    .subtle span {
+        padding: 0 !important;
+    }
+
     .center {
         @apply text-center;
     }

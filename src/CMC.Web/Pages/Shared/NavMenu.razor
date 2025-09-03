@@ -1,17 +1,3 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @using System.Security.Claims
 @inject NavigationManager Navigation
-
-<header class="header-main">
-    <AuthorizeView>
-        <Authorized>
-            <div>
-            <a href="cockpit"><span class="audicius like-h1">CMC</span><span class="audicius">by Audicius</span></a></div>
-        </Authorized>
-        <NotAuthorized>
-            <div>
-            <a href=""><span class="audicius like-h1">CMC</span><span class="audicius">by Audicius</span></a></div>
-        </NotAuthorized>
-    </AuthorizeView>
-    <ProfileMenu/>
-</header>

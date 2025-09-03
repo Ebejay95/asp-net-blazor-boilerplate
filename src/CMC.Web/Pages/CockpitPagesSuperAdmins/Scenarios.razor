@@ -1,4 +1,5 @@
 @attribute [Authorize(Roles = "super-admin")]
+@using System
 @using System.Linq
 @using CMC.Contracts.Scenarios
 @using CMC.Web.Services
@@ -10,11 +11,11 @@
 
 <div class="card">
     <EFTable TItem="ScenarioDto"
-               Items="_scenarios"
-               AllowEdit="true"
-               OnEdit="StartEdit"
-               AllowCreate="true"
-               OnCreate="StartCreate" />
+             Items="_scenarios"
+             AllowEdit="true"
+             OnEdit="StartEdit"
+             AllowCreate="true"
+             OnCreate="StartCreate" />
 </div>
 
 @code {
@@ -36,14 +37,38 @@
             Title = "Szenario bearbeiten",
             Model = scenario,
             ContractsAssembly = typeof(ScenarioDto).Assembly,
+
+            // wichtig, damit Relation-Felder (Customer/LibraryScenario/Tags) funktionieren
             EfParentType = typeof(Scenario),
             GetParentKey = m => ((ScenarioDto)m).Id,
+
             IsCreate = false,
             OnSave = async ctx =>
             {
                 try
                 {
-                    var up = (UpdateScenarioRequest)ctx.Build("Update");
+                    var dto = (ScenarioDto)ctx.Model;
+
+                    var name = ctx.TryGetValue("Name", out var rawName)
+                        ? rawName?.ToString()?.Trim() ?? ""
+                        : dto.Name;
+
+                    var annualFreq = TryGetDecimal(ctx, "AnnualFrequency", dto.AnnualFrequency);
+                    var impactPct  = TryGetDecimal(ctx, "ImpactPctRevenue", dto.ImpactPctRevenue);
+
+                    // WICHTIG: M:N-Relation explizit auslesen (Checkboxen)
+                    var tagIds = ExtractGuidArray(
+                        ctx.TryGetValue("TagIds", out var rawTags) ? rawTags : dto.TagIds
+                    );
+
+                    var up = new UpdateScenarioRequest(
+                        Id: dto.Id,
+                        Name: name,
+                        AnnualFrequency: annualFreq,
+                        ImpactPctRevenue: impactPct,
+                        TagIds: tagIds
+                    );
+
                     _ = await ScenarioService.UpdateAsync(up);
                     await Reload();
                     EFEditService.Close();
@@ -99,23 +124,6 @@
             }
         };
 
-        // Relation Fields
-        req.ExtraFields.Add(new ExtraField(
-            Name: "CustomerId",
-            Label: "Kunde",
-            Type: typeof(Guid),
-            DataType: "relation-auto",
-            Value: scenario.CustomerId
-        ));
-
-        req.ExtraFields.Add(new ExtraField(
-            Name: "LibraryScenarioId",
-            Label: "Vorlage",
-            Type: typeof(Guid),
-            DataType: "relation-auto",
-            Value: scenario.LibraryScenarioId
-        ));
-
         EFEditService.Open(req);
     }
 
@@ -129,8 +137,10 @@
             Name = string.Empty,
             AnnualFrequency = 0m,
             ImpactPctRevenue = 0m,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
+            TagIds = Array.Empty<Guid>(),
+            TagLabels = Array.Empty<string>(),
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
         };
 
         var req = new EFEditRequest
@@ -138,14 +148,41 @@
             Title = "Szenario anlegen",
             Model = empty,
             ContractsAssembly = typeof(ScenarioDto).Assembly,
+
             EfParentType = typeof(Scenario),
             GetParentKey = m => ((ScenarioDto)m).Id,
+
             IsCreate = true,
             OnSave = async ctx =>
             {
                 try
                 {
-                    var create = (CreateScenarioRequest)ctx.Build("Create");
+                    var dto = (ScenarioDto)ctx.Model;
+
+                    var customerId        = TryGetGuid(ctx, "CustomerId", dto.CustomerId);
+                    var libraryScenarioId = TryGetGuid(ctx, "LibraryScenarioId", dto.LibraryScenarioId);
+
+                    var name = ctx.TryGetValue("Name", out var rawName)
+                        ? rawName?.ToString()?.Trim() ?? ""
+                        : dto.Name;
+
+                    var annualFreq = TryGetDecimal(ctx, "AnnualFrequency", dto.AnnualFrequency);
+                    var impactPct  = TryGetDecimal(ctx, "ImpactPctRevenue", dto.ImpactPctRevenue);
+
+                    // M:N-Relation explizit auslesen (Checkboxen)
+                    var tagIds = ExtractGuidArray(
+                        ctx.TryGetValue("TagIds", out var rawTags) ? rawTags : dto.TagIds
+                    );
+
+                    var create = new CreateScenarioRequest(
+                        CustomerId: customerId,
+                        LibraryScenarioId: libraryScenarioId,
+                        Name: name,
+                        AnnualFrequency: annualFreq,
+                        ImpactPctRevenue: impactPct,
+                        TagIds: tagIds
+                    );
+
                     _ = await ScenarioService.CreateAsync(create);
                     await Reload();
                     EFEditService.Close();
@@ -163,23 +200,69 @@
             }
         };
 
-        // Relation Fields für neue Scenarios
-        req.ExtraFields.Add(new ExtraField(
-            Name: "CustomerId",
-            Label: "Kunde",
-            Type: typeof(Guid),
-            DataType: "relation-auto",
-            Value: Guid.Empty
-        ));
-
-        req.ExtraFields.Add(new ExtraField(
-            Name: "LibraryScenarioId",
-            Label: "Vorlage",
-            Type: typeof(Guid),
-            DataType: "relation-auto",
-            Value: Guid.Empty
-        ));
-
         EFEditService.Open(req);
+    }
+
+    // --------- Helpers ---------
+
+    private static decimal TryGetDecimal(EditContextAdapter ctx, string name, decimal fallback)
+    {
+        if (!ctx.TryGetValue(name, out var raw) || raw is null) return fallback;
+
+        if (raw is decimal d) return d;
+        if (raw is double dbl) return (decimal)dbl;
+        if (raw is float fl) return (decimal)fl;
+        if (raw is int i) return i;
+        if (raw is long l) return l;
+
+        var s = raw.ToString();
+        return decimal.TryParse(s, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var parsed)
+            ? parsed
+            : decimal.TryParse(s, out parsed) ? parsed : fallback;
+    }
+
+    private static Guid TryGetGuid(EditContextAdapter ctx, string name, Guid fallback)
+    {
+        if (!ctx.TryGetValue(name, out var raw) || raw is null) return fallback;
+        var s = raw.ToString();
+        return Guid.TryParse(s, out var g) && g != Guid.Empty ? g : fallback;
+    }
+
+    private static Guid[] ExtractGuidArray(object? value)
+    {
+        var list = new List<Guid>();
+
+        switch (value)
+        {
+            case null:
+                return Array.Empty<Guid>();
+
+            case IEnumerable<Guid> gs:
+                list.AddRange(gs.Where(g => g != Guid.Empty));
+                break;
+
+            case IEnumerable<string> ss:
+                foreach (var s in ss)
+                    if (Guid.TryParse(s, out var g) && g != Guid.Empty)
+                        list.Add(g);
+                break;
+
+            case System.Collections.IEnumerable seq when value is not string:
+                foreach (var e in seq)
+                {
+                    var s = e?.ToString();
+                    if (!string.IsNullOrWhiteSpace(s) && Guid.TryParse(s, out var g) && g != Guid.Empty)
+                        list.Add(g);
+                }
+                break;
+
+            default:
+                var one = value.ToString();
+                if (!string.IsNullOrWhiteSpace(one) && Guid.TryParse(one, out var g1) && g1 != Guid.Empty)
+                    list.Add(g1);
+                break;
+        }
+
+        return list.Distinct().ToArray();
     }
 }

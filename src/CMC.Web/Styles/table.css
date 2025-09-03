@@ -155,6 +155,6 @@
     }
 
     .aud-table-interface {
-        @apply absolute top-0 right-0 z-[12];
+        @apply absolute top-0 right-0 z-[3];
     }
 }

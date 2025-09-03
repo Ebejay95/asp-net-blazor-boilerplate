@@ -7,3 +7,6 @@ find . -not -path '*/.git/*' -exec ls -la {} \; > ./../out
 find . -name "bin" -type d -exec rm -rf {} + && find . -name "obj" -type d -exec rm -rf {} + && (find . -type f -not -path "./.git/*" -not -path "./CMC.Web/*" -exec ls -la {} \; && echo "=== FILE CONTENTS ===" && find . -type f -not -path "./.git/*" -not -path "./CMC.Web/*" -exec sh -c 'echo "=== {} ==="; cat "{}"' \;) > ./../out
 
 find . -name "out" -type f -delete
+
+
+https://github.com/tailwindlabs/heroicons/tree/master/src

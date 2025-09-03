@@ -7,26 +7,27 @@
     }
 
     /* Sidebar */
-    .aside-main {
-        @apply min-w-[160px] h-screen flex flex-col;
-        background: var(--audicius-flare);
-        @apply text-white pt-4 pb-4;
+    aside.aside-main {
+        @apply border border-slate-200 bg-white pb-1;
     }
 
-    .aside-main ul {
-        @apply flex-1 overflow-y-auto;
-        @apply space-y-2;
+    aside.aside-main .menu-segment {
+        @apply p-4;
     }
 
-    .aside-main a,
-    .aside-main span {
-        @apply block px-3 py-2 hover:bg-white/10 transition cursor-pointer;
+    aside.aside-main .settings-segment {
+        @apply border-t border-slate-200 p-2 flex justify-center;
+    }
+
+    .aside-main ul {}
+
+    .aside-main ul a,
+    .aside-main ul span {
+        @apply flex items-center px-3 py-2 rounded-lg hover:bg-gray-50 text-gray-700;
     }
 
     /* Active-Style für Blazor NavLink */
-    .aside-main a.active {
-        @apply bg-white/20 font-semibold;
-    }
+    .aside-main a.active {}
 
     /* Dropdown */
     .aside-dropdown {
