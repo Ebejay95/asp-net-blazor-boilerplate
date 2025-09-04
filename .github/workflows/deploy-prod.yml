@@ -22,6 +22,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Normalize image name
+        run: echo "IMAGE_NAME_LOWER=$(echo '${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
       - name: Log in to Container Registry
         uses: docker/login-action@v3
         with:
@@ -35,7 +38,7 @@ jobs:
           context: .
           file: Dockerfile.prod
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}:latest
 
       - name: Setup kubectl
         uses: azure/setup-kubectl@v4
@@ -50,7 +53,7 @@ jobs:
 
       - name: Replace image name in manifests
         run: |
-          sed -i "s|ghcr.io/USERNAME/REPOSITORY|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}|g" k8s/prod/cmc-app.yaml
+          sed -i "s|ghcr.io/USERNAME/REPOSITORY|${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}|g" k8s/prod/cmc-app.yaml
 
       - name: Create namespaces
         run: |
@@ -60,12 +63,10 @@ jobs:
         env:
           DB_PASSWORD: ${{ secrets.DB_PW }}
         run: |
-          # Postgres Secret
           kubectl -n cmc-prod create secret generic postgres-secret \
             --from-literal=password="${DB_PASSWORD}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
-          # App Connection String Secret
           CONNECTION_STRING="Host=postgres;Port=5432;Database=cmc_production;Username=cmc_user;Password=${DB_PASSWORD};Pooling=true;SslMode=Disable;"
           kubectl -n cmc-prod create secret generic cmc-app-secret \
             --from-literal=connection="${CONNECTION_STRING}" \
@@ -77,7 +78,6 @@ jobs:
 
       - name: Wait for deployment
         run: |
-          # Falls Postgres ein Deployment ist:
           if kubectl -n cmc-prod get deploy postgres >/dev/null 2>&1; then
             kubectl -n cmc-prod rollout status deploy/postgres --timeout=600s
           fi
