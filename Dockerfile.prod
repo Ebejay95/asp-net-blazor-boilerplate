@@ -32,9 +32,10 @@ RUN apt-get update \
 ENV TAILWIND_MODE=build
 RUN set -eux; \
   if grep -q '@import[[:space:]]\+"tailwindcss"' src/CMC.Web/Styles/app.css; then \
-    echo "Tailwind v4 erkannt -> baue mit npx + temporären Paketen"; \
-    npx --yes -p @tailwindcss/cli@latest -p tailwindcss@^4 \
-      tailwindcss -i src/CMC.Web/Styles/app.css -o src/CMC.Web/wwwroot/style.css -m; \
+    echo "Tailwind v4 erkannt -> baue mit CLI + --package"; \
+    cd src/CMC.Web; \
+    npx --yes @tailwindcss/cli@latest --package tailwindcss@^4 \
+      -i ./Styles/app.css -o ./wwwroot/style.css -m; \
   else \
     echo "Tailwind v3 vermutet -> globales CLI"; \
     npm install -g tailwindcss@3.4.10; \
