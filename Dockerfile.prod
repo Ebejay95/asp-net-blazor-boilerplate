@@ -29,22 +29,22 @@ RUN apt-get update \
 # 3b) Tailwind bauen – Auto-Erkennung v4 vs. v3 anhand der CSS-Datei
 # v4: '@import "tailwindcss";'  -> npx mit temporären Paketen (@tailwindcss/cli + tailwindcss)
 # v3: '@tailwind base;' etc.    -> globales CLI
-ENV TAILWIND_MODE=build
-RUN set -eux; \
-  if grep -q '@import[[:space:]]\+"tailwindcss"' src/CMC.Web/Styles/app.css; then \
-    echo "Tailwind v4 erkannt -> baue mit CLI + --package"; \
-    cd src/CMC.Web; \
-    npx --yes @tailwindcss/cli@latest --package tailwindcss@^4 \
-      -i ./Styles/app.css -o ./wwwroot/style.css -m; \
-  else \
-    echo "Tailwind v3 vermutet -> globales CLI"; \
-    npm install -g tailwindcss@3.4.10; \
-    if [ ! -f src/CMC.Web/tailwind.config.js ]; then \
-      printf "module.exports = {\n  content: [\n    './src/CMC.Web/**/*.razor',\n    './src/CMC.Web/**/*.cshtml',\n    './src/CMC.Web/**/*.html',\n    './src/CMC.Web/**/*.{js,ts}',\n  ],\n  theme: { extend: {} },\n  plugins: [],\n};\n" > src/CMC.Web/tailwind.config.js ; \
-    fi; \
-    tailwindcss -c src/CMC.Web/tailwind.config.js \
-      -i src/CMC.Web/Styles/app.css -o src/CMC.Web/wwwroot/style.css -m; \
-  fi
+# ENV TAILWIND_MODE=build
+# RUN set -eux; \
+#   if grep -q '@import[[:space:]]\+"tailwindcss"' src/CMC.Web/Styles/app.css; then \
+#     echo "Tailwind v4 erkannt -> baue mit CLI + --package"; \
+#     cd src/CMC.Web; \
+#     npx --yes @tailwindcss/cli@latest --package tailwindcss@^4 \
+#       -i ./Styles/app.css -o ./wwwroot/style.css -m; \
+#   else \
+#     echo "Tailwind v3 vermutet -> globales CLI"; \
+#     npm install -g tailwindcss@3.4.10; \
+#     if [ ! -f src/CMC.Web/tailwind.config.js ]; then \
+#       printf "module.exports = {\n  content: [\n    './src/CMC.Web/**/*.razor',\n    './src/CMC.Web/**/*.cshtml',\n    './src/CMC.Web/**/*.html',\n    './src/CMC.Web/**/*.{js,ts}',\n  ],\n  theme: { extend: {} },\n  plugins: [],\n};\n" > src/CMC.Web/tailwind.config.js ; \
+#     fi; \
+#     tailwindcss -c src/CMC.Web/tailwind.config.js \
+#       -i src/CMC.Web/Styles/app.css -o src/CMC.Web/wwwroot/style.css -m; \
+#   fi
 
 # 4) Publish (.NET)
 WORKDIR "/src/src/CMC.Web"
