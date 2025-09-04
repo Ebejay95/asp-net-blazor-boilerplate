@@ -29,16 +29,14 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 # 3b) Tailwind bauen – Auto-Erkennung v4 vs. v3 anhand der CSS-Datei
-# - v4: '@import "tailwindcss";'  -> lokale Installation im Web-Ordner + lokales Binary
-# - v3: '@tailwind base;' etc.    -> globale CLI + (falls nötig) einfache Config
 ENV NODE_ENV=production TAILWIND_MODE=build
 RUN set -eux; \
   if grep -q '@import[[:space:]]\+"tailwindcss"' src/CMC.Web/Styles/app.css; then \
-    echo "Detected Tailwind v4 syntax -> installing local tailwindcss v4"; \
+    echo "Detected Tailwind v4 syntax -> installing tailwindcss + CLI"; \
     cd src/CMC.Web; \
     npm init -y >/dev/null 2>&1; \
-    npm install --no-audit --no-fund --save-dev tailwindcss@^4.0.0; \
-    ./node_modules/.bin/tailwindcss -i ./Styles/app.css -o ./wwwroot/style.css -m; \
+    npm install --no-audit --no-fund --save-dev tailwindcss@^4 @tailwindcss/cli@latest; \
+    npx --yes @tailwindcss/cli -i ./Styles/app.css -o ./wwwroot/style.css -m; \
   else \
     echo "Assuming Tailwind v3 -> installing CLI globally"; \
     npm install -g tailwindcss@3.4.10; \
@@ -47,6 +45,7 @@ RUN set -eux; \
     fi; \
     tailwindcss -c src/CMC.Web/tailwind.config.js -i src/CMC.Web/Styles/app.css -o src/CMC.Web/wwwroot/style.css -m; \
   fi
+
 
 # 4) Publish (wwwroot/style.css ist jetzt vorhanden)
 WORKDIR "/src/src/CMC.Web"
