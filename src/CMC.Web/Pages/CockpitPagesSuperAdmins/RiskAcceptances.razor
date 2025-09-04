@@ -1,0 +1,184 @@
+@attribute [Authorize(Roles = "super-admin")]
+@using System.Linq
+@using CMC.Contracts.RiskAcceptances
+@using CMC.Web.Services
+@using CMC.Web.Util
+@using CMC.Domain.Entities
+@inject CMC.Application.Services.RiskAcceptanceService RiskAcceptanceService
+@inject EFEditService EFEditService
+@inject DialogService ConfirmService
+
+<div class="card">
+    <EFTable TItem="RiskAcceptanceDto"
+               Items="_acceptances"
+               AllowEdit="true"
+               OnEdit="StartEdit"
+               AllowCreate="true"
+               OnCreate="StartCreate" />
+</div>
+
+@code {
+    private List<RiskAcceptanceDto> _acceptances = new();
+
+    protected override async Task OnInitializedAsync()
+        => _acceptances = await RiskAcceptanceService.GetAllAsync();
+
+    private async Task Reload()
+    {
+        _acceptances = await RiskAcceptanceService.GetAllAsync();
+        StateHasChanged();
+    }
+
+    private void StartEdit(RiskAcceptanceDto acceptance)
+    {
+        var req = new EFEditRequest
+        {
+            Title = "Risikoakzeptanz bearbeiten",
+            Model = acceptance,
+            ContractsAssembly = typeof(RiskAcceptanceDto).Assembly,
+            EfParentType = typeof(RiskAcceptance),
+            GetParentKey = m => ((RiskAcceptanceDto)m).Id,
+            IsCreate = false,
+            OnSave = async ctx =>
+            {
+                try
+                {
+                    var up = (UpdateRiskAcceptanceRequest)ctx.Build("Update");
+                    _ = await RiskAcceptanceService.UpdateAsync(up);
+                    await Reload();
+                    EFEditService.Close();
+                }
+                catch (Exception ex)
+                {
+                    ConfirmService.Open(new DialogRequest
+                    {
+                        Title = "Fehler beim Speichern",
+                        Message = ex.Message,
+                        ConfirmText = "Okay",
+                        OnConfirm = () => Task.CompletedTask
+                    });
+                }
+            },
+            OnDelete = ctx =>
+            {
+                var model = (RiskAcceptanceDto)ctx.Model;
+
+                ConfirmService.Open(new DialogRequest
+                {
+                    Title = "Löschen bestätigen",
+                    Message = "Risikoakzeptanz wirklich löschen?",
+                    ConfirmText = "Löschen",
+                    CancelText = "Abbrechen",
+                    OnConfirm = async () =>
+                    {
+                        try
+                        {
+                            await RiskAcceptanceService.DeleteAsync(model.Id);
+                            await Reload();
+                            EFEditService.Close();
+                        }
+                        catch (Exception ex)
+                        {
+                            ConfirmService.Open(new DialogRequest
+                            {
+                                Title = "Löschen fehlgeschlagen",
+                                Message = ex.Message,
+                                ConfirmText = "Okay",
+                                OnConfirm = () => Task.CompletedTask
+                            });
+                        }
+                    }
+                });
+
+                return Task.CompletedTask;
+            },
+            OnAfterRestore = async () =>
+            {
+                await Reload();
+                EFEditService.Close();
+            }
+        };
+
+        // Relationen: RiskAcceptance → Customer, → Control
+        req.ExtraFields.Add(new ExtraField(
+            Name: "CustomerId",
+            Label: "Kunde",
+            Type: typeof(Guid),
+            DataType: "relation-auto",
+            Value: acceptance.CustomerId
+        ));
+
+        req.ExtraFields.Add(new ExtraField(
+            Name: "ControlId",
+            Label: "Control",
+            Type: typeof(Guid),
+            DataType: "relation-auto",
+            Value: acceptance.ControlId
+        ));
+
+        EFEditService.Open(req);
+    }
+
+    private void StartCreate()
+    {
+        var empty = new RiskAcceptanceDto
+        {
+            Id = Guid.Empty,
+            CustomerId = Guid.Empty,
+            ControlId = Guid.Empty,
+            Reason = string.Empty,
+            RiskAcceptedBy = string.Empty,
+            ExpiresAt = DateTime.UtcNow.AddDays(90),
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        var req = new EFEditRequest
+        {
+            Title = "Risikoakzeptanz anlegen",
+            Model = empty,
+            ContractsAssembly = typeof(RiskAcceptanceDto).Assembly,
+            EfParentType = typeof(RiskAcceptance),
+            GetParentKey = m => ((RiskAcceptanceDto)m).Id,
+            IsCreate = true,
+            OnSave = async ctx =>
+            {
+                try
+                {
+                    var create = (CreateRiskAcceptanceRequest)ctx.Build("Create");
+                    _ = await RiskAcceptanceService.CreateAsync(create);
+                    await Reload();
+                    EFEditService.Close();
+                }
+                catch (Exception ex)
+                {
+                    ConfirmService.Open(new DialogRequest
+                    {
+                        Title = "Fehler beim Anlegen",
+                        Message = ex.Message,
+                        ConfirmText = "Okay",
+                        OnConfirm = () => Task.CompletedTask
+                    });
+                }
+            }
+        };
+
+        req.ExtraFields.Add(new ExtraField(
+            Name: "CustomerId",
+            Label: "Kunde",
+            Type: typeof(Guid),
+            DataType: "relation-auto",
+            Value: Guid.Empty
+        ));
+
+        req.ExtraFields.Add(new ExtraField(
+            Name: "ControlId",
+            Label: "Control",
+            Type: typeof(Guid),
+            DataType: "relation-auto",
+            Value: Guid.Empty
+        ));
+
+        EFEditService.Open(req);
+    }
+}

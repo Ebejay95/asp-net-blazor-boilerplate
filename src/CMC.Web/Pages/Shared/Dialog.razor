@@ -2,9 +2,9 @@
 @* src/CMC.Web/Pages/Shared/Dialog.razor *@
 @if (IsOpen)
 {
-    <div class="confirm-backdrop" @onclick="HandleBackdropClick"></div>
+    <div class="confirm-backdrop" @onclick="HandleBackdropClick" style="z-index:@ZIndex"></div>
 
-    <div class="confirm-dialog confirm-dialog--open">
+    <div class="confirm-dialog confirm-dialog--open" style="z-index:@ZIndex + 1">
         <div class="card" @onclick:stopPropagation>
             <div class="confirm-header">
                 <h3 id="confirm-title">@Title</h3>
@@ -32,6 +32,8 @@
 
 
 @code {
+    	[Parameter] public int ZIndex { get; set; } = 20;
+
     /// <summary>
     /// Controls the visibility of the confirmation dialog.
     /// </summary>

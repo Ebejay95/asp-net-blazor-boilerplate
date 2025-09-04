@@ -1,0 +1,192 @@
+@page "/settings"
+@attribute [Authorize]
+
+@using Microsoft.AspNetCore.Components.Forms
+@using CMC.Contracts.Customers
+@using CMC.Web.Services
+@using CMC.Domain.Entities
+@using CMC.Infrastructure.Services
+@using CMC.Application.Services
+@using CMC.Web.Pages.Shared.Forms
+
+@inherits RoleBasedComponentBase
+@inject UserService Users
+@inject CustomerService Customers
+@inject IndustryService IndustrySvc
+
+<section class="slim">
+  @if (IsUser)
+  {
+    <div class="card">
+      <h3>Unternehmenseinstellungen</h3>
+
+      @if (_loading)
+      {
+        <p>Lade…</p>
+      }
+      else if (_company is null)
+      {
+        <p>Du hast noch kein Unternehmen. Lege es unter <b>Dashboard</b> an.</p>
+      }
+      else
+      {
+        @* Flash-/Fehlerbanner *@
+        @if (!string.IsNullOrEmpty(_flash))
+        {
+          <div class="alert success" role="status" aria-live="polite">
+            @_flash
+            <button type="button" class="close" @onclick="DismissFlash">×</button>
+          </div>
+        }
+        @if (!string.IsNullOrEmpty(_error))
+        {
+          <div class="alert error" role="alert">
+            @_error
+            <button type="button" class="close" @onclick="() => _error = null">×</button>
+          </div>
+        }
+        <CompanyForm
+          Model="_form"
+          IndustryOptions="_industryOptions"
+          SelectedIndustryIds="_selectedIndustryIds"
+          IndustryChanged="OnIndustryChanged"
+          OnValidSubmit="SaveAsync" />
+      }
+    </div>
+  }
+</section>
+
+@code {
+  private bool _loading = true;
+  private CustomerDto? _company;
+  private UpdateCompanyForm _form = new();
+
+  // Optionen + Auswahl
+  private readonly List<(Guid Id, string Name)> _industryOptions = new();
+  private readonly HashSet<Guid> _selectedIndustryIds = new();
+
+  // Flash / Fehler
+  private string? _flash;
+  private string? _error;
+  private CancellationTokenSource? _flashCts;
+
+  protected override async Task OnInitializedAsync()
+  {
+    await base.OnInitializedAsync();
+
+    try
+    {
+      if (!IsUser) return;
+
+      var me = await Users.GetByIdAsync(Guid.Parse(GetUserId()));
+      if (me?.CustomerId is Guid cid)
+      {
+        _company = await Customers.GetByIdAsync(cid);
+        if (_company is not null)
+        {
+          _form = new UpdateCompanyForm
+          {
+            Id = _company.Id,
+            Name = _company.Name,
+            EmployeeCount = _company.EmployeeCount,
+            RevenuePerYear = _company.RevenuePerYear
+          };
+
+          _selectedIndustryIds.Clear();
+          foreach (var gid in _company.IndustryIds)
+            _selectedIndustryIds.Add(gid);
+        }
+      }
+
+      // Branchen laden (DB)
+      var all = await IndustrySvc.GetAllAsync();
+      _industryOptions.Clear();
+      foreach (var i in all.OrderBy(x => x.Name))
+        _industryOptions.Add((i.Id, i.Name));
+    }
+    finally
+    {
+      _loading = false;
+    }
+  }
+
+  private Task OnIndustryChanged(Guid id, ChangeEventArgs e)
+  {
+    var isChecked = ToChecked(e);
+    if (isChecked) _selectedIndustryIds.Add(id);
+    else _selectedIndustryIds.Remove(id);
+
+    return Task.CompletedTask;
+  }
+
+  private static bool ToChecked(ChangeEventArgs e)
+  {
+    if (e?.Value is bool b) return b;
+    var s = e?.Value?.ToString();
+    return string.Equals(s, "true", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(s, "on", StringComparison.OrdinalIgnoreCase);
+  }
+
+  private void DismissFlash()
+  {
+    _flash = null;
+    _flashCts?.Cancel();
+  }
+
+  private async Task ShowFlashAsync(string message, int durationMs = 3000)
+  {
+    _flashCts?.Cancel();
+
+    _flash = message;
+    _error = null;
+    await InvokeAsync(StateHasChanged);
+
+    _flashCts = new CancellationTokenSource();
+    try
+    {
+      await Task.Delay(durationMs, _flashCts.Token);
+      _flash = null;
+    }
+    catch (TaskCanceledException) { /* ignorieren */ }
+    finally
+    {
+      await InvokeAsync(StateHasChanged);
+    }
+  }
+
+  private async Task SaveAsync()
+  {
+    if (_company is null) return;
+
+    try
+    {
+      var ids = _selectedIndustryIds.ToList();
+
+      var updated = await Customers.UpdateAsync(new UpdateCustomerRequest(
+        Id: _form.Id,
+        Name: _form.Name,
+        IndustryIds: ids,
+        EmployeeCount: _form.EmployeeCount,
+        RevenuePerYear: _form.RevenuePerYear,
+        IsActive: null
+      ));
+
+      if (updated is not null)
+      {
+        _company = updated;
+        await ShowFlashAsync("Änderungen gespeichert.");
+      }
+    }
+    catch
+    {
+      _error = "Speichern fehlgeschlagen. Bitte später erneut versuchen.";
+    }
+  }
+}
+
+<style>
+  .alert { padding:.5rem .75rem; border-radius:.5rem; border:1px solid #ddd; display:flex; gap:.5rem; align-items:center; }
+  .alert.success { background:#e6ffed; border-color:#86efac; }
+  .alert.error { background:#ffe6e6; border-color:#fca5a5; }
+  .alert .close { margin-left:auto; background:transparent; border:0; cursor:pointer; font-size:1rem; }
+</style>

@@ -14,7 +14,7 @@ all: docker-dev
 down: docker-down
 	@echo "✅ CMC stopped"
 
-clean: docker-clean
+clean: dump docker-clean
 	@echo "✅ Everything cleaned"
 
 docker-dev: docker-setup
@@ -158,6 +158,12 @@ tailwind-build: tailwind-ensure
 	@cd $(WEB_DIR) && $(TWCLI) -i ./Styles/app.css -o ./wwwroot/style.css --minify
 	@test -s $(TW_OUT) || (echo "❌ style.css ist leer – prod build fehlgeschlagen" && exit 1)
 	@echo "✅ Built $$(wc -c < $(TW_OUT)) bytes"
+
+dump:
+	docker exec -t postgres-cmc-compose pg_dumpall --globals-only -U postgres > globals.sql
+
+dump-restore:
+	docker exec -i postgres-cmc-compose pg_restore -U postgres -d cmc_dev --clean --if-exists < cmc_dev.dump
 
 .PHONY: all down clean docker-dev docker-setup docker-down docker-clean \
 	tailwind-ensure tailwind-prebuild tailwind-bg tailwind-term tailwind \

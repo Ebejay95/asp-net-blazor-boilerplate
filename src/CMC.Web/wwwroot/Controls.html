@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cybersecurity Controls – Manager</title>
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    // Tailwind config (minimal, neutral palette)
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f1f8ff',
+              100: '#e2f0ff',
+              200: '#bfe0ff',
+              300: '#91c6ff',
+              400: '#5aa6ff',
+              500: '#2f87ff',
+              600: '#1f6ce6',
+              700: '#1757bf',
+              800: '#154a9b',
+              900: '#123e81',
+            },
+          },
+          boxShadow: {
+            soft: '0 8px 30px rgba(2, 6, 23, 0.06)'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Subtle gamified accents */
+    .glow { box-shadow: 0 0 0 2px rgba(47,135,255,.1), 0 10px 30px rgba(2,6,23,.1);} 
+    .glass { backdrop-filter: blur(10px); }
+    .scrollbar::-webkit-scrollbar { height: 10px; width: 10px; }
+    .scrollbar::-webkit-scrollbar-thumb { background: rgba(15,23,42,.2); border-radius: 999px; }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-800">
+  <!-- App Shell -->
+  <header class="sticky top-0 z-40 bg-white/80 glass border-b border-slate-200">
+    <div class="mx-auto max-w-7xl px-4 py-3 flex items-center gap-3">
+      <div class="flex items-center gap-2">
+        <div class="h-9 w-9 rounded-xl bg-brand-600 grid place-items-center text-white font-bold">CS</div>
+        <div>
+          <h1 class="text-lg font-semibold leading-tight">Cybersecurity Controls</h1>
+          <p class="text-xs text-slate-500 -mt-0.5">Verwalten · Nachweisen · Reifegrad steigern</p>
+        </div>
+      </div>
+      <div class="flex-1" />
+      <div class="hidden sm:flex items-center gap-2">
+        <div class="px-3 py-1.5 rounded-full bg-slate-100 text-xs text-slate-600">Org-Level <span id="org-level" class="font-semibold">3</span></div>
+        <div class="w-48 h-2 bg-slate-200 rounded-full overflow-hidden" title="Programm-Progress">
+          <div id="org-xp-bar" class="h-full bg-brand-500" style="width: 48%"></div>
+        </div>
+        <span class="text-xs text-slate-500 w-16 text-right" id="org-xp-label">48% XP</span>
+      </div>
+      <button id="btn-new-control" class="ml-3 inline-flex items-center gap-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm px-4 py-2 shadow-soft">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path d="M12 4.5a.75.75 0 01.75.75v6h6a.75.75 0 010 1.5h-6v6a.75.75 0 01-1.5 0v-6h-6a.75.75 0 010-1.5h6v-6A.75.75 0 0112 4.5z"/></svg>
+        Neues Control
+      </button>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-7xl px-4 py-6">
+    <!-- Tabs -->
+    <div class="mb-4 flex items-center gap-2 border-b border-slate-200">
+      <button data-tab="controls" class="tab-btn active px-4 py-2 -mb-px border-b-2 border-brand-600 text-brand-700 font-medium">Controls</button>
+      <button data-tab="evidences" class="tab-btn px-4 py-2 -mb-px border-b-2 border-transparent text-slate-600 hover:text-slate-800">Evidences</button>
+      <div class="flex-1"></div>
+      <div class="relative">
+        <input id="search" type="search" placeholder="Suchen… (Name, Beschreibung, Szenario)" class="peer w-72 rounded-xl border border-slate-200 bg-white px-10 py-2 text-sm shadow-soft focus:outline-none focus:ring-4 focus:ring-brand-100" />
+        <svg class="pointer-events-none absolute left-3 top-2.5 h-5 w-5 text-slate-400 peer-focus:text-brand-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" d="M10.5 3.75a6.75 6.75 0 105.096 11.368l3.643 3.643a.75.75 0 101.06-1.06l-3.643-3.644A6.75 6.75 0 0010.5 3.75zm-5.25 6.75a5.25 5.25 0 1110.5 0 5.25 5.25 0 01-10.5 0z" clip-rule="evenodd"/></svg>
+      </div>
+    </div>
+
+    <!-- Controls TAB -->
+    <section id="tab-controls" class="space-y-4">
+      <!-- Legend / helper -->
+      <div class="rounded-2xl bg-white p-4 shadow-soft border border-slate-200">
+        <div class="flex flex-wrap items-center gap-3 text-xs text-slate-600">
+          <span class="px-2 py-1 rounded-full bg-slate-100">Reifegrad: L1 (initial) – L5 (optimiert)</span>
+          <span class="px-2 py-1 rounded-full bg-slate-100">Gewicht: <span class="inline-flex items-center gap-1"><span class="h-2 w-2 rounded-full bg-slate-400"></span> 30</span> / <span class="inline-flex items-center gap-1"><span class="h-2 w-2 rounded-full bg-amber-500"></span> 60</span> / <span class="inline-flex items-center gap-1"><span class="h-2 w-2 rounded-full bg-emerald-500"></span> 100</span></span>
+          <span class="px-2 py-1 rounded-full bg-slate-100">Freshness = letzter Nachweis</span>
+        </div>
+      </div>
+
+      <div class="rounded-2xl bg-white p-4 shadow-soft border border-slate-200">
+        <div class="overflow-auto scrollbar">
+          <table class="min-w-full text-sm">
+            <thead class="text-left text-slate-500">
+              <tr>
+                <th class="font-semibold p-2">Control</th>
+                <th class="font-semibold p-2">Beschreibung</th>
+                <th class="font-semibold p-2 w-60">Erfüllungsgrad</th>
+                <th class="font-semibold p-2">Evidence</th>
+                <th class="font-semibold p-2">Freshness</th>
+                <th class="font-semibold p-2">Reifegrad</th>
+                <th class="font-semibold p-2">Szenarien</th>
+                <th class="font-semibold p-2 w-24 text-right">Aktionen</th>
+              </tr>
+            </thead>
+            <tbody id="controls-body" class="align-top"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Evidences TAB -->
+    <section id="tab-evidences" class="hidden space-y-4">
+      <div class="rounded-2xl bg-white p-4 shadow-soft border border-slate-200">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-base font-semibold">Alle Evidences</h2>
+          <button id="btn-new-evidence" class="inline-flex items-center gap-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-sm px-4 py-2 shadow-soft">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path d="M12 4.5a.75.75 0 01.75.75v6h6a.75.75 0 010 1.5h-6v6a.75.75 0 01-1.5 0v-6h-6a.75.75 0 010-1.5h6v-6A.75.75 0 0112 4.5z"/></svg>
+            Neue Evidence
+          </button>
+        </div>
+        <div class="overflow-auto scrollbar">
+          <table class="min-w-full text-sm">
+            <thead class="text-left text-slate-500">
+              <tr>
+                <th class="font-semibold p-2">Name</th>
+                <th class="font-semibold p-2">Link</th>
+                <th class="font-semibold p-2">Gewicht</th>
+                <th class="font-semibold p-2">Aktualität</th>
+                <th class="font-semibold p-2">Gültig bis</th>
+                <th class="font-semibold p-2 w-24 text-right">Aktionen</th>
+              </tr>
+            </thead>
+            <tbody id="evidences-body" class="align-top"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Control Editor Modal -->
+  <div id="control-modal" class="fixed inset-0 hidden items-center justify-center bg-slate-900/40 p-4">
+    <div class="w-full max-w-3xl rounded-2xl bg-white shadow-soft border border-slate-200">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+        <h3 id="cm-title" class="text-base font-semibold">Control bearbeiten</h3>
+        <button class="p-2 rounded-lg hover:bg-slate-100" onclick="closeControlModal()" aria-label="Schließen">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path fill-rule="evenodd" d="M5.47 5.47a.75.75 0 011.06 0L12 10.94l5.47-5.47a.75.75 0 111.06 1.06L13.06 12l5.47 5.47a.75.75 0 11-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 01-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 010-1.06z" clip-rule="evenodd"/></svg>
+        </button>
+      </div>
+      <form id="control-form" class="p-5 grid grid-cols-1 md:grid-cols-2 gap-4" onsubmit="saveControl(event)">
+        <input type="hidden" id="cf-id" />
+        <div>
+          <label class="block text-xs font-medium text-slate-500">Name</label>
+          <input id="cf-name" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" required />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-500">Szenarien (Tags, komma-getrennt)</label>
+          <input id="cf-scenarios" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" placeholder="z. B. Ransomware, Datenschutz" />
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-xs font-medium text-slate-500">Beschreibung</label>
+          <textarea id="cf-desc" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" rows="3"></textarea>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-500">Erfüllungsgrad-Typ</label>
+          <select id="cf-type" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" onchange="renderFulfillmentInputs()">
+            <option value="bool">Boolisch</option>
+            <option value="num">Numerisch (0–100%)</option>
+            <option value="desc">Beschreibend</option>
+          </select>
+        </div>
+        <div id="cf-fulfillment" class=""></div>
+        <div class="md:col-span-2">
+          <label class="block text-xs font-medium text-slate-500">Begründung (optional)</label>
+          <textarea id="cf-reason" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" rows="2"></textarea>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-500">Evidence verknüpfen</label>
+          <select id="cf-evidence" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2"></select>
+          <p class="text-xs text-slate-500 mt-1">Gewicht & Aktualität beeinflussen den Reifegrad.</p>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-500">Freshness (letztes Update)</label>
+          <input type="date" id="cf-freshness" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" />
+        </div>
+        <div class="md:col-span-2 flex items-center justify-between mt-2">
+          <div class="flex items-center gap-2 text-sm">
+            <span class="text-slate-500">Autom. Reifegrad</span>
+            <span id="cf-maturity" class="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium bg-slate-100 text-slate-700">L1</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button type="button" class="rounded-xl border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50" onclick="closeControlModal()">Abbrechen</button>
+            <button type="submit" class="rounded-xl bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 text-sm">Speichern</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Evidence Editor Modal -->
+  <div id="evidence-modal" class="fixed inset-0 hidden items-center justify-center bg-slate-900/40 p-4">
+    <div class="w-full max-w-2xl rounded-2xl bg-white shadow-soft border border-slate-200">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+        <h3 id="em-title" class="text-base font-semibold">Evidence bearbeiten</h3>
+        <button class="p-2 rounded-lg hover:bg-slate-100" onclick="closeEvidenceModal()" aria-label="Schließen">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path fill-rule="evenodd" d="M5.47 5.47a.75.75 0 011.06 0L12 10.94l5.47-5.47a.75.75 0 111.06 1.06L13.06 12l5.47 5.47a.75.75 0 11-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 01-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 010-1.06z" clip-rule="evenodd"/></svg>
+        </button>
+      </div>
+      <form id="evidence-form" class="p-5 grid grid-cols-1 md:grid-cols-2 gap-4" onsubmit="saveEvidence(event)">
+        <input type="hidden" id="ef-id" />
+        <div>
+          <label class="block text-xs font-medium text-slate-500">Name</label>
+          <input id="ef-name" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" required />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-500">Link (URL)</label>
+          <input id="ef-link" type="url" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" placeholder="https://…" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-500">Gewicht</label>
+          <select id="ef-weight" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2">
+            <option value="30">30 – Häkchen gesetzt</option>
+            <option value="60">60 – Dokumentenlink</option>
+            <option value="100">100 – API angebunden</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-500">Aktualität (Datum)</label>
+          <input type="date" id="ef-updated" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-500">Gültig bis</label>
+          <input type="date" id="ef-valid" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" />
+        </div>
+        <div class="md:col-span-2 flex items-center justify-end gap-2">
+          <button type="button" class="rounded-xl border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50" onclick="closeEvidenceModal()">Abbrechen</button>
+          <button type="submit" class="rounded-xl bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 text-sm">Speichern</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Templates / Badges -->
+  <template id="tpl-scenario-chip">
+    <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-slate-100 text-slate-700 text-xs">
+      <svg class="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zM8.47 12.97a.75.75 0 011.06 0l1.72 1.72 3.22-3.22a.75.75 0 111.06 1.06l-3.75 3.75a.75.75 0 01-1.06 0l-2.25-2.25a.75.75 0 010-1.06z"/></svg>
+      <span class="chip-text">Scenario</span>
+    </span>
+  </template>
+
+  <script>
+    // -------------------------------
+    // Demo Data (would come from API)
+    // -------------------------------
+    const evidences = [
+      { id: 'ev1', name: 'ISO27001 Statement of Applicability', link: 'https://example.com/soa.pdf', weight: 60, updated: '2025-07-10', valid: '2026-07-10' },
+      { id: 'ev2', name: 'EDR Coverage via API', link: 'https://example.com/edr', weight: 100, updated: '2025-08-15', valid: '2026-02-15' },
+      { id: 'ev3', name: 'Policy Acknowledgement Sheet', link: '', weight: 30, updated: '2025-05-01', valid: '2026-05-01' },
+    ];
+
+    const controls = [
+      { id: 'c1', name: 'Asset Inventory', desc: 'Alle IT-Assets sind erfasst und aktuell.', type: 'num', value: 70, reason: 'SaaS-Assets fehlen teilweise', evidenceId: 'ev1', freshness: '2025-08-01', scenarios: ['Shadow IT', 'Audits'] },
+      { id: 'c2', name: 'MFA für Admins', desc: 'Administrativer Zugriff ist durch MFA geschützt.', type: 'bool', value: true, reason: '', evidenceId: 'ev2', freshness: '2025-08-18', scenarios: ['Account Takeover', 'Privileged Abuse'] },
+      { id: 'c3', name: 'Backup Tests', desc: 'Regelmäßige Restore-Tests sind dokumentiert.', type: 'desc', value: 'teilweise', reason: 'Nur file-level Tests', evidenceId: 'ev3', freshness: '2025-07-20', scenarios: ['Ransomware'] },
+    ];
+
+    // -------------------------------
+    // Helpers
+    // -------------------------------
+    const $ = (sel, root=document) => root.querySelector(sel);
+    const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+
+    function daysSince(dateStr){
+      if(!dateStr) return 9999;
+      const d = new Date(dateStr);
+      const now = new Date();
+      const diff = (now - d) / (1000*60*60*24);
+      return Math.max(0, Math.floor(diff));
+    }
+
+    function fulfillmentPercent(c){
+      if(c.type === 'bool') return c.value ? 100 : 0;
+      if(c.type === 'num') return Math.max(0, Math.min(100, Number(c.value)||0));
+      // desc mapping
+      const map = { 'nicht begonnen':0, 'geplant':25, 'teilweise':50, 'umgesetzt':75, 'wirksam':100 };
+      return map[String(c.value||'').toLowerCase()] ?? 0;
+    }
+
+    function evidenceById(id){ return evidences.find(e=>e.id===id); }
+
+    function maturityLevel(c){
+      const f = fulfillmentPercent(c); // 0..100
+      const ev = evidenceById(c.evidenceId);
+      const w = ev ? (ev.weight||0) : 0; // 0,30,60,100
+      const freshnessDays = daysSince(c.freshness);
+      const freshnessFactor = Math.max(0, Math.min(1, 1 - (freshnessDays/365)));
+      // Weighted score 0..100
+      const score = 0.6*f + 0.3*w + 0.1*(freshnessFactor*100);
+      // Map to L1..L5
+      let level = 1;
+      if(score >= 85) level = 5;
+      else if(score >= 70) level = 4;
+      else if(score >= 55) level = 3;
+      else if(score >= 40) level = 2;
+      else level = 1;
+      return { level, score: Math.round(score) };
+    }
+
+    function levelBadge(level){
+      const colors = { 1:'bg-rose-100 text-rose-700', 2:'bg-amber-100 text-amber-700', 3:'bg-yellow-100 text-yellow-800', 4:'bg-emerald-100 text-emerald-700', 5:'bg-teal-100 text-teal-700' };
+      return `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${colors[level]}">L${level}</span>`;
+    }
+
+    function weightPill(weight){
+      const dot = weight>=100? 'bg-emerald-500' : weight>=60? 'bg-amber-500' : 'bg-slate-400';
+      return `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-slate-100 text-slate-700 text-xs"><span class="h-2 w-2 rounded-full ${dot}"></span>${weight}</span>`;
+    }
+
+    function freshnessPill(date){
+      const d = daysSince(date);
+      let cls = 'bg-slate-100 text-slate-700';
+      if(d <= 30) cls = 'bg-emerald-100 text-emerald-700';
+      else if(d <= 90) cls = 'bg-amber-100 text-amber-700';
+      else cls = 'bg-rose-100 text-rose-700';
+      return `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${cls}" title="${date||'unbekannt'}">${d} Tage</span>`;
+    }
+
+    // -------------------------------
+    // Renderers
+    // -------------------------------
+    function render(){
+      renderControls();
+      renderEvidences();
+      updateOrgXP();
+      fillEvidenceSelect();
+    }
+
+    function renderControls(){
+      const tbody = $('#controls-body');
+      const q = ($('#search').value||'').toLowerCase();
+      tbody.innerHTML = '';
+      controls
+        .filter(c => !q || [c.name, c.desc, (c.scenarios||[]).join(',')].some(t => (t||'').toLowerCase().includes(q)))
+        .forEach(c => {
+          const ev = evidenceById(c.evidenceId);
+          const { level, score } = maturityLevel(c);
+          const tr = document.createElement('tr');
+          tr.className = 'border-t border-slate-100 hover:bg-slate-50';
+          tr.innerHTML = `
+            <td class="p-2 align-top">
+              <div class="font-medium">${c.name}</div>
+              ${c.reason ? `<div class="text-xs text-slate-500 mt-0.5">Begründung: ${c.reason}</div>` : ''}
+            </td>
+            <td class="p-2 align-top text-slate-600">${c.desc||''}</td>
+            <td class="p-2 align-top">
+              ${renderFulfillmentInline(c)}
+            </td>
+            <td class="p-2 align-top">
+              ${ev ? `
+                <div class="flex items-center gap-2">
+                  ${weightPill(ev.weight)}
+                  <a href="${ev.link||'#'}" target="_blank" class="text-brand-700 hover:underline text-xs truncate max-w-[180px]">${ev.name}</a>
+                </div>
+              ` : '<span class="text-xs text-slate-400">–</span>'}
+            </td>
+            <td class="p-2 align-top">${freshnessPill(c.freshness)}</td>
+            <td class="p-2 align-top">
+              <div class="flex items-center gap-2">${levelBadge(level)}<span class="text-xs text-slate-500">${score}%</span></div>
+              <div class="mt-1 w-32 h-2 bg-slate-200 rounded-full overflow-hidden"><div class="h-full bg-brand-500" style="width:${score}%"></div></div>
+            </td>
+            <td class="p-2 align-top">
+              <div class="flex flex-wrap gap-1">${(c.scenarios||[]).map(s=>`<span class='px-2 py-1 rounded-full bg-slate-100 text-slate-700 text-xs'>${s}</span>`).join('')}</div>
+            </td>
+            <td class="p-2 align-top text-right">
+              <div class="inline-flex gap-1">
+                <button class="px-2 py-1 rounded-lg hover:bg-slate-100" title="Bearbeiten" onclick="openControlModal('${c.id}')">
+                  <svg class="w-5 h-5 text-slate-700" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M21.731 2.269a2.625 2.625 0 00-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 000-3.712z"/><path d="M3 21h3.75L17.814 9.936l-3.712-3.712L3 17.25V21z"/></svg>
+                </button>
+                <button class="px-2 py-1 rounded-lg hover:bg-rose-50" title="Löschen" onclick="deleteControl('${c.id}')">
+                  <svg class="w-5 h-5 text-rose-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" d="M16.5 4.5V6h3.75a.75.75 0 010 1.5h-.54l-1.02 12.243A2.25 2.25 0 0116.454 22.5H7.546a2.25 2.25 0 01-2.236-2.757L4.29 7.5h-.54A.75.75 0 013 6h3.75V4.5A2.25 2.25 0 019 2.25h6A2.25 2.25 0 0117.25 4.5zM9 6h6V4.5H9z" clip-rule="evenodd"/></svg>
+                </button>
+              </div>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+    }
+
+    function renderFulfillmentInline(c){
+      if(c.type==='bool'){
+        return `<label class='inline-flex items-center gap-2 text-sm'><input type='checkbox' ${c.value? 'checked':''} onchange="updateInline('${c.id}','bool',this.checked)" class='h-4 w-4 rounded border-slate-300 text-brand-600'/> Erfüllt</label>`
+      }
+      if(c.type==='num'){
+        return `<div class='space-y-1'>
+          <input type='range' min='0' max='100' value='${c.value||0}' oninput="this.nextElementSibling.value=this.value; updateInline('${c.id}','num',this.value)" class='w-52 accent-brand-600'>
+          <input type='number' min='0' max='100' value='${c.value||0}' onchange="updateInline('${c.id}','num',this.value)" class='w-20 rounded-lg border border-slate-300 px-2 py-1 text-sm'> %
+        </div>`
+      }
+      // desc
+      return `<select onchange="updateInline('${c.id}','desc',this.value)" class='w-52 rounded-lg border border-slate-300 px-2 py-1 text-sm'>
+        ${['nicht begonnen','geplant','teilweise','umgesetzt','wirksam'].map(v=>`<option ${String(c.value).toLowerCase()===v? 'selected':''}>${v}</option>`).join('')}
+      </select>`
+    }
+
+    function renderEvidences(){
+      const tbody = $('#evidences-body');
+      tbody.innerHTML='';
+      evidences.forEach(e=>{
+        const tr = document.createElement('tr');
+        tr.className = 'border-t border-slate-100 hover:bg-slate-50';
+        tr.innerHTML = `
+          <td class="p-2">${e.name}</td>
+          <td class="p-2 text-slate-600 truncate max-w-[280px]"><a href='${e.link||'#'}' target='_blank' class='text-brand-700 hover:underline'>${e.link||'–'}</a></td>
+          <td class="p-2">${weightPill(e.weight)}</td>
+          <td class="p-2">${e.updated||'–'}</td>
+          <td class="p-2">${e.valid||'–'}</td>
+          <td class="p-2 text-right">
+            <div class="inline-flex gap-1">
+              <button class="px-2 py-1 rounded-lg hover:bg-slate-100" title="Bearbeiten" onclick="openEvidenceModal('${e.id}')">
+                <svg class="w-5 h-5 text-slate-700" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M21.731 2.269a2.625 2.625 0 00-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 000-3.712z"/><path d="M3 21h3.75L17.814 9.936l-3.712-3.712L3 17.25V21z"/></svg>
+              </button>
+              <button class="px-2 py-1 rounded-lg hover:bg-rose-50" title="Löschen" onclick="deleteEvidence('${e.id}')">
+                <svg class="w-5 h-5 text-rose-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" d="M16.5 4.5V6h3.75a.75.75 0 010 1.5h-.54l-1.02 12.243A2.25 2.25 0 0116.454 22.5H7.546a2.25 2.25 0 01-2.236-2.757L4.29 7.5h-.54A.75.75 0 013 6h3.75V4.5A2.25 2.25 0 019 2.25h6A2.25 2.25 0 0117.25 4.5zM9 6h6V4.5H9z" clip-rule="evenodd"/></svg>
+              </button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      })
+    }
+
+    function fillEvidenceSelect(){
+      const sel = $('#cf-evidence');
+      sel.innerHTML = '<option value="">– Keine –</option>' + evidences.map(e=>`<option value='${e.id}'>${e.name} (${e.weight})</option>`).join('');
+    }
+
+    function updateOrgXP(){
+      // Simple aggregate from controls maturity
+      const levels = controls.map(maturityLevel).map(m=>m.level);
+      const avg = levels.reduce((a,b)=>a+b,0)/Math.max(1,levels.length);
+      const xp = Math.round((avg-1)/4*100); // 0..100
+      $('#org-xp-bar').style.width = xp + '%';
+      $('#org-xp-label').textContent = xp + '% XP';
+      $('#org-level').textContent = Math.round(avg);
+    }
+
+    // -------------------------------
+    // Inline updates & CRUD (client-only demo)
+    // -------------------------------
+    function updateInline(id,type,val){
+      const c = controls.find(x=>x.id===id);
+      if(!c) return;
+      c.type = type;
+      if(type==='num') c.value = Number(val);
+      else if(type==='bool') c.value = !!val;
+      else c.value = String(val);
+      render();
+    }
+
+    function deleteControl(id){
+      if(!confirm('Control wirklich löschen?')) return;
+      const idx = controls.findIndex(c=>c.id===id);
+      if(idx>-1) controls.splice(idx,1);
+      render();
+    }
+
+    function deleteEvidence(id){
+      if(!confirm('Evidence wirklich löschen?')) return;
+      const idx = evidences.findIndex(e=>e.id===id);
+      if(idx>-1) evidences.splice(idx,1);
+      // remove links from controls
+      controls.forEach(c=>{ if(c.evidenceId===id) c.evidenceId=''; });
+      render();
+    }
+
+    // -------------------------------
+    // Modals: Control
+    // -------------------------------
+    function openControlModal(id){
+      const modal = $('#control-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      const c = controls.find(x=>x.id===id) || { id:'', name:'', desc:'', type:'num', value:0, reason:'', evidenceId:'', freshness:'', scenarios:[] };
+      $('#cf-id').value = c.id;
+      $('#cf-name').value = c.name;
+      $('#cf-desc').value = c.desc;
+      $('#cf-type').value = c.type;
+      $('#cf-reason').value = c.reason||'';
+      $('#cf-evidence').value = c.evidenceId||'';
+      $('#cf-freshness').value = c.freshness||'';
+      $('#cf-scenarios').value = (c.scenarios||[]).join(', ');
+      renderFulfillmentInputs(c);
+      const m = maturityLevel(c);
+      $('#cf-maturity').textContent = 'L'+m.level + ' ('+m.score+'%)';
+      $('#cm-title').textContent = c.id ? 'Control bearbeiten' : 'Neues Control anlegen';
+    }
+    function closeControlModal(){
+      const modal = $('#control-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function renderFulfillmentInputs(cOpt){
+      const c = cOpt || { type: $('#cf-type').value, value: 0 };
+      const wrap = $('#cf-fulfillment');
+      wrap.innerHTML = '';
+      let inner='';
+      if(c.type==='bool'){
+        inner = `<label class='mt-1 inline-flex items-center gap-2'><input id='cf-bool' type='checkbox' ${c.value? 'checked':''} class='h-4 w-4 rounded border-slate-300 text-brand-600'> Erfüllt</label>`
+      } else if(c.type==='num'){
+        inner = `<label class='block text-xs font-medium text-slate-500'>Erfüllung (%)</label>
+                 <div class='flex items-center gap-3 mt-1'>
+                   <input id='cf-num' type='range' min='0' max='100' value='${c.value||0}' oninput="$('#cf-num-val').value=this.value; previewMaturity()" class='flex-1 accent-brand-600'>
+                   <input id='cf-num-val' type='number' min='0' max='100' value='${c.value||0}' onchange="$('#cf-num').value=this.value; previewMaturity()" class='w-24 rounded-lg border border-slate-300 px-2 py-1 text-sm'>
+                 </div>`
+      } else {
+        inner = `<label class='block text-xs font-medium text-slate-500'>Status</label>
+                 <select id='cf-desc-val' class='mt-1 w-full rounded-xl border border-slate-200 px-3 py-2' onchange='previewMaturity()'>
+                   ${['nicht begonnen','geplant','teilweise','umgesetzt','wirksam'].map(v=>`<option ${String(c.value).toLowerCase()===v? 'selected':''}>${v}</option>`).join('')}
+                 </select>`
+      }
+      wrap.innerHTML = `<div>${inner}</div>`;
+    }
+
+    function previewMaturity(){
+      const c = {
+        type: $('#cf-type').value,
+        value: (function(){
+          const t = $('#cf-type').value;
+          if(t==='bool') return $('#cf-bool').checked;
+          if(t==='num') return Number($('#cf-num').value||0);
+          return $('#cf-desc-val').value;
+        })(),
+        evidenceId: $('#cf-evidence').value,
+        freshness: $('#cf-freshness').value
+      };
+      const m = maturityLevel(c);
+      $('#cf-maturity').textContent = 'L'+m.level + ' ('+m.score+'%)';
+    }
+
+    function saveControl(e){
+      e.preventDefault();
+      const id = $('#cf-id').value || ('c'+Math.random().toString(36).slice(2,8));
+      const existing = controls.find(x=>x.id===id);
+      const payload = {
+        id,
+        name: $('#cf-name').value.trim(),
+        desc: $('#cf-desc').value.trim(),
+        type: $('#cf-type').value,
+        value: (function(){
+          const t = $('#cf-type').value;
+          if(t==='bool') return $('#cf-bool').checked;
+          if(t==='num') return Number($('#cf-num').value||0);
+          return $('#cf-desc-val').value;
+        })(),
+        reason: $('#cf-reason').value.trim(),
+        evidenceId: $('#cf-evidence').value,
+        freshness: $('#cf-freshness').value,
+        scenarios: $('#cf-scenarios').value.split(',').map(s=>s.trim()).filter(Boolean)
+      };
+      if(existing){
+        Object.assign(existing, payload);
+      } else {
+        controls.push(payload);
+      }
+      closeControlModal();
+      render();
+    }
+
+    // -------------------------------
+    // Modals: Evidence
+    // -------------------------------
+    function openEvidenceModal(id){
+      const modal = $('#evidence-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      const e = evidences.find(x=>x.id===id) || { id:'', name:'', link:'', weight:60, updated:'', valid:'' };
+      $('#ef-id').value = e.id;
+      $('#ef-name').value = e.name;
+      $('#ef-link').value = e.link;
+      $('#ef-weight').value = e.weight;
+      $('#ef-updated').value = e.updated;
+      $('#ef-valid').value = e.valid;
+      $('#em-title').textContent = e.id ? 'Evidence bearbeiten' : 'Neue Evidence anlegen';
+    }
+    function closeEvidenceModal(){
+      const modal = $('#evidence-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+    function saveEvidence(e){
+      e.preventDefault();
+      const id = $('#ef-id').value || ('e'+Math.random().toString(36).slice(2,8));
+      const existing = evidences.find(x=>x.id===id);
+      const payload = {
+        id,
+        name: $('#ef-name').value.trim(),
+        link: $('#ef-link').value.trim(),
+        weight: Number($('#ef-weight').value),
+        updated: $('#ef-updated').value,
+        valid: $('#ef-valid').value
+      };
+      if(existing){ Object.assign(existing, payload);} else { evidences.push(payload); }
+      closeEvidenceModal();
+      render();
+    }
+
+    // -------------------------------
+    // Tabs & Events
+    // -------------------------------
+    function switchTab(tab){
+      $$('#tab-controls, #tab-evidences').forEach(el=>el.classList.add('hidden'));
+      if(tab==='controls') $('#tab-controls').classList.remove('hidden');
+      if(tab==='evidences') $('#tab-evidences').classList.remove('hidden');
+      $$('.tab-btn').forEach(b=>b.classList.remove('active','border-brand-600','text-brand-700'));
+      const btn = $(`.tab-btn[data-tab="${tab}"]`);
+      btn.classList.add('active','border-brand-600','text-brand-700','font-medium');
+    }
+
+    document.addEventListener('DOMContentLoaded',()=>{
+      render();
+      $('#search').addEventListener('input', render);
+      $$('.tab-btn').forEach(b=> b.addEventListener('click',()=> switchTab(b.dataset.tab)));
+      $('#btn-new-control').addEventListener('click', ()=> openControlModal(''));
+      $('#btn-new-evidence').addEventListener('click', ()=> openEvidenceModal(''));
+      // Preview maturity when inputs change
+      ['cf-type','cf-evidence','cf-freshness'].forEach(id=> document.addEventListener('change', e=>{ if(e.target.id===id) previewMaturity(); }));
+      document.addEventListener('input', e=>{ if(['cf-num','cf-num-val','cf-desc-val','cf-bool'].includes(e.target.id)) previewMaturity(); });
+    });
+  </script>
+</body>
+</html>

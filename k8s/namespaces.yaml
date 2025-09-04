@@ -1,0 +1,14 @@
+# k8s/namespaces.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cmc-test
+  labels:
+    environment: test
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cmc-prod
+  labels:
+    environment: production

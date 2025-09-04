@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Szenario- & Control-Comparer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .hover-reveal{opacity:0;transform:translateY(2px);transition:opacity .15s ease,transform .15s ease}
+    .group:hover .hover-reveal{opacity:1;transform:translateY(0)}
+    .card-hover:hover .hover-reveal-card{opacity:1;transform:translateY(0)}
+    .hover-reveal-card{opacity:0;transform:translateY(2px);transition:opacity .15s ease,transform .15s ease}
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+  <!-- Header -->
+  <header class="sticky top-0 z-30 backdrop-blur bg-white/70 border-b border-slate-200">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+      <h1 class="text-xl sm:text-2xl font-semibold tracking-tight">Szenario-Auswahl & Vergleich</h1>
+      <div class="flex items-center gap-3 text-sm">
+        <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 border border-slate-200">
+          <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+          Live-Berechnung aktiv
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <!-- Toolbar -->
+    <section class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div class="flex items-center gap-2 text-sm text-slate-600">
+        <span>Referenz für Vergleich:</span>
+        <select id="referenceSelect" class="px-3 py-2 rounded-xl border border-slate-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          <option value="">(automatisch: erste Auswahl)</option>
+        </select>
+      </div>
+      <div class="flex items-center gap-2 text-sm">
+        <button id="selectNoneBtn" class="px-3 py-2 rounded-xl border border-slate-300 hover:bg-slate-100">Alle abwählen</button>
+        <button id="selectAllBtn" class="px-3 py-2 rounded-xl border border-slate-300 hover:bg-slate-100">Alle auswählen</button>
+      </div>
+    </section>
+
+    <!-- 2-Spalten-Layout: links Liste, rechts Sticky-Sidebar -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <!-- Szenario-Liste -->
+      <section id="scenarioList" class="lg:col-span-8">
+        <ul id="scenarioUl" class="divide-y divide-slate-200 bg-white border border-slate-200 rounded-2xl shadow-sm"></ul>
+      </section>
+
+      <!-- Sticky Sidebar: Übersicht -->
+      <aside class="lg:col-span-4">
+        <div class="sticky top-24">
+          <h2 class="text-lg font-semibold mb-3">Ausgewählte Szenarien</h2>
+          <div id="summary" class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+            <div class="p-4 text-sm text-slate-600">Noch keine Szenarien ausgewählt.</div>
+          </div>
+          <div class="mt-4 flex items-center justify-between">
+            <div class="text-sm text-slate-600"><span id="selectedCount">0</span> ausgewählt</div>
+            <button id="createControlsBtn" class="px-4 py-2 rounded-xl bg-indigo-600 text-white font-medium shadow hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">Controls erstellen</button>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <script>
+    // --- Mockdaten (inkl. zusätzlicher Demo-Szenarien) ---------------------
+    const scenarios = [
+      { id: 's1', name: 'Ransomware in Produktionsnetz', desc: 'Verschlüsselung produktiver Systeme durch Schadsoftware.', controls: [
+        { id: 'c1', name: 'Network Segmentation', affects: 'impact', percent: 25, selected: true },
+        { id: 'c2', name: 'Immutable Backups', affects: 'impact', percent: 40, selected: true },
+        { id: 'c3', name: 'E-Mail Filter/ATP', affects: 'prob', percent: 15, selected: false },
+      ]},
+      { id: 's2', name: 'Phishing & Account-Übernahme', desc: 'Kompromittierte Benutzerkonten durch Phishing.', controls: [
+        { id: 'c4', name: 'MFA überall', affects: 'prob', percent: 35, selected: true },
+        { id: 'c5', name: 'Security Awareness', affects: 'prob', percent: 20, selected: false },
+        { id: 'c6', name: 'Conditional Access', affects: 'prob', percent: 15, selected: true },
+      ]},
+      { id: 's3', name: 'Datenabfluss (Insider/Fehlkonfig)', desc: 'Unbeabsichtigte oder absichtliche Weitergabe sensibler Daten.', controls: [
+        { id: 'c7', name: 'DLP-Regeln', affects: 'prob', percent: 18, selected: true },
+        { id: 'c8', name: 'Least Privilege', affects: 'impact', percent: 20, selected: true },
+        { id: 'c8b', name: 'Audit Logging', affects: 'prob', percent: 10, selected: false },
+      ]},
+      { id: 's4', name: 'DoS gegen Webportal', desc: 'Verfügbarkeitsangriff auf externe Services.', controls: [
+        { id: 'c9', name: 'CDN/WAF', affects: 'impact', percent: 22, selected: true },
+        { id: 'c10', name: 'Auto-Scaling', affects: 'impact', percent: 15, selected: false },
+        { id: 'c11', name: 'Rate Limiting', affects: 'prob', percent: 12, selected: true },
+      ]},
+      { id: 's5', name: 'Lieferkettenkompromittierung (Update)', desc: 'Manipulierte Software-Updates von Drittanbietern.', controls: [
+        { id: 'c12', name: 'Signierte Updates/SBOM', affects: 'prob', percent: 22, selected: true },
+        { id: 'c13', name: 'EDR Allowlisting', affects: 'prob', percent: 15, selected: true },
+        { id: 'c14', name: 'Third-Party Risk Mgmt', affects: 'impact', percent: 10, selected: false },
+      ]},
+      { id: 's6', name: 'Cloud-Fehlkonfiguration (öffentlicher Bucket)', desc: 'Öffentlich zugängliche Cloud-Objektspeicher.', controls: [
+        { id: 'c15', name: 'IaC Policies', affects: 'prob', percent: 18, selected: true },
+        { id: 'c16', name: 'Config Rules/Guardrails', affects: 'prob', percent: 15, selected: true },
+        { id: 'c17', name: 'Objektverschlüsselung', affects: 'impact', percent: 12, selected: false },
+      ]},
+      { id: 's7', name: 'Diebstahl Firmenlaptop', desc: 'Verlust/Diebstahl mobiler Endgeräte.', controls: [
+        { id: 'c18', name: 'Full-Disk Encryption', affects: 'impact', percent: 28, selected: true },
+        { id: 'c19', name: 'Remote Wipe/MDM', affects: 'impact', percent: 18, selected: true },
+        { id: 'c20', name: 'Device MFA/PIN', affects: 'prob', percent: 10, selected: false },
+      ]},
+      { id: 's8', name: 'Privilege Escalation intern', desc: 'Unberechtigte Rechteausweitung im Netzwerk.', controls: [
+        { id: 'c21', name: 'PAM/Vault', affects: 'impact', percent: 20, selected: true },
+        { id: 'c22', name: 'Just-in-Time Access', affects: 'prob', percent: 14, selected: true },
+        { id: 'c23', name: 'Admin Workstations', affects: 'prob', percent: 10, selected: false },
+      ]},
+      { id: 's9', name: 'SQL Injection Legacy-App', desc: 'Einschleusen von SQL-Befehlen über Eingaben.', controls: [
+        { id: 'c24', name: 'Parametrisierte Queries/ORM', affects: 'prob', percent: 26, selected: true },
+        { id: 'c25', name: 'WAF-Signaturen', affects: 'prob', percent: 14, selected: true },
+        { id: 'c26', name: 'Read-Only DB-Accounts', affects: 'impact', percent: 12, selected: false },
+      ]},
+      { id: 's10', name: 'Zero-Day Browser Exploit', desc: 'Ausnutzung unbekannter Schwachstellen im Browser.', controls: [
+        { id: 'c27', name: 'Isolated Browsing', affects: 'impact', percent: 24, selected: true },
+        { id: 'c28', name: 'Patch-Kadenz/Auto-Update', affects: 'prob', percent: 18, selected: true },
+        { id: 'c29', name: 'Application Allowlisting', affects: 'prob', percent: 12, selected: false },
+      ]},
+    ];
+
+    // --- State -------------------------------------------------------------
+    const selected = new Set(); // Szenario-IDs
+    let referenceId = '';
+
+    // Utility: Summen je Szenario basierend auf aktivierten Controls
+    function calcTotals(s) {
+      let impact = 0, prob = 0;
+      s.controls.forEach(c => { if (c.selected) { if (c.affects === 'impact') impact += c.percent; else prob += c.percent; } });
+      return { impact, prob };
+    }
+    const capPct = (v) => Math.max(0, Math.min(100, Math.round(v)));
+    const formatPct = (p) => `${p >= 0 ? '+' : ''}${p}%`;
+
+    // Diablo-artiger Tooltip: Vorschau der Änderung beim Umschalten
+    function previewTotalsWithToggle(s, c) {
+      const current = calcTotals(s);
+      const mod = { ...current };
+      if (c.affects === 'impact') mod.impact += (c.selected ? -c.percent : c.percent);
+      else mod.prob += (c.selected ? -c.percent : c.percent);
+      return { current, mod, dImpact: mod.impact - current.impact, dProb: mod.prob - current.prob };
+    }
+
+    // Komponenten: Balken/Gauge
+    const bar = (value, cls) => `
+      <div class="mt-1 h-2 bg-slate-200 rounded-full overflow-hidden">
+        <div class="h-full ${cls}" style="width:${capPct(value)}%"></div>
+      </div>`;
+
+    const microbar = (value, cls) => `
+      <div class="w-24 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+        <div class="h-full ${cls}" style="width:${capPct(value)}%"></div>
+      </div>`;
+
+    // Szenario-Listenzeile
+    function renderScenarioRow(s) {
+      const t = calcTotals(s);
+      const isChecked = selected.has(s.id);
+      const refBadge = (referenceId && referenceId === s.id)
+        ? `<span class=\"ml-2 text-xs px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200\">Referenz</span>`
+        : '';
+
+      return `
+        <li class="card-hover relative group">
+          <div class="p-4 flex flex-col gap-3">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <h3 class="text-base font-semibold">${s.name}${refBadge}</h3>
+                <p class="text-sm text-slate-600 mt-1">${s.desc}</p>
+              </div>
+              <label class="inline-flex items-center gap-2 select-none">
+                <input type="checkbox" data-sel="${s.id}" class="peer sr-only" ${isChecked ? 'checked' : ''} />
+                <span class="px-3 py-1.5 rounded-xl border border-slate-300 bg-white text-sm peer-checked:bg-emerald-600 peer-checked:text-white">Auswählen</span>
+              </label>
+            </div>
+            <div class="grid grid-cols-2 gap-3 text-sm">
+              <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                <div class="flex items-center justify-between"><span class="text-slate-500">Impact</span><span class="font-semibold text-emerald-600">${formatPct(t.impact)}</span></div>
+                ${bar(t.impact, 'bg-fuchsia-500')}
+              </div>
+              <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                <div class="flex items-center justify-between"><span class="text-slate-500">Wahrscheinlichkeit</span><span class="font-semibold text-emerald-600">${formatPct(t.prob)}</span></div>
+                ${bar(t.prob, 'bg-sky-500')}
+              </div>
+            </div>
+
+            <!-- Controls-Liste -->
+            <ul class="mt-2 space-y-2">
+              ${s.controls.map(c => buildControlRow(s, c)).join('')}
+            </ul>
+          </div>
+
+          <!-- Vergleich zur Referenz (Karten-Tooltip) -->
+          <div class="hover-reveal-card pointer-events-none absolute right-3 bottom-3 opacity-0 translate-y-1 bg-white border border-slate-200 shadow-lg rounded-xl p-3 text-xs min-w-[14rem]" data-compare="${s.id}"></div>
+        </li>
+      `;
+    }
+
+    // Einzelner Control mit Tooltip (Diablo-Vorschau)
+    function buildControlRow(s, c) {
+      const t = previewTotalsWithToggle(s, c);
+      const chip = c.affects==='impact' ? 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700' : 'border-sky-200 bg-sky-50 text-sky-700';
+      const barCls = c.affects==='impact' ? 'bg-fuchsia-500' : 'bg-sky-500';
+      const knobShift = c.selected ? 'translate-x-4' : '';
+
+      return `
+        <li class="relative group flex items-center justify-between gap-3 p-2 rounded-xl border border-slate-200">
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-medium">${c.name}</span>
+            <span class="text-xs px-2 py-0.5 rounded-full border ${chip}">${c.affects==='impact' ? 'Impact' : 'Wahrscheinlichkeit'}</span>
+          </div>
+          <div class="flex items-center gap-3">
+            ${microbar(c.percent, barCls)}
+            <span class="text-sm font-semibold text-emerald-700">${formatPct(c.percent)}</span>
+            <label class="inline-flex items-center cursor-pointer">
+              <input type="checkbox" data-toggle-control="${s.id}:${c.id}" class="sr-only" ${c.selected ? 'checked' : ''}>
+              <span class="w-10 h-6 rounded-full bg-slate-200 relative transition">
+                <span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${knobShift}"></span>
+              </span>
+            </label>
+          </div>
+
+          <!-- Tooltip: Vorschau vor/nach Umschalten mit Balken -->
+          <div class="hover-reveal pointer-events-none absolute right-0 top-full mt-2 bg-white border border-slate-200 shadow-lg rounded-xl p-3 text-xs min-w-[18rem]" data-ctrl-preview="${s.id}:${c.id}">
+            <div class="font-semibold mb-1">Vorschau bei ${c.selected ? 'Deaktivierung' : 'Aktivierung'}</div>
+            <div class="space-y-2">
+              <div>
+                <div class="flex items-center justify-between text-[11px] text-slate-500"><span>Impact</span><span><span class="font-medium text-slate-800">${formatPct(t.mod.impact)}</span> <span class="${t.dImpact>=0?'text-emerald-600':'text-rose-600'}">(${formatPct(t.dImpact)})</span></span></div>
+                <div class="mt-1 h-1.5 bg-slate-200 rounded-full overflow-hidden"><div class="h-full bg-fuchsia-500" style="width:${capPct(t.mod.impact)}%"></div></div>
+              </div>
+              <div>
+                <div class="flex items-center justify-between text-[11px] text-slate-500"><span>Wahrscheinlichkeit</span><span><span class="font-medium text-slate-800">${formatPct(t.mod.prob)}</span> <span class="${t.dProb>=0?'text-emerald-600':'text-rose-600'}">(${formatPct(t.dProb)})</span></span></div>
+                <div class="mt-1 h-1.5 bg-slate-200 rounded-full overflow-hidden"><div class="h-full bg-sky-500" style="width:${capPct(t.mod.prob)}%"></div></div>
+              </div>
+            </div>
+          </div>
+        </li>
+      `;
+    }
+
+    // Render: Liste
+    function renderList() {
+      const ul = document.getElementById('scenarioUl');
+      ul.innerHTML = scenarios.map(renderScenarioRow).join('');
+
+      // Szenario-Auswahl toggeln
+      ul.querySelectorAll('input[data-sel]').forEach(cb => {
+        cb.addEventListener('change', (e) => {
+          const id = e.target.getAttribute('data-sel');
+          if (e.target.checked) selected.add(id); else selected.delete(id);
+          if (!referenceId && selected.size > 0) referenceId = [...selected][0];
+          updateReferenceSelect();
+          renderList();
+          renderSummary();
+          updateSelectedCount();
+        });
+      });
+
+      // Controls toggeln
+      ul.querySelectorAll('input[data-toggle-control]').forEach(cb => {
+        cb.addEventListener('change', (e) => {
+          const [sid, cid] = e.target.getAttribute('data-toggle-control').split(':');
+          const s = scenarios.find(x => x.id === sid);
+          const c = s.controls.find(x => x.id === cid);
+          c.selected = !c.selected;
+          renderList();
+          renderSummary();
+        });
+      });
+
+      // Karten-Vergleich füllen
+      ul.querySelectorAll('[data-compare]').forEach(el => {
+        const sid = el.getAttribute('data-compare');
+        const s = scenarios.find(x => x.id === sid);
+        const self = calcTotals(s);
+        const ref = scenarios.find(x => x.id === (referenceId || sid));
+        const refTotals = calcTotals(ref);
+        const dImpact = self.impact - refTotals.impact;
+        const dProb = self.prob - refTotals.prob;
+        el.innerHTML = `
+          <div class="mb-1 font-semibold">Vergleich zur Referenz</div>
+          <div class="flex items-center justify-between text-xs"><span class="text-slate-500">Impact</span><span class="font-semibold ${dImpact>=0?'text-emerald-600':'text-rose-600'}">${formatPct(Math.round(dImpact))}</span></div>
+          <div class="flex items-center justify-between text-xs"><span class="text-slate-500">Wahrscheinlichkeit</span><span class="font-semibold ${dProb>=0?'text-emerald-600':'text-rose-600'}">${formatPct(Math.round(dProb))}</span></div>
+        `;
+      });
+
+      // Control-Tooltips bei Mouseenter frisch berechnen
+      ul.querySelectorAll('[data-ctrl-preview]').forEach(el => {
+        const key = el.getAttribute('data-ctrl-preview');
+        const [sid, cid] = key.split(':');
+        const s = scenarios.find(x => x.id === sid);
+        const c = s.controls.find(x => x.id === cid);
+        el.parentElement.addEventListener('mouseenter', () => {
+          const t = previewTotalsWithToggle(s, c);
+          el.innerHTML = `
+            <div class="font-semibold mb-1">Vorschau bei ${c.selected ? 'Deaktivierung' : 'Aktivierung'}</div>
+            <div class="space-y-2">
+              <div>
+                <div class="flex items-center justify-between text-[11px] text-slate-500"><span>Impact</span><span><span class="font-medium text-slate-800">${formatPct(t.mod.impact)}</span> <span class="${t.dImpact>=0?'text-emerald-600':'text-rose-600'}">(${formatPct(t.dImpact)})</span></span></div>
+                <div class="mt-1 h-1.5 bg-slate-200 rounded-full overflow-hidden"><div class="h-full bg-fuchsia-500" style="width:${capPct(t.mod.impact)}%"></div></div>
+              </div>
+              <div>
+                <div class="flex items-center justify-between text-[11px] text-slate-500"><span>Wahrscheinlichkeit</span><span><span class="font-medium text-slate-800">${formatPct(t.mod.prob)}</span> <span class="${t.dProb>=0?'text-emerald-600':'text-rose-600'}">(${formatPct(t.dProb)})</span></span></div>
+                <div class="mt-1 h-1.5 bg-slate-200 rounded-full overflow-hidden"><div class="h-full bg-sky-500" style="width:${capPct(t.mod.prob)}%"></div></div>
+              </div>
+            </div>
+          `;
+        });
+      });
+    }
+
+    // Übersicht rendern (Sidebar)
+    function renderSummary() {
+      const box = document.getElementById('summary');
+      if (selected.size === 0) { box.innerHTML = '<div class="p-4 text-sm text-slate-600">Noch keine Szenarien ausgewählt.</div>'; return; }
+
+      const rows = [...selected].map(sid => {
+        const s = scenarios.find(x => x.id === sid);
+        const t = calcTotals(s);
+        const activeControls = s.controls.filter(c => c.selected);
+        return `
+          <div class="grid grid-cols-1 gap-2 items-start p-4 border-t border-slate-200">
+            <div class="font-medium">${s.name}</div>
+            <div class="text-xs text-slate-500">Impact</div>
+            <div class="flex items-center justify-between text-sm"><span class="font-semibold text-slate-700">${formatPct(t.impact)}</span></div>
+            <div class="-mt-1">${bar(t.impact, 'bg-fuchsia-500')}</div>
+            <div class="text-xs text-slate-500 mt-2">Wahrscheinlichkeit</div>
+            <div class="flex items-center justify-between text-sm"><span class="font-semibold text-slate-700">${formatPct(t.prob)}</span></div>
+            <div class="-mt-1">${bar(t.prob, 'bg-sky-500')}</div>
+            <div class="text-xs text-slate-500 mt-2">Aktive Controls</div>
+            <div class="flex flex-wrap gap-1">
+              ${activeControls.length ? activeControls.map(c => `<span class=\"px-2 py-0.5 text-xs rounded-full border border-slate-200 bg-slate-50\">${c.name}</span>`).join('') : '<span class="text-xs text-slate-500">Keine</span>'}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      box.innerHTML = `<div class="divide-y divide-slate-200">${rows}</div>`;
+    }
+
+    // Referenz-Dropdown updaten
+    function updateReferenceSelect() {
+      const refSel = document.getElementById('referenceSelect');
+      const options = ['<option value="">(automatisch: erste Auswahl)</option>']
+        .concat(scenarios.map(s => `<option value="${s.id}" ${referenceId === s.id ? 'selected' : ''}>${s.name}</option>`));
+      refSel.innerHTML = options.join('');
+    }
+
+    // Ausgewählt-Zähler + Button-State
+    function updateSelectedCount() {
+      document.getElementById('selectedCount').textContent = selected.size;
+      document.getElementById('createControlsBtn').disabled = selected.size === 0;
+    }
+
+    // Toolbar-Buttons
+    document.getElementById('selectAllBtn').addEventListener('click', () => {
+      scenarios.forEach(s => selected.add(s.id));
+      if (!referenceId && selected.size) referenceId = [...selected][0];
+      updateReferenceSelect();
+      renderList();
+      renderSummary();
+      updateSelectedCount();
+    });
+
+    document.getElementById('selectNoneBtn').addEventListener('click', () => {
+      selected.clear();
+      updateReferenceSelect();
+      renderList();
+      renderSummary();
+      updateSelectedCount();
+    });
+
+    document.getElementById('referenceSelect').addEventListener('change', (e) => {
+      referenceId = e.target.value;
+      renderList();
+    });
+
+    document.getElementById('createControlsBtn').addEventListener('click', () => {
+      const payload = [...selected].map(sid => {
+        const s = scenarios.find(x => x.id === sid);
+        return { scenario: s.name, controls: s.controls.filter(c => c.selected).map(c => c.name), totals: calcTotals(s) };
+      });
+      alert('Controls werden erstellt:' + JSON.stringify(payload, null, 2));
+    });
+
+    // Initial render
+    (function init() {
+      selected.add('s1');
+      selected.add('s2');
+      referenceId = 's1';
+      updateReferenceSelect();
+      renderList();
+      renderSummary();
+      updateSelectedCount();
+    })();
+  </script>
+</body>
+</html>

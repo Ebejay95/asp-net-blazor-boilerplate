@@ -1,0 +1,93 @@
+name: Deploy CMC Production
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build Tailwind CSS
+        run: |
+          cd src/CMC.Web
+          npx tailwindcss -i ./Styles/app.css -o ./wwwroot/style.css --minify
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.prod
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'latest'
+
+      - name: Setup kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG_B64 }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Replace image name in manifests
+        run: |
+          sed -i "s|ghcr.io/USERNAME/REPOSITORY|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}|g" k8s/prod/cmc-app.yaml
+
+      - name: Create namespaces
+        run: |
+          kubectl apply -f k8s/namespaces.yaml
+
+      - name: Create secrets
+        env:
+          DB_PASSWORD: ${{ secrets.DB_PW }}
+        run: |
+          # Postgres Secret
+          kubectl -n cmc-prod create secret generic postgres-secret \
+            --from-literal=password="${DB_PASSWORD}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          # App Connection String Secret
+          CONNECTION_STRING="Host=postgres;Port=5432;Database=cmc_production;Username=cmc_user;Password=${DB_PASSWORD};Pooling=true;SslMode=Disable;"
+          kubectl -n cmc-prod create secret generic cmc-app-secret \
+            --from-literal=connection="${CONNECTION_STRING}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy to production
+        run: |
+          kubectl apply -f k8s/prod/
+
+      - name: Wait for deployment
+        run: |
+          kubectl wait --for=condition=ready --timeout=600s pod -l app=postgres -n cmc-prod
+          kubectl wait --for=condition=available --timeout=300s deployment/cmc-app -n cmc-prod
+
+      - name: Get service info
+        run: |
+          echo "Production deployment completed!"
+          kubectl get pods -n cmc-prod
+          kubectl get services -n cmc-prod
+          NODEPORT=$(kubectl get service cmc-app -n cmc-prod -o jsonpath='{.spec.ports[0].nodePort}')
+          echo "App accessible on: http://YOUR_SERVER_IP:$NODEPORT"

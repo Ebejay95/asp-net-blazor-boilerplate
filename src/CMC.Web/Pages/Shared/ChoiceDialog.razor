@@ -1,0 +1,66 @@
+@using CMC.Web.Services
+
+@code {
+	[Parameter] public int ZIndex { get; set; } = 20;
+	[Parameter] public bool IsOpen { get; set; }
+	[Parameter] public string Title { get; set; } = "Auswahl";
+	[Parameter] public string Message { get; set; } = "";
+	[Parameter] public string ConfirmText { get; set; } = "Übernehmen";
+	[Parameter] public string CancelText { get; set; } = "Abbrechen";
+	[Parameter] public bool MultiSelect { get; set; } = false;
+	[Parameter] public List<DialogOption> Options { get; set; } = new();
+	[Parameter] public EventCallback<IReadOnlyList<string>> OnConfirmKeys { get; set; }
+	[Parameter] public EventCallback OnCancel { get; set; }
+
+	private HashSet<string> _sel = new();
+
+	private Task Toggle(string key)
+	{
+		if (MultiSelect)
+		{
+			if (!_sel.Add(key)) _sel.Remove(key);
+		}
+		else
+		{
+			_sel.Clear();
+			_sel.Add(key);
+		}
+		return Task.CompletedTask;
+	}
+
+	private Task Confirm() => OnConfirmKeys.InvokeAsync(_sel.ToList());
+	private Task Cancel()  => OnCancel.InvokeAsync();
+}
+
+@if (!IsOpen) { <text></text>; }
+else
+{
+	<div class="dialog-backdrop" @onclick="Cancel" style="z-index:@ZIndex">
+		<div class="dialog" @onclick:stopPropagation="true">
+			<h3>@Title</h3>
+			@if (!string.IsNullOrWhiteSpace(Message))
+			{
+				<p>@Message</p>
+			}
+
+			<ul class="option-list">
+				@foreach (var o in Options)
+				{
+					var isSelected = _sel.Contains(o.Key) || o.Selected;
+					<li>
+						<button type="button"
+								class="option-btn @(isSelected ? "selected" : null)"
+								@onclick="() => Toggle(o.Key)">
+							@o.Label
+						</button>
+					</li>
+				}
+			</ul>
+
+			<div class="dialog-actions">
+				<button type="button" class="btn" @onclick="Cancel">@CancelText</button>
+				<button type="button" class="btn primary" @onclick="Confirm">@ConfirmText</button>
+			</div>
+		</div>
+	</div>
+}

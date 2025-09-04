@@ -1,0 +1,28 @@
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+
+@if (_show && ChildContent is not null)
+{
+    @ChildContent
+}
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthTask { get; set; } = default!;
+    [Parameter] public string Roles { get; set; } = ""; // "super-admin,user"
+    [Parameter] public bool RequireAll { get; set; } = false; // false = OR, true = AND
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private bool _show;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var user = (await AuthTask).User;
+        if (user?.Identity?.IsAuthenticated != true) { _show = false; return; }
+
+        var required = Roles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (required.Length == 0) { _show = true; return; }
+
+        var has = new HashSet<string>(user.FindAll(ClaimTypes.Role).Select(r => r.Value), StringComparer.OrdinalIgnoreCase);
+        _show = RequireAll ? required.All(has.Contains) : required.Any(has.Contains);
+    }
+}

@@ -39,4 +39,5 @@ TestResults/
 *.swp
 *.swo
 
+out
 .DS_Store

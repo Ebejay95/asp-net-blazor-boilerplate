@@ -1,266 +1,391 @@
-@* Pages/Cockpit.razor *@
 @attribute [Authorize]
 @page "/cockpit"
 @page "/cockpit/{*Section}"
-@using Microsoft.AspNetCore.Authorization
+
+@using Microsoft.AspNetCore.Components
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Routing
 @using Microsoft.AspNetCore.Components.Web
-@using CMC.Web.Pages.CockpitPages
+@using Microsoft.AspNetCore.Authorization
+@using System.Security.Claims
+
+@using CMC.Web.Pages.CockpitPagesSuperAdmins
+@using CMC.Web.Pages.CockpitPagesUsers
+@using CMC.Web.Pages.CockpitPagesCommon
+
 @inject NavigationManager Navigation
+@implements IDisposable
 
 <PageTitle>CMC - Cockpit</PageTitle>
 
-<div class="cockpit">
-	<aside class="aside-main">
-		<ul class="menu-root">
-			@RenderNodes(Nodes)
-		</ul>
-	</aside>
+<style>
+  /* Menü-Visibility: default aus, wenn .open → display: inherit */
+  .cockpit .submenu { display: none; }
+  .cockpit .menu-node.open > .submenu { display: inherit; }
 
-	<div class="board">
-		@RenderContent()
-	</div>
+  /* Optionales UX-Feintuning */
+  .cockpit .menu-row a { text-decoration: none; }
+  .cockpit .menu-node.has-children > .menu-row a { cursor: pointer; }
+</style>
+
+<div class="cockpit">
+  <aside class="aside-main flex flex-col">
+    <div class="menu-segment">
+      <AuthorizeView>
+        <Authorized>
+          <div>
+            <NavLink href="cockpit" Match="NavLinkMatch.All">
+              <span class="audicius like-h1">CMC</span><span class="audicius">by Audicius</span>
+            </NavLink>
+          </div>
+        </Authorized>
+        <NotAuthorized>
+          <div>
+            <NavLink href="" Match="NavLinkMatch.All">
+              <span class="audicius like-h1">CMC</span><span class="audicius">by Audicius</span>
+            </NavLink>
+          </div>
+        </NotAuthorized>
+      </AuthorizeView>
+    </div>
+
+    <ul class="menu-root menu-segment">
+      @RenderNodes(Nodes)
+    </ul>
+
+    <div class="mt-auto">
+      <div class="settings-segment">
+        <div class="btn-group">
+          <NavLink class="btn sm flat" href="cockpit/profile" Match="NavLinkMatch.All">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+            </svg>
+          </NavLink>
+
+          <NavLink class="btn sm flat" href="/cockpit/settings" Match="NavLinkMatch.All">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M10.343 3.94c.09-.542.56-.94 1.11-.94h1.093c.55 0 1.02.398 1.11.94l.149.894c.07.424.384.764.78.93.398.164.855.142 1.205-.108l.737-.527a1.125 1.125 0 0 1 1.45.12l.773.774c.39.389.44 1.002.12 1.45l-.527.737c-.25.35-.272.806-.107 1.204.165.397.505.71.93.78l.893.15c.543.09.94.559.94 1.109v1.094c0 .55-.397 1.02-.94 1.11l-.894.149c-.424.07-.764.383-.929.78-.165.398-.143.854.107 1.204l.527.738c.32.447.269 1.06-.12 1.45l-.774.773a1.125 1.125 0 0 1-1.449.12l-.738-.527c-.35-.25-.806-.272-1.203-.107-.398.165-.71.505-.781.929l-.149.894c-.09.542-.56.94-1.11.94h-1.094c-.55 0-1.019-.398-1.11-.94l-.148-.894c-.071-.424-.384-.764-.781-.93-.398-.164-.854-.142-1.204.108l-.738.527c-.447.32-1.06.269-1.45-.12l-.773-.774a1.125 1.125 0 0 1-.12-1.45l.527-.737c.25-.35.272-.806.108-1.204-.165-.397-.506-.71-.93-.78l-.894-.15c-.542-.09-.94-.56-.94-1.109v-1.094c0-.55.398-1.02.94-1.11l.894-.149c.424-.07.765-.383.93-.78.165-.398.143-.854-.108-1.204l-.526-.738a1.125 1.125 0 0 1 .12-1.45l-.773-.773a1.125 1.125 0 0 1 1.45-.12l.737.527c.35.25.807.272 1.204.107.397-.165.71-.505.78-.929l.15-.894Z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+            </svg>
+          </NavLink>
+        </div>
+      </div>
+
+      <nav class="legal-nav">
+        <ul>
+          <li class="subtle">
+            <NavLink target="_blank" href="https://www.audicius.de/imprint">
+              <span aria-hidden="true"></span> Impressum
+            </NavLink>
+          </li>
+          <li class="subtle">
+            <NavLink target="_blank" href="https://www.audicius.de/privacy">
+              <span aria-hidden="true"></span> Datenschutz
+            </NavLink>
+          </li>
+        </ul>
+      </nav>
+    </div>
+  </aside>
+
+  <div class="board">
+    @RenderContent()
+  </div>
 </div>
 
 @code {
-	[Parameter] public string? Section { get; set; }
+  [Parameter] public string? Section { get; set; }
+  [CascadingParameter] private Task<AuthenticationState> AuthTask { get; set; } = default!;
 
-	private readonly HashSet<string> _open = new();
+  private readonly HashSet<string> _open = new();
+  private List<MenuNode> Nodes = new();
 
-	private List<MenuNode> Nodes = new()
+  private ClaimsPrincipal? _user;
+  private bool _isSuperAdmin;
+  private bool _isUser;
+
+  protected override async Task OnInitializedAsync()
+  {
+    await LoadAuthAsync();
+    BuildMenu();
+    Navigation.LocationChanged += HandleLocationChanged;
+    UpdateSectionFromUri();
+    ExpandAncestorsForCurrentPath();
+  }
+
+  protected override async Task OnParametersSetAsync()
+  {
+    await LoadAuthAsync();
+    BuildMenu();
+    UpdateSectionFromUri();
+    ExpandAncestorsForCurrentPath();
+  }
+
+  private async Task LoadAuthAsync()
+  {
+    var state = await AuthTask;
+    _user = state.User;
+    _isSuperAdmin = _user.IsInRole("super-admin");
+    _isUser = _user.IsInRole("user");
+
+    Console.WriteLine($"[Cockpit] Authenticated={_user.Identity?.IsAuthenticated}");
+    Console.WriteLine($"[Cockpit] Roles={string.Join(",", _user.FindAll(ClaimTypes.Role).Select(c => c.Value))}");
+    Console.WriteLine($"[Cockpit] _isSuperAdmin={_isSuperAdmin}, _isUser={_isUser}");
+  }
+
+  private void BuildMenu()
+  {
+    var n = new List<MenuNode>();
+
+    if (_isSuperAdmin)
+    {
+      n.Add(new MenuNode { Id = "customers", Text = "Firmenkunden", Href = "/cockpit/customers", Match = NavLinkMatch.All, Component = typeof(Customers) });
+      n.Add(new MenuNode { Id = "users", Text = "Benutzer", Href = "/cockpit/users", Match = NavLinkMatch.All, Component = typeof(Users) });
+      n.Add(new MenuNode
+      {
+        Id = "libraries",
+        Text = "Vorlagen",
+        Href = "/cockpit/library/scenarios", // führt aufs erste Kind
+        Match = NavLinkMatch.Prefix,
+        Component = typeof(LibraryScenarios),
+        Children = new List<MenuNode>
+        {
+          new MenuNode { Id = "lib-scenarios", Text = "Szenarien", Href = "/cockpit/library/scenarios", Match = NavLinkMatch.All, Component = typeof(LibraryScenarios) },
+          new MenuNode { Id = "lib-controls", Text = "Controls", Href = "/cockpit/library/controls", Match = NavLinkMatch.All, Component = typeof(LibraryControls) },
+          new MenuNode { Id = "lib-frameworks", Text = "Frameworks", Href = "/cockpit/library/frameworks", Match = NavLinkMatch.All, Component = typeof(Frameworks) }
+        }
+      });
+      n.Add(new MenuNode
+      {
+        Id = "reports",
+        Text = "Reports",
+        Href = "/cockpit/reports/instances",
+        Match = NavLinkMatch.Prefix,
+        Component = typeof(Reports),
+        Children = new List<MenuNode>
+        {
+          new MenuNode { Id = "report-definitions", Text = "Vorlagen", Href = "/cockpit/reports/definitions", Match = NavLinkMatch.All, Component = typeof(ReportDefinitions) }
+        }
+      });
+      n.Add(new MenuNode { Id = "scenarios", Text = "Szenarien", Href = "/cockpit/scenarios", Match = NavLinkMatch.All, Component = typeof(Scenarios) });
+      n.Add(new MenuNode { Id = "controls", Text = "Controls", Href = "/cockpit/controls", Match = NavLinkMatch.All, Component = typeof(Controls) });
+      n.Add(new MenuNode { Id = "exception", Text = "Ausnahmen", Href = "/cockpit/exceptions", Match = NavLinkMatch.All, Component = typeof(RiskAcceptances) });
+      n.Add(new MenuNode { Id = "tasks", Text = "Aufgaben", Href = "/cockpit/tasks", Match = NavLinkMatch.All, Component = typeof(ToDos) });
+      n.Add(new MenuNode { Id = "evidences", Text = "Nachweise", Href = "/cockpit/evidences", Match = NavLinkMatch.All, Component = typeof(Evidences) });
+      n.Add(new MenuNode { Id = "industries", Text = "Branchen", Href = "/cockpit/industries", Match = NavLinkMatch.All, Component = typeof(Industries) });
+      n.Add(new MenuNode { Id = "tags", Text = "Tags", Href = "/cockpit/tags", Match = NavLinkMatch.All, Component = typeof(Tags) });
+      n.Add(new MenuNode { Id = "recycle-bin", Text = "Papierkorb", Href = "/cockpit/recycle-bin", Match = NavLinkMatch.All, Component = typeof(RecycleBin) });
+
+      _open.Add("libraries");
+    }
+    else if (_isUser)
+    {
+      n.Add(new MenuNode { Id = "dashboard", Text = "Dashboard", Href = "/cockpit/", Match = NavLinkMatch.All, Component = typeof(CockpitPagesCommon.Overview) });
+      //n.Add(new MenuNode { Id = "controls", Text = "Controls", Href = "/cockpit/user-controls", Match = NavLinkMatch.All, Component = typeof(CockpitPagesUsers.UserControls) });
+      //n.Add(new MenuNode { Id = "scenarios", Text = "Szenarien", Href = "/cockpit/user-scenarios", Match = NavLinkMatch.All, Component = typeof(CockpitPagesUsers.UserScenarios) });
+      //n.Add(new MenuNode { Id = "tasks", Text = "Aufgaben", Href = "/cockpit/user-tasks", Match = NavLinkMatch.All, Component = typeof(CockpitPagesUsers.UserTasks) });
+      //n.Add(new MenuNode
+      //{
+      //  Id = "reports",
+      //  Text = "Reports",
+      //  Href = "/cockpit/reports",
+      //  Match = NavLinkMatch.All,
+      //  Component = typeof(CockpitPagesUsers.UserReports),
+      //  Children = new List<MenuNode>
+      //  {
+      //    new MenuNode { Id = "user-report-definitions", Text = "Vorlagen", Href = "/cockpit/reports/user-report-definitions", Match = NavLinkMatch.All, Component = typeof(CockpitPagesUsers.UserReportDefinitions) }
+      //  }
+      //});
+    }
+
+    // --- Versteckter Routen-Eintrag für /cockpit/profile ---
+    n.Add(new MenuNode
+    {
+      Id = "profile",
+      Text = "Profil",
+      Href = "/cockpit/profile",
+      Match = NavLinkMatch.All,
+      Component = typeof(Profile),
+      Hidden = true
+    });
+	n.Add(new MenuNode
 	{
-		new MenuNode
-		{
-			Id = "overview",
-			Text = "Übersicht",
-			Href = "/cockpit",
-			Match = NavLinkMatch.All,
-			Component = typeof(CockpitOverview)
-		},
-		new MenuNode
-		{
-			Id = "kunden",
-			Text = "Kunden",
-			Href = "",
-			Children = new()
-			{
-				new MenuNode
-				{
-					Id="kunden-alle",
-					Text="Alle Kunden",
-					Href="/cockpit/kunden",
-					Component = typeof(CockpitCustomers)
-				}
-			}
-		},
-		new MenuNode
-		{
-			Id = "libraries",
-			Text = "Bibliotheken",
-			Href = "",
-			Children = new()
-			{
-				new MenuNode
-				{
-					Id="lib-scenarios",
-					Text="Szenarien",
-					Href="/cockpit/szenarien",
-					Component = typeof(CockpitScenarios)
-				}
-			}
-		},
-		new MenuNode
-		{
-			Id = "users",
-			Text = "Benutzer",
-			Href = "/cockpit/users",
-			Match = NavLinkMatch.All,
-			Component = typeof(CockpitUsers)
-		},
-	};
+	Id = "settings",
+	Text = "Einstellungen",
+	Href = "/cockpit/settings",
+	Match = NavLinkMatch.All,
+	Component = typeof(CockpitPagesCommon.Settings), // <— dein Settings-Component
+	Hidden = true
+	});
+    Nodes = n;
+    Console.WriteLine($"[Cockpit] Menu nodes={Nodes.Count}");
+  }
 
-	protected override void OnInitialized()
-	{
-		Navigation.LocationChanged += HandleLocationChanged;
-		UpdateSectionFromUri();
-		ExpandAncestorsForCurrentPath();
-	}
+  private void HandleLocationChanged(object? sender, LocationChangedEventArgs e)
+  {
+    UpdateSectionFromUri();
+    ExpandAncestorsForCurrentPath();
+    InvokeAsync(StateHasChanged);
+  }
 
-	protected override void OnParametersSet()
-	{
-		UpdateSectionFromUri();
-		ExpandAncestorsForCurrentPath();
-	}
+  private void UpdateSectionFromUri()
+  {
+    var path = Navigation.ToBaseRelativePath(Navigation.Uri);
+    if (path.StartsWith("cockpit/"))
+    {
+      Section = path["cockpit/".Length..];
+    }
+    else if (path == "cockpit" || path == "cockpit/")
+    {
+      Section = "overview";
+    }
+  }
 
-	private void HandleLocationChanged(object? sender, LocationChangedEventArgs e)
-	{
-		UpdateSectionFromUri();
-		ExpandAncestorsForCurrentPath();
-		InvokeAsync(StateHasChanged);
-	}
+  // ---------- CONTENT RENDER ----------
+  private RenderFragment RenderContent() => builder =>
+  {
+    var currentPath = "/" + Navigation.ToBaseRelativePath(Navigation.Uri).TrimEnd('/');
+    if (string.IsNullOrWhiteSpace(currentPath) || currentPath == "/cockpit")
+      currentPath = "/cockpit";
 
-	private void UpdateSectionFromUri()
-	{
-		var path = Navigation.ToBaseRelativePath(Navigation.Uri);
+    var activeNode = FindNodeByHref(Nodes, currentPath);
+    var defaultOverview = typeof(CockpitPagesCommon.Overview);
+    var componentType = activeNode?.Component ?? defaultOverview;
 
-		if (path.StartsWith("cockpit/"))
-		{
-			Section = path.Substring("cockpit/".Length);
-		}
-		else if (path == "cockpit" || path == "cockpit/")
-		{
-			Section = "overview";
-		}
-	}
+    builder.OpenComponent(0, componentType);
+    builder.CloseComponent();
+  };
 
-	// ---------- MENU RENDER ----------
-	private RenderFragment RenderNodes(IEnumerable<MenuNode> nodes) => builder =>
-	{
-		var seq = 0;
-		foreach (var node in nodes)
-		{
-			var isOpen = _open.Contains(node.Id);
-			var hasChildren = node.Children?.Any() == true;
+  // ---------- MENU RENDER ----------
+  private RenderFragment RenderNodes(IEnumerable<MenuNode> nodes) => builder =>
+  {
+    var seq = 0;
+    foreach (var node in nodes)
+    {
+      if (node.Hidden) continue;
 
-			builder.OpenElement(seq++, "li");
-			builder.AddAttribute(seq++, "class", $"menu-node {(hasChildren ? "has-children" : "")} {(isOpen ? "open" : "")}");
+      var hasChildren = node.Children is { Count: > 0 };
+      var isOpen = _open.Contains(node.Id);
 
-			builder.OpenElement(seq++, "div");
-			builder.AddAttribute(seq++, "class", "menu-row");
-			builder.AddAttribute(seq++, "role", hasChildren ? "button" : null);
-			builder.AddAttribute(seq++, "aria-expanded", hasChildren ? isOpen.ToString().ToLower() : null);
-			builder.AddAttribute(seq++, "aria-controls", hasChildren ? $"sub-{node.Id}" : null);
+      builder.OpenElement(seq++, "li");
+      builder.SetKey(node.Id);
+      builder.AddAttribute(seq++, "class", $"menu-node{(hasChildren ? " has-children" : "")}{(isOpen ? " open" : "")}");
 
-			if (!string.IsNullOrWhiteSpace(node.Href))
-			{
-				builder.OpenComponent<NavLink>(seq++);
-				builder.AddAttribute(seq++, "href", node.Href);
-				if (node.Match.HasValue) builder.AddAttribute(seq++, "Match", node.Match.Value);
-				builder.AddAttribute(seq++, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, () => OnNodeClicked(node)));
-				builder.AddAttribute(seq++, "ChildContent", (RenderFragment)(b => b.AddContent(seq++, node.Text)));
-				builder.CloseComponent();
-			}
-			else
-			{
-				builder.OpenElement(seq++, "span");
-				builder.AddAttribute(seq++, "class", "menu-label");
-				if (hasChildren)
-				{
-					builder.AddAttribute(seq++, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, () => OnNodeClicked(node)));
-					builder.AddAttribute(seq++, "tabindex", "0");
-				}
-				builder.AddContent(seq++, node.Text);
-				builder.CloseElement();
-			}
+      builder.OpenElement(seq++, "div");
+      builder.AddAttribute(seq++, "class", "menu-row");
 
-			builder.CloseElement(); // .menu-row
+      if (!string.IsNullOrWhiteSpace(node.Href))
+      {
+        builder.OpenComponent<NavLink>(seq++);
+        builder.AddAttribute(seq++, "href", node.Href);
+        if (node.Match.HasValue) builder.AddAttribute(seq++, "Match", node.Match.Value);
+        if (hasChildren)
+        {
+          builder.AddAttribute(seq++, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, () => Toggle(node.Id)));
+        }
+        builder.AddAttribute(seq++, "ChildContent", (RenderFragment)(b => b.AddContent(0, node.Text)));
+        builder.CloseComponent();
+      }
+      else
+      {
+        builder.OpenElement(seq++, "span");
+        builder.AddAttribute(seq++, "class", "menu-label");
+        if (hasChildren)
+        {
+          builder.AddAttribute(seq++, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, () => Toggle(node.Id)));
+        }
+        builder.AddContent(seq++, node.Text);
+        builder.CloseElement();
+      }
 
-			if (hasChildren)
-			{
-				builder.OpenElement(seq++, "ul");
-				builder.AddAttribute(seq++, "id", $"sub-{node.Id}");
-				builder.AddAttribute(seq++, "class", "submenu");
-				if (!isOpen) builder.AddAttribute(seq++, "hidden", "hidden");
-				builder.AddContent(seq++, RenderNodes(node.Children!));
-				builder.CloseElement();
-			}
+      builder.CloseElement(); // .menu-row
 
-			builder.CloseElement(); // li
-		}
-	};
+      if (hasChildren)
+      {
+        builder.OpenElement(seq++, "ul");
+        builder.AddAttribute(seq++, "id", $"sub-{node.Id}");
+        builder.AddAttribute(seq++, "class", "submenu");
+        builder.AddContent(seq++, RenderNodes(node.Children!));
+        builder.CloseElement();
+      }
 
-	// ---------- CONTENT RENDER (einzige Version!) ----------
-	private RenderFragment RenderContent() => builder =>
-	{
-		var currentPath = "/" + Navigation.ToBaseRelativePath(Navigation.Uri).TrimEnd('/');
-		if (string.IsNullOrWhiteSpace(currentPath) || currentPath == "/cockpit")
-			currentPath = "/cockpit";
+      builder.CloseElement(); // li
+    }
+  };
 
-		var activeNode = FindNodeByHref(Nodes, currentPath);
-		var componentType = activeNode?.Component ?? typeof(CockpitOverview);
+  // ---------- HELPERS ----------
+  private MenuNode? FindNodeByHref(IEnumerable<MenuNode> nodes, string path)
+  {
+    foreach (var node in nodes)
+    {
+      if (!string.IsNullOrWhiteSpace(node.Href) &&
+          string.Equals(node.Href!.TrimEnd('/'), path.TrimEnd('/'), StringComparison.OrdinalIgnoreCase))
+      {
+        return node;
+      }
 
-		builder.OpenComponent(0, componentType);
-		builder.CloseComponent();
-	};
+      if (node.Children?.Any() == true)
+      {
+        var child = FindNodeByHref(node.Children, path);
+        if (child != null) return child;
+      }
+    }
+    return null;
+  }
 
-	// ---------- HELPERS ----------
-	private MenuNode? FindNodeByHref(IEnumerable<MenuNode> nodes, string path)
-	{
-		foreach (var node in nodes)
-		{
-			if (!string.IsNullOrWhiteSpace(node.Href) &&
-				string.Equals(node.Href.TrimEnd('/'), path.TrimEnd('/'), StringComparison.OrdinalIgnoreCase))
-			{
-				return node;
-			}
+  private void Toggle(string id)
+  {
+    if (_open.Contains(id)) _open.Remove(id);
+    else _open.Add(id);
 
-			if (node.Children?.Any() == true)
-			{
-				var child = FindNodeByHref(node.Children, path);
-				if (child != null) return child;
-			}
-		}
-		return null;
-	}
+    Console.WriteLine($"[Cockpit] Toggle '{id}' -> open={_open.Contains(id)}");
+    InvokeAsync(StateHasChanged);
+  }
 
-	private void OnNodeClicked(MenuNode node)
-	{
-		if (node.Children?.Any() == true)
-			Toggle(node.Id);
-	}
+  private void ExpandAncestorsForCurrentPath()
+  {
+    var currentPath = "/" + Navigation.ToBaseRelativePath(Navigation.Uri);
+    var active = FindPathByHref(Nodes, currentPath);
+    if (active is null || active.Count == 0) return;
+    foreach (var ancestor in active) _open.Add(ancestor.Id);
+  }
 
-	private void Toggle(string id)
-	{
-		if (_open.Contains(id)) _open.Remove(id);
-		else _open.Add(id);
-	}
+  private List<MenuNode>? FindPathByHref(IEnumerable<MenuNode> nodes, string currentPath)
+  {
+    foreach (var n in nodes)
+    {
+      var isMatch = !string.IsNullOrWhiteSpace(n.Href) &&
+        (string.Equals(n.Href!.TrimEnd('/'), currentPath.TrimEnd('/'), StringComparison.OrdinalIgnoreCase)
+         || currentPath.StartsWith(n.Href!.TrimEnd('/') + "/", StringComparison.OrdinalIgnoreCase));
 
-	private void ExpandAncestorsForCurrentPath()
-	{
-		var currentPath = "/" + Navigation.ToBaseRelativePath(Navigation.Uri);
-		var active = FindPathByHref(Nodes, currentPath);
-		if (active is null || active.Count == 0) return;
+      if (isMatch) return new List<MenuNode> { n };
 
-		foreach (var ancestor in active)
-			_open.Add(ancestor.Id);
-	}
+      if (n.Children?.Any() == true)
+      {
+        var childPath = FindPathByHref(n.Children!, currentPath);
+        if (childPath != null)
+        {
+          childPath.Insert(0, n);
+          return childPath;
+        }
+      }
+    }
+    return null;
+  }
 
-	private List<MenuNode>? FindPathByHref(IEnumerable<MenuNode> nodes, string currentPath)
-	{
-		foreach (var n in nodes)
-		{
-			var isMatch = !string.IsNullOrWhiteSpace(n.Href) &&
-				(string.Equals(n.Href!.TrimEnd('/'), currentPath.TrimEnd('/'), StringComparison.OrdinalIgnoreCase)
-					|| (currentPath.StartsWith(n.Href!.TrimEnd('/') + "/", StringComparison.OrdinalIgnoreCase)));
+  public void Dispose()
+  {
+    Navigation.LocationChanged -= HandleLocationChanged;
+  }
 
-			if (isMatch) return new List<MenuNode> { n };
-
-			if (n.Children?.Any() == true)
-			{
-				var childPath = FindPathByHref(n.Children!, currentPath);
-				if (childPath != null)
-				{
-					childPath.Insert(0, n);
-					return childPath;
-				}
-			}
-		}
-		return null;
-	}
-
-	public void Dispose()
-	{
-		Navigation.LocationChanged -= HandleLocationChanged;
-	}
-
-	private class MenuNode
-	{
-		public string Id { get; set; } = Guid.NewGuid().ToString("N");
-		public string Text { get; set; } = "";
-		public string? Href { get; set; }
-		public NavLinkMatch? Match { get; set; } = NavLinkMatch.Prefix;
-		public List<MenuNode>? Children { get; set; }
-		public Type? Component { get; set; } // <-- neu
-	}
+  private sealed class MenuNode
+  {
+    public string Id { get; set; } = Guid.NewGuid().ToString("N");
+    public string Text { get; set; } = "";
+    public string? Href { get; set; }
+    public NavLinkMatch? Match { get; set; } = NavLinkMatch.Prefix;
+    public List<MenuNode>? Children { get; set; }
+    public Type? Component { get; set; }
+    public bool Hidden { get; set; } = false; // versteckte Routen nicht anzeigen
+  }
 }

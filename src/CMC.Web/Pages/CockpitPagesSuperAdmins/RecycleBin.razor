@@ -1,0 +1,128 @@
+@* CMC.Web/Pages/CockpitPagesSuperAdmins/RecycleBin.razor *@
+@attribute [Authorize(Roles = "super-admin")]
+@using CMC.Contracts.RecycleBin
+@inject IRecycleBinClient RecycleBinClient
+@inject DialogService Dialogs
+
+<div class="card">
+    <h2>Papierkorb</h2>
+
+    @if (_loading)
+    {
+        <p>Lade…</p>
+    }
+    else if (_items.Count == 0)
+    {
+        <p>Keine gelöschten Elemente gefunden.</p>
+    }
+    else
+    {
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Titel</th>
+                    <th>Tabelle</th>
+                    <th>Deleted By</th>
+                    <th>Deleted At (UTC)</th>
+                    <th>Aktionen</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var it in _items)
+            {
+                <tr>
+                    <td>
+                        <div><strong>@it.Title</strong></div>
+                        @if (!string.IsNullOrWhiteSpace(it.Subtitle))
+                        {
+                            <div class="text-muted">@it.Subtitle</div>
+                        }
+                    </td>
+                    <td><code>@it.Table</code></td>
+                    <td>@(it.DeletedBy ?? "-")</td>
+                    <td>@it.DeletedAt.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                    <td>
+                        <div class="btn-group">
+                            <button class="btn" @onclick="() => Restore(it)">Wiederherstellen</button>
+                            <button class="btn danger" @onclick="() => Purge(it)">Endgültig löschen</button>
+                        </div>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    private bool _loading;
+    private List<RecycleBinItemDto> _items = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Reload();
+    }
+
+    private async Task Reload()
+    {
+        _loading = true;
+        try
+        {
+            _items = await RecycleBinClient.GetAllAsync();
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task Restore(RecycleBinItemDto it)
+    {
+        try
+        {
+            // NEU: das gesamte DTO übergeben (Signatur: (RecycleBinItemDto, CancellationToken))
+            await RecycleBinClient.RestoreAsync(it);
+            await Reload();
+        }
+        catch (Exception ex)
+        {
+            Dialogs.Open(new DialogRequest {
+                Title = "Restore fehlgeschlagen",
+                Message = ex.Message,
+                ConfirmText = "Okay",
+                OnConfirm = () => Task.CompletedTask
+            });
+        }
+    }
+
+    private Task Purge(RecycleBinItemDto it)
+    {
+        Dialogs.Open(new DialogRequest {
+            Title = "Endgültig löschen?",
+            Message = it.Title + " wirklich dauerhaft entfernen? Dieser Vorgang kann nicht rückgängig gemacht werden.",
+            ConfirmText = "Endgültig löschen",
+            CancelText = "Abbrechen",
+            OnConfirm = async () =>
+            {
+                try
+                {
+                    // NEU: das gesamte DTO übergeben (Signatur: (RecycleBinItemDto, CancellationToken))
+                    await RecycleBinClient.PurgeAsync(it);
+                    await Reload();
+                }
+                catch (Exception ex)
+                {
+                    Dialogs.Open(new DialogRequest {
+                        Title = "Löschen fehlgeschlagen",
+                        Message = ex.Message,
+                        ConfirmText = "Okay",
+                        OnConfirm = () => Task.CompletedTask
+                    });
+                }
+            }
+        });
+
+        return Task.CompletedTask;
+    }
+}

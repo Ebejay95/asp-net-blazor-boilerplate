@@ -1,0 +1,168 @@
+@attribute [Authorize(Roles = "super-admin")]
+@using System.Linq
+@using CMC.Contracts.Reports
+@using CMC.Web.Services
+@using CMC.Web.Util
+@using CMC.Domain.Entities
+@inject CMC.Application.Services.ReportDefinitionService ReportDefinitionService
+@inject EFEditService EFEditService
+@inject DialogService ConfirmService
+
+<div class="card">
+    <EFTable TItem="ReportDefinitionDto"
+               Items="_definitions"
+               AllowEdit="true"
+               OnEdit="StartEdit"
+               AllowCreate="true"
+               OnCreate="StartCreate" />
+</div>
+
+@code {
+    private List<ReportDefinitionDto> _definitions = new();
+
+    protected override async Task OnInitializedAsync()
+        => _definitions = await ReportDefinitionService.GetAllAsync();
+
+    private async Task Reload()
+    {
+        _definitions = await ReportDefinitionService.GetAllAsync();
+        StateHasChanged();
+    }
+
+    private void StartEdit(ReportDefinitionDto definition)
+    {
+        var req = new EFEditRequest
+        {
+            Title = "Report-Vorlage bearbeiten",
+            Model = definition,
+            ContractsAssembly = typeof(ReportDefinitionDto).Assembly,
+            EfParentType = typeof(ReportDefinition),
+            GetParentKey = m => ((ReportDefinitionDto)m).Id,
+            IsCreate = false,
+            OnSave = async ctx =>
+            {
+                try
+                {
+                    var up = (UpdateReportDefinitionRequest)ctx.Build("Update");
+                    _ = await ReportDefinitionService.UpdateAsync(up);
+                    await Reload();
+                    EFEditService.Close();
+                }
+                catch (Exception ex)
+                {
+                    ConfirmService.Open(new DialogRequest
+                    {
+                        Title = "Fehler beim Speichern",
+                        Message = ex.Message,
+                        ConfirmText = "Okay",
+                        OnConfirm = () => Task.CompletedTask
+                    });
+                }
+            },
+            OnDelete = ctx =>
+            {
+                var model = (ReportDefinitionDto)ctx.Model;
+
+                ConfirmService.Open(new DialogRequest
+                {
+                    Title = "Löschen bestätigen",
+                    Message = "Report-Vorlage " + model.Name + " wirklich löschen?",
+                    ConfirmText = "Löschen",
+                    CancelText = "Abbrechen",
+                    OnConfirm = async () =>
+                    {
+                        try
+                        {
+                            await ReportDefinitionService.DeleteAsync(model.Id);
+                            await Reload();
+                            EFEditService.Close();
+                        }
+                        catch (Exception ex)
+                        {
+                            ConfirmService.Open(new DialogRequest
+                            {
+                                Title = "Löschen fehlgeschlagen",
+                                Message = ex.Message,
+                                ConfirmText = "Okay",
+                                OnConfirm = () => Task.CompletedTask
+                            });
+                        }
+                    }
+                });
+
+                return Task.CompletedTask;
+            },
+            OnAfterRestore = async () =>
+            {
+                await Reload();
+                EFEditService.Close();
+            }
+        };
+
+        // Relation Fields
+        req.ExtraFields.Add(new ExtraField(
+            Name: "CustomerId",
+            Label: "Kunde",
+            Type: typeof(Guid),
+            DataType: "relation-auto",
+            Value: definition.CustomerId
+        ));
+
+        EFEditService.Open(req);
+    }
+
+    private void StartCreate()
+    {
+        var empty = new ReportDefinitionDto
+        {
+            Id = Guid.Empty,
+            CustomerId = Guid.Empty,
+            Name = string.Empty,
+            Kind = "monthly",
+            WindowDays = 30,
+            Sections = string.Empty,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        var req = new EFEditRequest
+        {
+            Title = "Report-Vorlage anlegen",
+            Model = empty,
+            ContractsAssembly = typeof(ReportDefinitionDto).Assembly,
+            EfParentType = typeof(ReportDefinition),
+            GetParentKey = m => ((ReportDefinitionDto)m).Id,
+            IsCreate = true,
+            OnSave = async ctx =>
+            {
+                try
+                {
+                    var create = (CreateReportDefinitionRequest)ctx.Build("Create");
+                    _ = await ReportDefinitionService.CreateAsync(create);
+                    await Reload();
+                    EFEditService.Close();
+                }
+                catch (Exception ex)
+                {
+                    ConfirmService.Open(new DialogRequest
+                    {
+                        Title = "Fehler beim Anlegen",
+                        Message = ex.Message,
+                        ConfirmText = "Okay",
+                        OnConfirm = () => Task.CompletedTask
+                    });
+                }
+            }
+        };
+
+        req.ExtraFields.Add(new ExtraField(
+            Name: "CustomerId",
+            Label: "Kunde",
+            Type: typeof(Guid),
+            DataType: "relation-auto",
+            Value: Guid.Empty
+        ));
+
+        EFEditService.Open(req);
+    }
+}

@@ -1,0 +1,321 @@
+@page "/superadmin/customers"
+@attribute [Authorize]
+
+@using System.Linq
+@using CMC.Infrastructure.Persistence
+@using Microsoft.EntityFrameworkCore
+@using CMC.Contracts.Customers
+@using CMC.Domain.Entities
+@using CMC.Web.Services
+@using CMC.Web.Util
+
+@inject DialogService ConfirmService
+@inject DbContext Db
+@inject IRelationshipManager Rels
+@inject EFEditService EFEdit
+@inject DbContextOptions<AppDbContext> DbOptions
+
+<div class="card">
+    <EFTable TItem="CustomerDto"
+             Items="CustomerList"
+             AutoGenerate="true"
+             AllowEdit="true"
+             AllowCreate="true"
+             OnEdit="EditCustomer"
+             OnCreate="CreateCustomer">
+
+        @* Aktionen-Spalte selbst rendern (EFTable hat kein AllowDelete/OnDelete) *@
+        <EditTemplate Context="item">
+            <div class="btn-group">
+                <button type="button" class="btn sm flat" @onclick="() => EditCustomer(item)">
+                    Bearbeiten
+                </button>
+            </div>
+        </EditTemplate>
+    </EFTable>
+</div>
+
+@code {
+    private List<CustomerDto> CustomerList = new();
+
+    protected override async Task OnInitializedAsync()
+        => await ReloadListAsync();
+
+    private async Task ReloadListAsync()
+    {
+        // eigener Context fürs Lesen => keine Concurrency-Probleme
+        await using var db = new AppDbContext(DbOptions);
+
+        var list = await db.Set<Customer>()
+            .Include(c => c.CustomerIndustries).ThenInclude(ci => ci.Industry)
+            .Include(c => c.Users)
+            .AsNoTracking()
+            .ToListAsync();
+
+        CustomerList = list.Select(c => new CustomerDto(
+            Id: c.Id,
+            Name: c.Name,
+            IndustryIds: c.GetIndustryIds().ToArray(),
+            IndustryNames: c.CustomerIndustries.Select(ci => ci.Industry.Name).ToArray(),
+            EmployeeCount: c.EmployeeCount,
+            RevenuePerYear: c.RevenuePerYear,
+            IsActive: c.IsActive,
+            CreatedAt: c.CreatedAt,
+            UpdatedAt: c.UpdatedAt,
+            UserCount: c.Users.Count
+        )).ToList();
+    }
+
+    private Task CreateCustomer()
+    {
+        var dto = new CustomerDto(
+            Id: Guid.Empty,
+            Name: "",
+            IndustryIds: Array.Empty<Guid>(),
+            IndustryNames: Array.Empty<string>(),
+            EmployeeCount: 0,
+            RevenuePerYear: 0m,
+            IsActive: true,
+            CreatedAt: DateTimeOffset.UtcNow,
+            UpdatedAt: DateTimeOffset.UtcNow,
+            UserCount: 0
+        );
+        OpenEditor(dto, isCreate: true);
+        return Task.CompletedTask;
+    }
+
+    private Task EditCustomer(CustomerDto dto)
+    {
+        OpenEditor(dto, isCreate: false);
+        return Task.CompletedTask;
+    }
+
+    private void OpenEditor(CustomerDto dto, bool isCreate)
+    {
+        EFEdit.Open(new EFEditRequest
+        {
+            Title = isCreate ? "Kunde anlegen" : $"Kunde bearbeiten – {dto.Name}",
+            Model = dto,
+            ContractsAssembly = typeof(CustomerDto).Assembly,
+
+            // wichtig für Relation-Fields (IndustryIds → CustomerIndustries)
+            EfParentType = typeof(Customer),
+            GetParentKey = m => ((CustomerDto)m).Id,
+
+            IsCreate = isCreate,
+            OnSave = OnSaveCustomer,
+
+            // Löschen direkt aus dem Drawer erlauben (bei Edit)
+            OnDelete = _ => ConfirmDelete(dto.Id, dto.Name)
+        });
+    }
+
+    private async Task OnSaveCustomer(EditContextAdapter ctx)
+    {
+        try
+        {
+            // 1) Model + Key
+            var dto = (CustomerDto)ctx.Model;
+            Guid customerId = dto.Id;
+
+            // 2) geänderte Werte robust aus dem Editor lesen
+            var name = ctx.TryGetValue("Name", out var rawName)
+                ? (rawName?.ToString()?.Trim() ?? "")
+                : dto.Name;
+
+            var employeeCount = TryGetInt(ctx, "EmployeeCount", dto.EmployeeCount);
+            var revenue       = TryGetDecimal(ctx, "RevenuePerYear", dto.RevenuePerYear);
+
+            var isActive = ctx.TryGetValue("IsActive", out var rawActive)
+                ? ToBool(rawActive, dto.IsActive)
+                : dto.IsActive;
+
+            // M:N aus Editor (nicht aus altem DTO)
+            var industryIds = ExtractGuids(ctx.TryGetValue("IndustryIds", out var rawInds) ? rawInds : dto.IndustryIds);
+
+            // 3) Create/Update Stammfelder (schreibender injizierter DbContext)
+            if (dto.Id == Guid.Empty)
+            {
+                if (string.IsNullOrWhiteSpace(name))
+                    throw new ArgumentException("Customer name cannot be null or empty", nameof(name));
+
+                var entity = new Customer(name, employeeCount, revenue);
+                if (!isActive) entity.Deactivate(); else entity.Activate();
+
+                Db.Add(entity);
+                await Db.SaveChangesAsync(); // Id wird gesetzt
+                customerId = entity.Id;
+
+                Console.WriteLine($"🆕 Customer created: {entity.Id} – {entity.Name}");
+            }
+            else
+            {
+                var existing = await Db.Set<Customer>().FindAsync(dto.Id);
+                if (existing is not null)
+                {
+                    existing.UpdateBusinessInfo(name, employeeCount, revenue);
+                    if (isActive) existing.Activate(); else existing.Deactivate();
+                    await Db.SaveChangesAsync();
+
+                    Console.WriteLine($"✏️  Customer updated: {existing.Id} – {existing.Name}");
+                }
+            }
+
+            // 4) M:N anwenden (CustomerIndustries) – mit den *neuen* IDs
+            await RelationSaveHelper.ApplyAsync(
+                rels: Rels,
+                parentType: typeof(Customer),
+                parentKey: customerId,
+                values: new Dictionary<string, object?> { ["IndustryIds"] = industryIds });
+
+            await Db.SaveChangesAsync();
+            Console.WriteLine("✅ Relations persisted to DB.");
+
+            // 5) UI schließen & Liste neu laden (separater Lese-DbContext)
+            EFEdit.Close();
+            await ReloadListAsync();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("❌ OnSaveCustomer failed:\n" + ex);
+            ConfirmService.Open(new DialogRequest
+            {
+                Title = "Speichern fehlgeschlagen",
+                Message = ex.ToString(),
+                ConfirmText = "Okay",
+                OnConfirm = () => Task.CompletedTask
+            });
+            // Drawer bleibt offen, damit der Nutzer korrigieren kann.
+        }
+    }
+
+    // --------- Delete-Flow (Tabelle + Drawer) ---------
+
+    private Task ConfirmDelete(Guid customerId, string name)
+    {
+        ConfirmService.Open(new DialogRequest
+        {
+            Title = "Löschen bestätigen",
+            Message = $"Kunde „{name}“ wirklich löschen?",
+            ConfirmText = "Löschen",
+            OnConfirm = async () =>
+            {
+                try
+                {
+                    await using var tx = await Db.Database.BeginTransactionAsync();
+
+                    // Kunde inkl. Relationen laden
+                    var customer = await Db.Set<Customer>()
+                        .Include(c => c.CustomerIndustries)
+                        .Include(c => c.Users)
+                        .FirstOrDefaultAsync(c => c.Id == customerId);
+
+                    if (customer is null)
+                        throw new InvalidOperationException("Kunde nicht gefunden.");
+
+                    // Geschäftsregel: nicht löschen, wenn noch Benutzer existieren
+                    if (customer.Users.Any())
+                        throw new InvalidOperationException("Kunde kann nicht gelöscht werden, solange diesem noch Benutzer zugeordnet sind.");
+
+                    // M:N aufräumen (falls keine Cascade konfiguriert)
+                    if (customer.CustomerIndustries?.Count > 0)
+                        Db.RemoveRange(customer.CustomerIndustries);
+
+                    // Kunde löschen
+                    Db.Remove(customer);
+                    await Db.SaveChangesAsync();
+                    await tx.CommitAsync();
+
+                    // UI aktualisieren
+                    EFEdit.Close(); // falls aus Drawer ausgelöst
+                    await ReloadListAsync();
+                    StateHasChanged();
+
+                    Console.WriteLine($"🗑️ Customer deleted: {customerId}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("❌ DeleteCustomer failed:\n" + ex);
+                    ConfirmService.Open(new DialogRequest
+                    {
+                        Title = "Löschen fehlgeschlagen",
+                        Message = ex.Message,
+                        ConfirmText = "Okay",
+                        OnConfirm = () => Task.CompletedTask
+                    });
+                }
+            }
+        });
+
+        return Task.CompletedTask;
+    }
+
+    // ---------- Helpers ----------
+
+    private static int TryGetInt(EditContextAdapter ctx, string name, int fallback)
+    {
+        if (!ctx.TryGetValue(name, out var raw) || raw is null) return fallback;
+        if (raw is int i) return i;
+        if (raw is long l) return checked((int)l);
+        var s = raw.ToString();
+        return int.TryParse(s, out var parsed) ? parsed : fallback;
+    }
+
+    private static decimal TryGetDecimal(EditContextAdapter ctx, string name, decimal fallback)
+    {
+        if (!ctx.TryGetValue(name, out var raw) || raw is null) return fallback;
+
+        if (raw is decimal d) return d;
+        if (raw is double dbl) return (decimal)dbl;
+        if (raw is float fl) return (decimal)fl;
+        if (raw is int i) return i;
+        if (raw is long l) return l;
+
+        var s = raw.ToString();
+        return decimal.TryParse(s, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var parsed)
+            ? parsed
+            : decimal.TryParse(s, out parsed) ? parsed : fallback;
+    }
+
+    private static bool ToBool(object? raw, bool fallback)
+    {
+        if (raw is bool b) return b;
+        var s = raw?.ToString();
+        if (bool.TryParse(s, out var parsed)) return parsed;
+        if (string.Equals(s, "on", StringComparison.OrdinalIgnoreCase)) return true;
+        return fallback;
+    }
+
+    private static Guid[] ExtractGuids(object? value)
+    {
+        var list = new List<Guid>();
+        switch (value)
+        {
+            case null:
+                return Array.Empty<Guid>();
+            case IEnumerable<Guid> gs:
+                list.AddRange(gs.Where(g => g != Guid.Empty));
+                break;
+            case IEnumerable<string> ss:
+                foreach (var s in ss)
+                    if (Guid.TryParse(s, out var g) && g != Guid.Empty)
+                        list.Add(g);
+                break;
+            case System.Collections.IEnumerable seq when value is not string:
+                foreach (var e in seq)
+                {
+                    var s = e?.ToString();
+                    if (!string.IsNullOrWhiteSpace(s) && Guid.TryParse(s, out var g) && g != Guid.Empty)
+                        list.Add(g);
+                }
+                break;
+            default:
+                var one = value.ToString();
+                if (!string.IsNullOrWhiteSpace(one) && Guid.TryParse(one, out var g1) && g1 != Guid.Empty)
+                    list.Add(g1);
+                break;
+        }
+        return list.Distinct().ToArray();
+    }
+}

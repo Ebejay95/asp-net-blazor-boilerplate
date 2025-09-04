@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cybersecurity Management Dashboard</title>
+
+    <!-- Tailwind via CDN for demo purposes -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            boxShadow: {
+              soft: "0 10px 25px -10px rgba(2,6,23,.15)",
+            },
+            borderRadius: {
+              '3xl': '1.5rem'
+            }
+          },
+        },
+      };
+    </script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
+    <style>
+      /* Nice thin scrollbars */
+      * { scrollbar-width: thin; }
+      ::-webkit-scrollbar { height: 8px; width: 8px; }
+      ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+    </style>
+  </head>
+
+  <body class="bg-slate-50 text-slate-900 selection:bg-indigo-100 selection:text-indigo-900">
+    <!-- App Shell -->
+    <header class="sticky top-0 z-20 backdrop-blur bg-white/80 border-b border-slate-200">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center gap-4">
+        <div class="flex items-center gap-3">
+          <div class="h-10 w-10 rounded-2xl bg-indigo-600 grid place-content-center text-white font-bold">CS</div>
+          <div>
+            <h1 class="text-xl font-semibold tracking-tight">Cybersecurity Management Dashboard</h1>
+            <p class="text-xs text-slate-500">Szenarien • Controls • Tasks • Evidence</p>
+          </div>
+        </div>
+
+        <div class="ml-auto flex items-center gap-3">
+          <!-- Persona Switch -->
+          <div class="inline-flex p-1 rounded-xl border border-slate-200 bg-slate-100 shadow-soft" role="tablist" aria-label="Persona umschalten">
+            <button id="btnCEO" class="px-3 py-1.5 text-sm rounded-lg bg-white shadow-soft aria-selected:outline aria-selected:outline-2 aria-selected:outline-indigo-500" role="tab" aria-selected="true" data-persona="ceo">CEO</button>
+            <button id="btnIT" class="px-3 py-1.5 text-sm rounded-lg hover:bg-white/60" role="tab" aria-selected="false" data-persona="it">IT‑Leitung</button>
+          </div>
+
+          <!-- Date filter (cosmetic) -->
+          <label class="hidden sm:flex items-center gap-2 text-sm text-slate-600 border border-slate-200 rounded-xl px-3 py-1.5 bg-white">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4"><path d="M6.75 3a.75.75 0 0 1 .75.75V5h9V3.75a.75.75 0 0 1 1.5 0V5h.75A2.25 2.25 0 0 1 21.5 7.25v11A2.25 2.25 0 0 1 19.25 20.5H4.75A2.25 2.25 0 0 1 2.5 18.25v-11A2.25 2.25 0 0 1 4.75 5h.75V3.75A.75.75 0 0 1 6.25 3h.5zM4 9h16v9.25c0 .414-.336.75-.75.75H4.75A.75.75 0 0 1 4 18.25V9z"/></svg>
+            <select class="bg-transparent outline-none">
+              <option>Letzte 6 Monate</option>
+              <option>Letzte 12 Monate</option>
+              <option>Aktuelles Quartal</option>
+              <option>Aktueller Monat</option>
+            </select>
+          </label>
+        </div>
+      </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <!-- KPI Cards -->
+      <section class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <!-- KPI: Risk Score -->
+        <article class="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-medium text-slate-500">Risiko‑Score</h3>
+            <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700">
+              <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+              <span id="riskTrend">↓ 8% QoQ</span>
+            </span>
+          </div>
+          <div class="mt-3 flex items-baseline gap-2">
+            <div id="kpiRisk" class="text-3xl font-semibold tracking-tight">–</div>
+            <span class="text-slate-400 text-sm">(niedriger ist besser)</span>
+          </div>
+          <p id="riskHint" class="mt-2 text-xs text-slate-500">–</p>
+        </article>
+
+        <!-- KPI: Offene Tasks -->
+        <article class="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-medium text-slate-500">Offene Aufgaben</h3>
+            <span class="text-xs text-slate-400" id="tasksSLA">–</span>
+          </div>
+          <div class="mt-3 flex items-end gap-3">
+            <div id="kpiTasks" class="text-3xl font-semibold">–</div>
+            <div class="flex-1">
+              <div class="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                <div id="tasksProgress" class="h-2 bg-emerald-500 rounded-full w-1/2"></div>
+              </div>
+              <p id="tasksProgressText" class="mt-1 text-xs text-slate-500">–</p>
+            </div>
+          </div>
+        </article>
+
+        <!-- KPI: Evidence Gaps -->
+        <article class="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-medium text-slate-500">Evidence‑Lücken</h3>
+            <span class="text-xs text-slate-400">Nachweisabdeckung</span>
+          </div>
+          <div class="mt-3 flex items-end gap-3">
+            <div id="kpiEvidenceGaps" class="text-3xl font-semibold">–</div>
+            <div class="flex-1">
+              <div class="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                <div id="evidenceProgress" class="h-2 bg-indigo-500 rounded-full w-3/4"></div>
+              </div>
+              <p id="evidenceProgressText" class="mt-1 text-xs text-slate-500">–</p>
+            </div>
+          </div>
+        </article>
+
+        <!-- KPI: Compliance -->
+        <article class="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-medium text-slate-500">Compliance</h3>
+            <span class="text-xs text-slate-400">MTTR</span>
+          </div>
+          <div class="mt-3 flex items-end gap-3">
+            <div>
+              <div id="kpiCompliance" class="text-3xl font-semibold">–</div>
+              <p id="complianceHint" class="mt-1 text-xs text-slate-500">–</p>
+            </div>
+            <div class="ml-auto text-right">
+              <div id="kpiMttr" class="text-2xl font-semibold">–</div>
+              <p class="text-xs text-slate-500">Tage</p>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <!-- Charts -->
+      <section class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Risk Burndown -->
+        <article class="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-medium text-slate-600">Risk Burndown</h3>
+            <span class="text-xs text-slate-400">letzte 6 Monate</span>
+          </div>
+          <div class="mt-4">
+            <canvas id="riskBurndown"></canvas>
+          </div>
+        </article>
+
+        <!-- Control Veränderungen -->
+        <article class="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-medium text-slate-600">Control‑Veränderungen</h3>
+            <span class="text-xs text-slate-400">hinzugefügt / verbessert / entfernt</span>
+          </div>
+          <div class="mt-4">
+            <canvas id="controlDeltas"></canvas>
+          </div>
+        </article>
+
+        <!-- Aufgaben‑Absolvierung -->
+        <article class="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-medium text-slate-600">Aufgaben‑Absolvierung</h3>
+            <span class="text-xs text-slate-400">wöchentlich</span>
+          </div>
+          <div class="mt-4">
+            <canvas id="taskCompletion"></canvas>
+          </div>
+        </article>
+
+        <!-- Bereichsabdeckung (Radar) -->
+        <article class="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-medium text-slate-600">Bereichsabdeckung (Netzdiagramm)</h3>
+            <span class="text-xs text-slate-400">Soll vs. Ist</span>
+          </div>
+          <div class="mt-4">
+            <canvas id="areaCoverage"></canvas>
+          </div>
+        </article>
+
+        <!-- Evidence Status -->
+        <article class="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft lg:col-span-2">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-medium text-slate-600">Evidence‑Status</h3>
+            <span class="text-xs text-slate-400">vorhanden / fehlend / veraltet</span>
+          </div>
+          <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="col-span-1 md:col-span-1">
+              <canvas id="evidenceDonut" class="max-h-64"></canvas>
+            </div>
+            <div class="col-span-1 md:col-span-2">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                  <p class="text-sm text-slate-500">Top fehlende Nachweise</p>
+                  <ul id="evidenceGapsList" class="mt-2 text-sm list-disc list-inside text-slate-700 space-y-1">
+                    <!-- injected -->
+                  </ul>
+                </div>
+                <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                  <p class="text-sm text-slate-500">Ablaufende Nachweise (30 Tage)</p>
+                  <ul id="evidenceExpiringList" class="mt-2 text-sm list-disc list-inside text-slate-700 space-y-1">
+                    <!-- injected -->
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <!-- Data Tables / Lists -->
+      <section class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Szenarien -->
+        <article class="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-medium text-slate-600">Szenarien</h3>
+            <a href="#" class="text-xs text-indigo-700 hover:underline">Alles anzeigen</a>
+          </div>
+          <ul id="scenarioList" class="mt-3 divide-y divide-slate-100">
+            <!-- injected -->
+          </ul>
+        </article>
+
+        <!-- Aufgaben -->
+        <article class="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-medium text-slate-600">Nächste Aufgaben</h3>
+            <a href="#" class="text-xs text-indigo-700 hover:underline">Zur Aufgabenliste</a>
+          </div>
+          <ul id="taskList" class="mt-3 divide-y divide-slate-100">
+            <!-- injected -->
+          </ul>
+        </article>
+
+        <!-- Controls Tabelle -->
+        <article class="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft lg:col-span-2">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-medium text-slate-600">Controls</h3>
+            <div class="text-xs text-slate-400">Status je Domäne</div>
+          </div>
+
+          <div class="mt-4 overflow-x-auto">
+            <table class="min-w-full text-sm">
+              <thead>
+                <tr class="text-left text-slate-500">
+                  <th class="py-2 pr-4">Domäne</th>
+                  <th class="py-2 pr-4">Implementiert</th>
+                  <th class="py-2 pr-4">Geplant</th>
+                  <th class="py-2 pr-4">In Prüfung</th>
+                  <th class="py-2 pr-4">Verantwortlich</th>
+                </tr>
+              </thead>
+              <tbody id="controlsTable" class="divide-y divide-slate-100">
+                <!-- injected -->
+              </tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <footer class="mt-10 mb-6 text-center text-xs text-slate-400">
+        Demo‑Daten • Tailwind + Chart.js • Persona‑Umschaltung
+      </footer>
+    </main>
+
+    <script>
+      // ------- Demo Data per Persona -------
+      const PERSONAS = {
+        ceo: {
+          kpis: { risk: 60, riskTrend: "↓ 8% QoQ", hint: "Verbesserter Risiko‑Trend durch MFA‑Rollout und EDR‑Abdeckung.", tasksOpen: 48, tasksDonePct: 72, evidenceGaps: 75, evidencePct: 78, compliance: 88, complianceHint: "ISO 27001: Audit bereit in 6 Wochen.", mttr: 4.3, sla: "92% SLA eingehalten" },
+          charts: {
+            labels6: ["Mär", "Apr", "Mai", "Jun", "Jul", "Aug"],
+            risk: [82, 78, 74, 69, 65, 60],
+            controlsAdded: [3, 4, 5, 2, 3, 4],
+            controlsImproved: [6, 5, 7, 8, 9, 6],
+            controlsRemoved: [-1, -2, -1, -3, -2, -2],
+            tasksDone: [40, 46, 55, 63, 72, 81],
+            tasksOpen: [60, 54, 45, 37, 28, 19],
+            evidenceDonut: [320, 75, 28], // vorhanden, fehlend, veraltet
+            radarIst: [80, 76, 68, 70, 72, 65, 58, 62],
+            radarSoll: [90, 85, 80, 85, 88, 80, 75, 80],
+          },
+          lists: {
+            scenarios: [
+              { name: "Ransomware (Finanzbetrug)", level: "Hoch", owner: "CISO", progress: 68 },
+              { name: "Phishing & BEC", level: "Mittel", owner: "IT‑Sec", progress: 74 },
+              { name: "Drittrisiko (Lieferkette)", level: "Mittel", owner: "Risk", progress: 52 },
+            ],
+            tasks: [
+              { title: "EDR auf Server‑Cluster finalisieren", due: "In 3 Tagen", owner: "IT‑Ops", pct: 60 },
+              { title: "Awareness‑Kampagne Q3 starten", due: "Nächste Woche", owner: "HR", pct: 20 },
+              { title: "Backups Offsite testen", due: "Morgen", owner: "SRE", pct: 80 },
+            ],
+            evidenceGaps: [
+              "Netzwerk‑Segmentation Diagramme",
+              "Vulnerability Scan‑Reports (letzte 30 Tage)",
+              "Least‑Privilege‑Nachweise (Admin)"
+            ],
+            evidenceExpiring: [
+              "Pentest‑Bericht (Web) läuft in 18 Tagen ab",
+              "BCP/DR Testprotokoll läuft in 25 Tagen ab",
+              "Lieferanten‑Audit (Cloud) läuft in 29 Tagen ab"
+            ],
+            controls: [
+              { domain: "Identity", impl: 12, plan: 2, review: 1, owner: "IAM" },
+              { domain: "Endpoint", impl: 9, plan: 3, review: 2, owner: "EUEM" },
+              { domain: "Network", impl: 10, plan: 1, review: 3, owner: "NetOps" },
+              { domain: "Application", impl: 8, plan: 4, review: 2, owner: "AppSec" },
+              { domain: "Data", impl: 7, plan: 3, review: 1, owner: "DPO" },
+              { domain: "Cloud", impl: 6, plan: 5, review: 2, owner: "Cloud" },
+              { domain: "Third‑Party", impl: 5, plan: 4, review: 2, owner: "TPRM" },
+              { domain: "Awareness", impl: 6, plan: 2, review: 1, owner: "HR" },
+            ],
+          },
+        },
+        it: {
+          kpis: { risk: 67, riskTrend: "↓ 5% QoQ", hint: "Hauptrisiken: Patch‑Rückstände & Shadow IT.", tasksOpen: 94, tasksDonePct: 46, evidenceGaps: 110, evidencePct: 65, compliance: 81, complianceHint: "SOX ITGC: Stichproben offen.", mttr: 5.8, sla: "84% SLA eingehalten" },
+          charts: {
+            labels6: ["Mär", "Apr", "Mai", "Jun", "Jul", "Aug"],
+            risk: [88, 84, 79, 75, 71, 67],
+            controlsAdded: [5, 6, 4, 3, 4, 6],
+            controlsImproved: [4, 6, 8, 7, 6, 7],
+            controlsRemoved: [-2, -1, -3, -2, -2, -3],
+            tasksDone: [22, 31, 38, 45, 53, 61],
+            tasksOpen: [78, 69, 62, 55, 47, 39],
+            evidenceDonut: [260, 110, 45],
+            radarIst: [72, 64, 58, 62, 60, 55, 48, 54],
+            radarSoll: [90, 85, 80, 85, 88, 80, 75, 80],
+          },
+          lists: {
+            scenarios: [
+              { name: "Ransomware (Operational)", level: "Hoch", owner: "SOC", progress: 54 },
+              { name: "Shadow IT / SaaS", level: "Mittel", owner: "IT‑Ops", progress: 32 },
+              { name: "Privilege Escalation", level: "Hoch", owner: "IAM", progress: 41 },
+            ],
+            tasks: [
+              { title: "Patch‑Backlog Windows Server", due: "In 5 Tagen", owner: "IT‑Ops", pct: 35 },
+              { title: "Zero‑Trust Pilot VLAN 12", due: "Morgen", owner: "NetOps", pct: 55 },
+              { title: "SaaS‑Inventar erfassen", due: "Diese Woche", owner: "IT Governance", pct: 10 },
+            ],
+            evidenceGaps: [
+              "Admin‑Access Reviews Q2",
+              "S3 Bucket‑Encryption Nachweise",
+              "Change‑Management Tickets (kritisch)"
+            ],
+            evidenceExpiring: [
+              "EDR‑Tuning Report läuft in 7 Tagen ab",
+              "WAF‑Regelreview läuft in 15 Tagen ab",
+              "IR‑Runbook Sign‑off läuft in 28 Tagen ab"
+            ],
+            controls: [
+              { domain: "Identity", impl: 10, plan: 4, review: 2, owner: "IAM" },
+              { domain: "Endpoint", impl: 7, plan: 5, review: 3, owner: "EUEM" },
+              { domain: "Network", impl: 8, plan: 4, review: 2, owner: "NetOps" },
+              { domain: "Application", impl: 6, plan: 6, review: 3, owner: "AppSec" },
+              { domain: "Data", impl: 6, plan: 5, review: 2, owner: "DPO" },
+              { domain: "Cloud", impl: 5, plan: 6, review: 3, owner: "Cloud" },
+              { domain: "Third‑Party", impl: 4, plan: 5, review: 3, owner: "TPRM" },
+              { domain: "Awareness", impl: 5, plan: 3, review: 2, owner: "HR" },
+            ],
+          },
+        },
+      };
+
+      // ------- Utility -------
+      const $ = (sel) => document.querySelector(sel);
+      const setText = (id, text) => (document.getElementById(id).textContent = text);
+      const setWidth = (id, pct) => (document.getElementById(id).style.width = `${pct}%`);
+
+      // ------- Charts -------
+      let riskBurndownChart, controlDeltasChart, taskCompletionChart, evidenceDonutChart, areaCoverageChart;
+
+      function buildCharts(ctx, data) {
+        const { labels6, risk, controlsAdded, controlsImproved, controlsRemoved, tasksDone, tasksOpen, evidenceDonut, radarIst, radarSoll } = data;
+
+        // Risk Burndown (line)
+        riskBurndownChart = new Chart(document.getElementById('riskBurndown').getContext('2d'), {
+          type: 'line',
+          data: {
+            labels: labels6,
+            datasets: [{
+              label: 'Risiko‑Score',
+              data: risk,
+              tension: 0.35,
+              fill: true,
+              pointRadius: 3,
+              borderWidth: 2,
+              borderColor: 'rgba(79,70,229,1)',
+              backgroundColor: (ctx) => {
+                const { chart } = ctx; const { ctx: c } = chart; const gradient = c.createLinearGradient(0, 0, 0, chart.height);
+                gradient.addColorStop(0, 'rgba(79,70,229,0.25)');
+                gradient.addColorStop(1, 'rgba(79,70,229,0.02)');
+                return gradient;
+              }
+            }]
+          },
+          options: {
+            responsive: true,
+            scales: {
+              y: { beginAtZero: false, suggestedMin: 40, suggestedMax: 100, grid: { color: 'rgba(148,163,184,.2)' } },
+              x: { grid: { display: false } }
+            },
+            plugins: { legend: { display: false } }
+          }
+        });
+
+        // Control Deltas (stacked bar, with negatives for removed)
+        controlDeltasChart = new Chart(document.getElementById('controlDeltas').getContext('2d'), {
+          type: 'bar',
+          data: {
+            labels: labels6,
+            datasets: [
+              { label: 'Hinzugefügt', data: controlsAdded, borderWidth: 1, backgroundColor: 'rgba(16,185,129,.7)' },
+              { label: 'Verbessert', data: controlsImproved, borderWidth: 1, backgroundColor: 'rgba(59,130,246,.7)' },
+              { label: 'Entfernt', data: controlsRemoved, borderWidth: 1, backgroundColor: 'rgba(239,68,68,.7)' },
+            ]
+          },
+          options: {
+            responsive: true,
+            scales: {
+              x: { stacked: true, grid: { display: false } },
+              y: { stacked: true, suggestedMin: -6, suggestedMax: 12, grid: { color: 'rgba(148,163,184,.2)' } }
+            },
+            plugins: { legend: { position: 'bottom' } }
+          }
+        });
+
+        // Task Completion (stacked bars)
+        taskCompletionChart = new Chart(document.getElementById('taskCompletion').getContext('2d'), {
+          type: 'bar',
+          data: {
+            labels: labels6,
+            datasets: [
+              { label: 'Abgeschlossen', data: tasksDone, backgroundColor: 'rgba(16,185,129,.8)' },
+              { label: 'Offen', data: tasksOpen, backgroundColor: 'rgba(148,163,184,.7)' },
+            ]
+          },
+          options: {
+            responsive: true,
+            scales: {
+              x: { stacked: true, grid: { display: false } },
+              y: { stacked: true, beginAtZero: true, grid: { color: 'rgba(148,163,184,.2)' } },
+            },
+            plugins: { legend: { position: 'bottom' } }
+          }
+        });
+
+        // Evidence Donut
+        evidenceDonutChart = new Chart(document.getElementById('evidenceDonut').getContext('2d'), {
+          type: 'doughnut',
+          data: {
+            labels: ['Vorhanden', 'Fehlend', 'Veraltet'],
+            datasets: [{
+              data: evidenceDonut,
+              backgroundColor: ['rgba(99,102,241,.9)','rgba(234,179,8,.9)','rgba(239,68,68,.9)'],
+              borderWidth: 0,
+              hoverOffset: 6,
+            }]
+          },
+          options: { responsive: true, plugins: { legend: { position: 'bottom' } }, cutout: '60%' }
+        });
+
+        // Radar (Soll vs Ist)
+        areaCoverageChart = new Chart(document.getElementById('areaCoverage').getContext('2d'), {
+          type: 'radar',
+          data: {
+            labels: ['Identity','Endpoint','Network','Application','Data','Cloud','Third‑Party','Awareness'],
+            datasets: [
+              { label: 'Ist', data: radarIst, borderColor: 'rgba(79,70,229,1)', backgroundColor: 'rgba(79,70,229,.15)', pointBackgroundColor: 'rgba(79,70,229,1)' },
+              { label: 'Soll', data: radarSoll, borderColor: 'rgba(148,163,184,1)', backgroundColor: 'rgba(148,163,184,.15)', pointBackgroundColor: 'rgba(148,163,184,1)' },
+            ]
+          },
+          options: {
+            responsive: true,
+            scales: { r: { suggestedMin: 0, suggestedMax: 100, grid: { color: 'rgba(148,163,184,.3)' } } },
+            plugins: { legend: { position: 'bottom' } }
+          }
+        });
+      }
+
+      function updateCharts(data) {
+        const { labels6, risk, controlsAdded, controlsImproved, controlsRemoved, tasksDone, tasksOpen, evidenceDonut, radarIst, radarSoll } = data;
+
+        // Risk
+        riskBurndownChart.data.labels = labels6;
+        riskBurndownChart.data.datasets[0].data = risk;
+        riskBurndownChart.update();
+
+        // Controls
+        controlDeltasChart.data.labels = labels6;
+        controlDeltasChart.data.datasets[0].data = controlsAdded;
+        controlDeltasChart.data.datasets[1].data = controlsImproved;
+        controlDeltasChart.data.datasets[2].data = controlsRemoved;
+        controlDeltasChart.update();
+
+        // Tasks
+        taskCompletionChart.data.labels = labels6;
+        taskCompletionChart.data.datasets[0].data = tasksDone;
+        taskCompletionChart.data.datasets[1].data = tasksOpen;
+        taskCompletionChart.update();
+
+        // Evidence
+        evidenceDonutChart.data.datasets[0].data = evidenceDonut;
+        evidenceDonutChart.update();
+
+        // Radar
+        areaCoverageChart.data.datasets[0].data = radarIst;
+        areaCoverageChart.data.datasets[1].data = radarSoll;
+        areaCoverageChart.update();
+      }
+
+      function renderLists(lists) {
+        // Szenarien
+        const scenarioUl = document.getElementById('scenarioList');
+        scenarioUl.innerHTML = '';
+        lists.scenarios.forEach(s => {
+          const badgeColor = s.level === 'Hoch' ? 'bg-red-50 text-red-700' : (s.level === 'Mittel' ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700');
+          scenarioUl.insertAdjacentHTML('beforeend', `
+            <li class="py-3 flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-slate-100 grid place-content-center text-slate-500">🛡️</div>
+              <div class="flex-1">
+                <div class="flex items-center gap-2">
+                  <p class="font-medium">${s.name}</p>
+                  <span class="text-xs px-2 py-0.5 rounded-full ${badgeColor}">${s.level}</span>
+                </div>
+                <p class="text-xs text-slate-500">Owner: ${s.owner}</p>
+                <div class="mt-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div class="h-1.5 bg-indigo-500" style="width:${s.progress}%"></div>
+                </div>
+              </div>
+            </li>`);
+        });
+
+        // Aufgaben
+        const taskUl = document.getElementById('taskList');
+        taskUl.innerHTML = '';
+        lists.tasks.forEach(t => {
+          taskUl.insertAdjacentHTML('beforeend', `
+            <li class="py-3 flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-slate-100 grid place-content-center text-slate-500">✅</div>
+              <div class="flex-1">
+                <div class="flex items-center justify-between">
+                  <p class="font-medium">${t.title}</p>
+                  <span class="text-xs text-slate-500">${t.due}</span>
+                </div>
+                <div class="mt-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div class="h-1.5 bg-emerald-500" style="width:${t.pct}%"></div>
+                </div>
+                <p class="text-xs text-slate-500 mt-1">Owner: ${t.owner}</p>
+              </div>
+            </li>`);
+        });
+
+        // Evidence lists
+        const gapsUl = document.getElementById('evidenceGapsList');
+        gapsUl.innerHTML = '';
+        lists.evidenceGaps.forEach(item => gapsUl.insertAdjacentHTML('beforeend', `<li>${item}</li>`));
+
+        const expUl = document.getElementById('evidenceExpiringList');
+        expUl.innerHTML = '';
+        lists.evidenceExpiring.forEach(item => expUl.insertAdjacentHTML('beforeend', `<li>${item}</li>`));
+
+        // Controls table
+        const tbody = document.getElementById('controlsTable');
+        tbody.innerHTML = '';
+        lists.controls.forEach(c => {
+          tbody.insertAdjacentHTML('beforeend', `
+            <tr>
+              <td class="py-2 pr-4 font-medium">${c.domain}</td>
+              <td class="py-2 pr-4">${c.impl}</td>
+              <td class="py-2 pr-4">${c.plan}</td>
+              <td class="py-2 pr-4">${c.review}</td>
+              <td class="py-2 pr-4 text-slate-500">${c.owner}</td>
+            </tr>`)
+        });
+      }
+
+      function applyPersona(key = 'ceo') {
+        const persona = PERSONAS[key];
+        // KPIs
+        setText('kpiRisk', persona.kpis.risk);
+        setText('riskTrend', persona.kpis.riskTrend);
+        setText('riskHint', persona.kpis.hint);
+
+        setText('kpiTasks', persona.kpis.tasksOpen);
+        setWidth('tasksProgress', persona.kpis.tasksDonePct);
+        setText('tasksProgressText', `${persona.kpis.tasksDonePct}% erledigt`);
+        setText('tasksSLA', persona.kpis.sla);
+
+        setText('kpiEvidenceGaps', persona.kpis.evidenceGaps);
+        setWidth('evidenceProgress', persona.kpis.evidencePct);
+        setText('evidenceProgressText', `${persona.kpis.evidencePct}% Nachweisabdeckung`);
+
+        setText('kpiCompliance', `${persona.kpis.compliance}%`);
+        setText('complianceHint', persona.kpis.complianceHint);
+        setText('kpiMttr', persona.kpis.mttr);
+
+        // Lists
+        renderLists(persona.lists);
+
+        // Charts
+        updateCharts(persona.charts);
+
+        // Toggle button styles
+        document.getElementById('btnCEO').classList.toggle('bg-white', key === 'ceo');
+        document.getElementById('btnCEO').classList.toggle('shadow-soft', key === 'ceo');
+        document.getElementById('btnIT').classList.toggle('bg-white', key === 'it');
+        document.getElementById('btnIT').classList.toggle('shadow-soft', key === 'it');
+
+        document.getElementById('btnCEO').setAttribute('aria-selected', key === 'ceo');
+        document.getElementById('btnIT').setAttribute('aria-selected', key === 'it');
+      }
+
+      // Init
+      window.addEventListener('DOMContentLoaded', () => {
+        // Build charts with CEO data first
+        buildCharts(null, PERSONAS.ceo.charts);
+        // Fill lists & KPIs
+        applyPersona('ceo');
+
+        // Persona buttons
+        document.getElementById('btnCEO').addEventListener('click', () => applyPersona('ceo'));
+        document.getElementById('btnIT').addEventListener('click', () => applyPersona('it'));
+      });
+    </script>
+  </body>
+</html>

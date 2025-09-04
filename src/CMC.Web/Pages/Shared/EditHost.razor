@@ -1,27 +1,48 @@
-@* src/CMC.Web/Shared/EditHost.razor *@
+@* Shared/EFEditHost.razor *@
+@using System.Linq
 @using CMC.Web.Services
-@inject EditDrawerService DrawerService
+@inherits Microsoft.AspNetCore.Components.ComponentBase
+@inject EFEditService EFEdit
+@implements IDisposable
 
-<EditDrawer @ref="_drawer" />
+@if (_current is not null)
+{
+    <EFEdit Request="@_current" />
+}
 
 @code {
-	private EditDrawer? _drawer;
+    private EFEditRequest? _current;
 
-	protected override void OnInitialized()
-	{
-		DrawerService.OnOpen += HandleOpen;
-		DrawerService.OnClose += HandleClose;
-	}
+    protected override void OnInitialized()
+    {
+        // Auf alles hören – und IMMER den Stack spiegeln
+        EFEdit.OpenRequested  += OnOpenRequested;
+        EFEdit.CloseRequested += OnCloseRequested;
+        EFEdit.StackChanged   += OnStackChanged;
 
-	private void HandleOpen(CMC.Web.Services.EditDrawerRequest req)
-		=> InvokeAsync(() => _drawer?.Open(req));
+        RefreshFromService();
+    }
 
-	private void HandleClose()
-		=> InvokeAsync(() => _drawer?.Close());
+    private void RefreshFromService()
+    {
+        // oberstes Frame anzeigen (falls vorhanden)
+        _current = EFEdit.Stack.LastOrDefault();
+        InvokeAsync(StateHasChanged);
+    }
 
-	public void Dispose()
-	{
-		DrawerService.OnOpen -= HandleOpen;
-		DrawerService.OnClose -= HandleClose;
-	}
+    private void OnOpenRequested(EFEditRequest _)
+        => RefreshFromService();
+
+    private void OnCloseRequested()
+        => RefreshFromService();
+
+    private void OnStackChanged()
+        => RefreshFromService();
+
+    public void Dispose()
+    {
+        EFEdit.OpenRequested  -= OnOpenRequested;
+        EFEdit.CloseRequested -= OnCloseRequested;
+        EFEdit.StackChanged   -= OnStackChanged;
+    }
 }

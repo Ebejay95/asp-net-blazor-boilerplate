@@ -3,6 +3,11 @@
 		@apply inline-flex items-center justify-center text-base font-semibold cursor-pointer transition-all duration-[0.2s] ease-[ease-in-out] no-underline text-[color:var(--audicius-text)] shadow-[var(--audicius-shadow)] px-[1.2rem] py-[0.6rem] rounded-lg border-[none] active:shadow-none active:scale-[0.96] focus:outline-offset-0 disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-none;
 	}
 
+	.btn svg {
+		@apply w-4 h-4;
+		stroke: currentColor;
+	}
+
 	.btn.sm {
 		@apply text-base px-[0.6rem] py-[0.3rem];
 	}
@@ -44,13 +49,12 @@
 
 	/* FLAT (clean, bordered) */
 	.btn.flat {
-		@apply text-[color:var(--audicius-blue)] shadow-none hover:text-white;
-		@apply border-[solid] border-[1px];
+		box-shadow: none;
 		background: transparent;
 	}
 
 	.btn.flat:hover {
-		background: var(--audicius-blue-light);
+		background: bg-gray-50 text-gray-700;
 	}
 
 	/* DANGER */

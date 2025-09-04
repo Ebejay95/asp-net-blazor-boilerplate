@@ -9,18 +9,50 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace CMC.Infrastructure;
 
-public static class DependencyInjection {
-  public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration) {
-    // Database
-    services.AddDbContext<AppDbContext>(options => options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
+public static class DependencyInjection
+{
+    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
+    {
+        // Revisions/Soft-Delete Support
+        services.AddRevisionsSupport();
 
-    // Repositories
-    services.AddScoped<IUserRepository, UserRepository>();
+        services.AddDbContext<AppDbContext>((sp, options) =>
+        {
+            options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"));
+            options.UseRevisionsInterceptor(sp);
+        });
 
-    // Services
-    services.AddScoped<IEmailService, EmailService>();
-    services.AddScoped<UserService>();
+        // Repositories – existing
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<ICustomerRepository, CustomerRepository>();
+        services.AddScoped<IFrameworkRepository, FrameworkRepository>();
 
-    return services;
-  }
+        // Repositories – new
+        services.AddScoped<IControlRepository, ControlRepository>();
+        services.AddScoped<IScenarioRepository, ScenarioRepository>();
+        services.AddScoped<IEvidenceRepository, EvidenceRepository>();
+        services.AddScoped<IToDoRepository, ToDoRepository>();
+        services.AddScoped<IReportRepository, ReportRepository>();
+        services.AddScoped<IReportDefinitionRepository, ReportDefinitionRepository>();
+        services.AddScoped<ILibraryControlRepository, LibraryControlRepository>();
+        services.AddScoped<ILibraryScenarioRepository, LibraryScenarioRepository>();
+        services.AddScoped<IIndustryRepository, IndustryRepository>();
+        services.AddScoped<ITagRepository, TagRepository>();
+        services.AddScoped<IRiskAcceptanceRepository, RiskAcceptanceRepository>();
+
+        // Infrastructure Services (Technical Services only)
+        services.AddScoped<IEmailService, EmailService>();
+        services.AddScoped<RevisionService>();
+        services.AddScoped<RecycleBinService>();
+        services.AddScoped<LibraryProvisioningService>();
+
+        // Application Services (Domain/Business Logic)
+        services.AddScoped<UserService>();
+        services.AddScoped<CustomerService>();
+        services.AddScoped<FrameworkService>();
+        services.AddScoped<IndustryService>();
+        services.AddScoped<TagService>();
+
+        return services;
+    }
 }

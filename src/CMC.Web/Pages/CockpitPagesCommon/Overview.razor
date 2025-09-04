@@ -1,0 +1,374 @@
+@page "/overview"
+@page "/cockpit/overview"
+@attribute [Authorize]
+
+@using Microsoft.AspNetCore.Components.Forms
+@using CMC.Application.Services
+@using CMC.Contracts.Customers
+@using CMC.Contracts.Users
+@using CMC.Contracts.Controls
+@using CMC.Web.Services
+
+@inherits RoleBasedComponentBase
+
+@inject UserService Users
+@inject CustomerService Customers
+@inject IndustryService IndustrySvc
+@inject LibraryScenarioService LibScenarios
+@inject LibraryControlService LibControls
+@inject ScenarioService Scenarios
+@inject ControlService Controls
+@inject CMC.Infrastructure.Services.LibraryProvisioningService Provision
+@inject NavigationManager Nav
+
+<section class="slim">
+    @if (IsSuperAdmin)
+    {
+        <div class="card">
+            <h2>Übersicht</h2>
+            <p>Willkommen! Hier siehst du dein SuperAdmin-Dashboard.</p>
+        </div>
+    }
+    else if (IsUser)
+    {
+        @if (_loading)
+        {
+            <div class="card"><p>Lade…</p></div>
+        }
+        else if (_myCompany is null)
+        {
+            <div class="card">
+                <h2>Erstes Setup</h2>
+                <p>Du bist aktuell keinem Unternehmen zugeordnet. Lege jetzt dein Unternehmen an.</p>
+
+                <EditForm Model="@_form" OnValidSubmit="CreateCompanyAsync">
+                    <div class="form-row">
+                        <label class="form-label">Firmenname</label>
+                        <InputText class="form-control" @bind-Value="_form.Name" />
+                    </div>
+
+                    <div class="form-row">
+                        <label class="form-label">Mitarbeiter</label>
+                        <InputNumber class="form-control" TValue="int" @bind-Value="_form.EmployeeCount" />
+                    </div>
+
+                    <div class="form-row">
+                        <label class="form-label">Umsatz/Jahr (EUR)</label>
+                        <InputNumber class="form-control" TValue="decimal" @bind-Value="_form.RevenuePerYear" />
+                    </div>
+
+                    <div class="form-row">
+                        <label class="form-label">Branchen</label>
+                        <div class="checkbox-list">
+                            @foreach (var opt in _industryOptions)
+                            {
+                                <label class="chk-inline">
+                                    <input type="checkbox"
+                                           checked="@_selectedIndustryIds.Contains(opt.Id)"
+                                           @onchange="@(e => OnIndustryChanged(opt.Id, e))" />
+                                    <span class="switch-track"></span>
+                                    @opt.Name
+                                </label>
+                            }
+                        </div>
+                    </div>
+
+                    <button class="btn primary" type="submit">Anlegen</button>
+                </EditForm>
+            </div>
+        }
+        else if (!_hasScenarios)
+        {
+            <div class="card">
+                <h2>Library-Szenarien auswählen</h2>
+                <p>Wähle die für dein Unternehmen relevanten Szenarien aus. Sie werden in echte Kundenszenarien konvertiert und passende Controls erzeugt.</p>
+
+                <div>
+                    <div class="checkbox-list">
+                        @if (_scenarioOptions.Count == 0)
+                        {
+                            <p class="text-muted">Für deine Branchen sind derzeit keine Library-Szenarien hinterlegt.</p>
+                        }
+                        else
+                        {
+                            @foreach (var s in _scenarioOptions)
+                            {
+                                <label class="chk-inline">
+                                    <input type="checkbox"
+                                           checked="@_selectedScenarioIds.Contains(s.Id)"
+                                           @onchange="@(e => OnScenarioChanged(s.Id, e))" />
+                                    <span class="switch-track"></span>
+                                    @s.Name
+                                </label>
+                            }
+                        }
+                    </div>
+
+                    <button class="btn primary mt-3"
+                            type="button"
+                            disabled="@(!_selectedScenarioIds.Any())"
+                            @onclick="ProvisionSelectedAsync">
+                        Bereitstellen
+                    </button>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="card">
+                <h2>@_myCompany.Name</h2>
+                <p>Willkommen, @GetFullName()! Du kannst deine Firmeneinstellungen unter <b>Settings</b> bearbeiten.</p>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <span class="stat-number">@_scenarioCount</span>
+                        <span class="stat-label">Szenarien</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">@_controlCount</span>
+                        <span class="stat-label">Kontrollen</span>
+                    </div>
+                </div>
+
+                <h3>Deine Kontrollen</h3>
+                @if (_controls.Count == 0)
+                {
+                    <p class="text-muted">Keine Kontrollen vorhanden.</p>
+                }
+                else
+                {
+                    <div class="controls-grid">
+                        @foreach (var c in _controls)
+                        {
+                            <div class="control-card">
+                                <div class="control-status status-@c.Status.ToLower()">@c.Status</div>
+                                <div class="control-name">@c.Name</div>
+                                <div class="control-metrics">
+                                    <span class="metric">
+                                        <small>Coverage:</small> @c.Coverage.ToString("P1")
+                                    </span>
+                                    <span class="metric">
+                                        <small>Maturity:</small> @c.Maturity
+                                    </span>
+                                    @if (c.DueDate.HasValue)
+                                    {
+                                        <span class="metric due-date">
+                                            <small>Due:</small> @c.DueDate.Value.ToString("dd.MM.yyyy")
+                                        </span>
+                                    }
+                                </div>
+                                @if (c.Implemented)
+                                {
+                                    <div class="implemented-badge">Implementiert</div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    }
+</section>
+
+<style>
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 1rem;
+    margin: 1rem 0;
+}
+
+.stat-item {
+    text-align: center;
+    padding: 1rem;
+    background: var(--surface-light);
+    border-radius: 8px;
+}
+
+.stat-number {
+    display: block;
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--primary);
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.controls-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.control-card {
+    padding: 1rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: white;
+}
+
+.control-status {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+}
+
+.status-proposed { background: #fef3cd; color: #856404; }
+.status-approved { background: #d4edda; color: #155724; }
+.status-implemented { background: #cce7ff; color: #004085; }
+.status-rejected { background: #f8d7da; color: #721c24; }
+
+.control-name {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.control-metrics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.metric small {
+    color: var(--text-muted);
+}
+
+.implemented-badge {
+    display: inline-block;
+    background: var(--success);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    margin-top: 0.5rem;
+}
+</style>
+
+@code {
+    private bool _loading = true;
+    private CustomerDto? _myCompany;
+    private readonly List<ControlDto> _controls = new();
+
+    // Company-Setup
+    private sealed class UpdateCompanyForm
+    {
+        public string Name { get; set; } = "";
+        public int EmployeeCount { get; set; }
+        public decimal RevenuePerYear { get; set; }
+    }
+    private readonly UpdateCompanyForm _form = new();
+    private readonly List<(Guid Id, string Name)> _industryOptions = new();
+    private readonly HashSet<Guid> _selectedIndustryIds = new();
+
+    // Stage 3 (Library → Entity)
+    private readonly List<(Guid Id, string Name)> _scenarioOptions = new();
+    private readonly HashSet<Guid> _selectedScenarioIds = new();
+
+    // Overview numbers
+    private bool _hasScenarios;
+    private int _scenarioCount;
+    private int _controlCount;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+
+        try
+        {
+            if (!IsUser) { _loading = false; return; }
+
+            // 1) Meine Firma laden
+            var me = await Users.GetByIdAsync(Guid.Parse(GetUserId()));
+            if (me?.CustomerId is Guid cid)
+            {
+                _myCompany = await Customers.GetByIdAsync(cid);
+
+                if (_myCompany != null)
+                {
+                    // 2) Zahlen zur Übersicht - verwende Repository Count-Methoden
+                    _scenarioCount = await Scenarios.CountByCustomerAsync(_myCompany.Id);
+                    _controlCount = await Controls.CountByCustomerAsync(_myCompany.Id);
+                    _hasScenarios = _scenarioCount > 0;
+
+                    // 3) Konkrete Controls laden (vollständige DTOs für Anzeige)
+                    if (_hasScenarios)
+                    {
+                        var controlDtos = await Controls.GetByCustomerAsync(_myCompany.Id);
+                        _controls.Clear();
+                        _controls.AddRange(controlDtos.OrderBy(c => c.Status).ThenBy(c => c.CreatedAt));
+                    }
+
+                    // 4) Falls keine Szenarien vorhanden: Library-Szenarien laden
+                    if (!_hasScenarios)
+                    {
+                        var libs = await LibScenarios.GetByIndustriesAsync(_myCompany.IndustryIds);
+                        _scenarioOptions.Clear();
+                        _scenarioOptions.AddRange(libs.OrderBy(x => x.Name).Select(x => (x.Id, x.Name)));
+                    }
+                }
+            }
+
+            // Branchenliste (für Setup)
+            var allInd = await IndustrySvc.GetAllAsync();
+            _industryOptions.Clear();
+            _industryOptions.AddRange(allInd.OrderBy(x => x.Name).Select(x => (x.Id, x.Name)));
+        }
+        finally { _loading = false; }
+    }
+
+    private Task OnIndustryChanged(Guid id, ChangeEventArgs e)
+    {
+        var on = e?.Value is bool b ? b : string.Equals(e?.Value?.ToString(), "on", StringComparison.OrdinalIgnoreCase);
+        if (on) _selectedIndustryIds.Add(id); else _selectedIndustryIds.Remove(id);
+        return Task.CompletedTask;
+    }
+
+    private async Task CreateCompanyAsync()
+    {
+        var created = await Customers.CreateAsync(new CreateCustomerRequest(
+            Name: _form.Name,
+            IndustryIds: _selectedIndustryIds.ToArray(),
+            EmployeeCount: _form.EmployeeCount,
+            RevenuePerYear: _form.RevenuePerYear
+        ));
+
+        await Users.AssignToCustomerAsync(new AssignUserToCustomerRequest(
+            UserId: Guid.Parse(GetUserId()),
+            CustomerId: created.Id
+        ));
+
+        Nav.NavigateTo("/cockpit/overview", forceLoad: true);
+    }
+
+    private Task OnScenarioChanged(Guid id, ChangeEventArgs e)
+    {
+        var on = e?.Value is bool b ? b : string.Equals(e?.Value?.ToString(), "on", StringComparison.OrdinalIgnoreCase);
+        if (on) _selectedScenarioIds.Add(id); else _selectedScenarioIds.Remove(id);
+        return Task.CompletedTask;
+    }
+
+    private async Task ProvisionSelectedAsync()
+    {
+        if (_myCompany is null || _selectedScenarioIds.Count == 0) return;
+
+        var libControlIds = await LibControls.GetIdsByLibraryScenarioIdsAsync(_selectedScenarioIds);
+
+        await Provision.ProvisionAsync(
+            customerId: _myCompany.Id,
+            libraryScenarioIds: _selectedScenarioIds,
+            libraryControlIds: libControlIds,
+            attachStrategy: CMC.Infrastructure.Services.ControlAttachStrategy.ClonePerScenario,
+            createToDos: true
+        );
+
+        Nav.NavigateTo("/cockpit/overview", forceLoad: true);
+    }
+}

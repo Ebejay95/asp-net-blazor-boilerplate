@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aufgabenmanagement + Roadmap</title>
+  <!-- TailwindCSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ["Inter","ui-sans-serif","system-ui","-apple-system"] },
+          boxShadow: { soft: "0 10px 30px -12px rgba(0,0,0,0.15)" },
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans">
+  <div class="max-w-7xl mx-auto p-6">
+    <!-- Header -->
+    <header class="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+      <div>
+        <h1 class="text-2xl md:text-3xl font-semibold tracking-tight">Aufgabenmanagement</h1>
+        <p class="text-slate-500">Organisiere deine offenen Aufgaben</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="newTaskBtn" class="group inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm bg-emerald-600 text-white hover:bg-emerald-700 shadow-soft ring-1 ring-emerald-500/20">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform group-hover:scale-110" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          Neue Aufgabe
+        </button>
+        <button id="generateRoadmapBtn" class="group inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm bg-indigo-600 text-white hover:bg-indigo-700 shadow-soft ring-1 ring-indigo-500/20">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform group-hover:rotate-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M12 3v18"/></svg>
+          Roadmap generieren
+        </button>
+        <button id="seedBtn" class="hidden md:inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm bg-slate-100 text-slate-800 hover:bg-slate-200 ring-1 ring-slate-200">Beispieldaten</button>
+      </div>
+    </header>
+
+    <!-- Aufgabenliste -->
+    <section class="mt-6 bg-white rounded-2xl p-5 shadow-soft">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-lg font-semibold">Aufgaben</h2>
+        <div class="flex gap-2">
+          <input id="search" type="search" placeholder="Suche…" class="rounded-xl border-slate-300 focus:border-indigo-500 focus:ring-indigo-500" />
+          <select id="filterAssignee" class="rounded-xl border-slate-300 focus:border-indigo-500 focus:ring-indigo-500"></select>
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead>
+            <tr class="text-left text-slate-500">
+              <th class="py-2 pr-4">Titel</th>
+              <th class="py-2 pr-4">Zuständig</th>
+              <th class="py-2 pr-4">Priorität</th>
+              <th class="py-2 pr-4">Start</th>
+              <th class="py-2 pr-4">Fällig</th>
+              <th class="py-2 pr-4 text-right">Aktionen</th>
+            </tr>
+          </thead>
+          <tbody id="taskTbody" class="align-top"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Roadmap -->
+    <section class="mt-6 bg-white rounded-2xl p-5 shadow-soft">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-lg font-semibold">Roadmap</h2>
+        <div class="text-xs text-slate-500" id="roadmapRange"></div>
+      </div>
+      <div class="border border-slate-200 rounded-xl overflow-hidden">
+        <div class="grid grid-cols-12 text-xs bg-slate-50 border-b border-slate-200" id="roadmapHeader"></div>
+        <div id="roadmapBody" class="divide-y divide-slate-100"></div>
+      </div>
+      <p class="text-slate-500 text-xs mt-2">Tipp: Nutze „Roadmap generieren“, um Balken neu zu berechnen.</p>
+    </section>
+  </div>
+
+  <!-- Sidebar (Drawer) -->
+  <div id="drawerOverlay" class="fixed inset-0 bg-slate-900/40 opacity-0 pointer-events-none transition-opacity"></div>
+  <aside id="drawer" class="fixed top-0 right-0 h-full w-full sm:w-[420px] bg-white shadow-2xl translate-x-full transition-transform flex flex-col">
+    <div class="p-4 border-b border-slate-200 flex items-center justify-between">
+      <h3 id="drawerTitle" class="text-lg font-semibold">Aufgabe</h3>
+      <button id="drawerClose" class="p-2 rounded-lg hover:bg-slate-100" aria-label="Schließen">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="p-4 overflow-y-auto grow">
+      <form id="drawerForm" class="space-y-4">
+        <input type="hidden" id="drawerIndex" />
+        <div>
+          <label class="block text-sm font-medium text-slate-600 mb-1">Titel</label>
+          <input id="d_title" required class="w-full rounded-xl border-slate-300 focus:border-indigo-500 focus:ring-indigo-500" placeholder="Titel" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-slate-600 mb-1">Zuständig</label>
+            <select id="d_assignee" class="w-full rounded-xl border-slate-300 focus:border-indigo-500 focus:ring-indigo-500"></select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-600 mb-1">Priorität</label>
+            <select id="d_priority" class="w-full rounded-xl border-slate-300 focus:border-indigo-500 focus:ring-indigo-500">
+              <option value="low">Niedrig</option>
+              <option value="medium" selected>Mittel</option>
+              <option value="high">Hoch</option>
+              <option value="critical">Kritisch</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-slate-600 mb-1">Start</label>
+            <input id="d_start" type="date" required class="w-full rounded-xl border-slate-300 focus:border-indigo-500 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-600 mb-1">Fällig</label>
+            <input id="d_due" type="date" required class="w-full rounded-xl border-slate-300 focus:border-indigo-500 focus:ring-indigo-500" />
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-600 mb-1">Beschreibung</label>
+          <textarea id="d_desc" rows="4" class="w-full rounded-xl border-slate-300 focus:border-indigo-500 focus:ring-indigo-500" placeholder="Details, Akzeptanzkriterien, Links…"></textarea>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-600 mb-1">Anhänge</label>
+          <div class="space-y-2" id="d_attachments"></div>
+          <div class="flex gap-2">
+            <input id="d_attach_input" placeholder="URL oder Dateiname" class="flex-1 rounded-xl border-slate-300 focus:border-indigo-500 focus:ring-indigo-500" />
+            <button id="d_attach_add" type="button" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200">Hinzufügen</button>
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-600 mb-1">Kommentare</label>
+          <div id="d_comments" class="space-y-3"></div>
+          <div class="flex gap-2">
+            <input id="d_comment_input" placeholder="Kommentar hinzufügen" class="flex-1 rounded-xl border-slate-300 focus:border-indigo-500 focus:ring-indigo-500" />
+            <button id="d_comment_add" type="button" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200">Posten</button>
+          </div>
+        </div>
+        <div class="flex items-center justify-between pt-2">
+          <button id="d_delete" type="button" class="px-4 py-2 rounded-xl bg-rose-100 text-rose-800 hover:bg-rose-200">Löschen</button>
+          <div class="flex gap-2">
+            <button id="d_cancel" type="button" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200">Abbrechen</button>
+            <button class="px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700">Speichern</button>
+          </div>
+        </div>
+        <p id="d_msg" class="text-sm text-rose-600 hidden"></p>
+      </form>
+    </div>
+  </aside>
+
+  <script>
+    // ------- Datenmodell -------
+    const people = [
+      { id: 'p1', name: 'Alex Müller' },
+      { id: 'p2', name: 'Bianca Roth' },
+      { id: 'p3', name: 'Chen Li' },
+      { id: 'p4', name: 'Diego Alonso' },
+    ];
+
+    /** Task shape: { title, assignee, priority, start, due, desc, attachments: string[], comments: {text, ts}[] } */
+    const tasks = [];
+
+    // ------- Helpers -------
+    const $ = (sel) => document.querySelector(sel);
+    const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+
+    const MS = 86400000; // 24h
+    const parseISO = (s)=>{ const [y,m,d]=s.split('-').map(Number); return new Date(Date.UTC(y,m-1,d)); };
+    const fmtDateISO = (d)=>{ // expect Date in UTC-midnight or local, output YYYY-MM-DD
+      const yy=d.getUTCFullYear(); const mm=String(d.getUTCMonth()+1).padStart(2,'0'); const dd=String(d.getUTCDate()).padStart(2,'0');
+      return `${yy}-${mm}-${dd}`;
+    }
+    const addDays = (d,n)=> new Date(d.getTime() + n*MS);
+    const daysInclusive = (a,b)=> Math.floor((b - a)/MS) + 1; // a..b inclusive
+    const formatDE = (d)=> d.toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit' });
+
+    function avatarFor(name){
+      const initials = name.split(' ').map(n=>n[0]).slice(0,2).join('').toUpperCase();
+      const colors = ['bg-indigo-600','bg-emerald-600','bg-rose-600','bg-amber-600','bg-sky-600'];
+      const color = colors[name.length % colors.length];
+      return `<span class="inline-flex items-center justify-center w-7 h-7 text-white text-xs rounded-full ${color}">${initials}</span>`;
+    }
+    function priorityBadge(p){
+      const map={ low:['Niedrig','bg-slate-200 text-slate-800'], medium:['Mittel','bg-sky-100 text-sky-800'], high:['Hoch','bg-amber-100 text-amber-800'], critical:['Kritisch','bg-rose-100 text-rose-800']};
+      const [label, cls] = map[p] || map.medium; return `<span class="px-2 py-0.5 text-xs rounded-lg ${cls}">${label}</span>`;
+    }
+    const personNameById=(id)=> people.find(p=>p.id===id)?.name||'Unbekannt';
+
+    // ------- Sidebar (Drawer) -------
+    function openDrawer(title='Aufgabe', idx=null){
+      $('#drawerTitle').textContent = title;
+      $('#drawerIndex').value = idx!==null? String(idx): '';
+      $('#drawerOverlay').classList.remove('pointer-events-none');
+      $('#drawerOverlay').classList.add('opacity-100');
+      $('#drawer').classList.remove('translate-x-full');
+    }
+    function closeDrawer(){
+      $('#drawerOverlay').classList.add('pointer-events-none');
+      $('#drawerOverlay').classList.remove('opacity-100');
+      $('#drawer').classList.add('translate-x-full');
+    }
+
+    function populatePeopleSelects(){
+      const opts = people.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+      $('#filterAssignee').innerHTML = `<option value="">Alle</option>` + opts;
+      $('#d_assignee').innerHTML = opts;
+    }
+
+    // ------- Tabelle mit Inline-Editing -------
+    function renderTasks(){
+      const q = $('#search').value.toLowerCase();
+      const assigneeFilter = $('#filterAssignee').value;
+      const rows = tasks
+        .map((t, idx)=> ({...t, idx}))
+        .filter(t => (!assigneeFilter || t.assignee===assigneeFilter))
+        .filter(t => t.title.toLowerCase().includes(q))
+        .map(({idx, title, assignee, priority, start, due})=>{
+          const personOpts = people.map(p=>`<option value="${p.id}" ${p.id===assignee?'selected':''}>${p.name}</option>`).join('');
+          return `<tr class="border-t border-slate-100" data-index="${idx}">
+            <td class="py-2 pr-4 align-middle">
+              <input class="w-full rounded-lg border-slate-200 focus:border-indigo-500 focus:ring-indigo-500 px-2 py-1" data-field="title" value="${title.replace(/\"/g,'&quot;')}" />
+            </td>
+            <td class="py-2 pr-4 align-middle">
+              <select class="w-full rounded-lg border-slate-200 focus:border-indigo-500 focus:ring-indigo-500 px-2 py-1" data-field="assignee">${personOpts}</select>
+            </td>
+            <td class="py-2 pr-4 align-middle">
+              <select class="w-full rounded-lg border-slate-200 focus:border-indigo-500 focus:ring-indigo-500 px-2 py-1" data-field="priority">
+                <option value="low" ${priority==='low'?'selected':''}>Niedrig</option>
+                <option value="medium" ${priority==='medium'?'selected':''}>Mittel</option>
+                <option value="high" ${priority==='high'?'selected':''}>Hoch</option>
+                <option value="critical" ${priority==='critical'?'selected':''}>Kritisch</option>
+              </select>
+            </td>
+            <td class="py-2 pr-4 align-middle"><input type="date" class="rounded-lg border-slate-200 focus:border-indigo-500 focus:ring-indigo-500 px-2 py-1" data-field="start" value="${start}" /></td>
+            <td class="py-2 pr-4 align-middle"><input type="date" class="rounded-lg border-slate-200 focus:border-indigo-500 focus:ring-indigo-500 px-2 py-1" data-field="due" value="${due}" /></td>
+            <td class="py-2 pr-0 align-middle">
+              <div class="flex justify-end gap-2">
+                <button class="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs" data-action="open">Bearbeiten</button>
+                <button class="px-2 py-1 rounded-lg bg-rose-100 hover:bg-rose-200 text-rose-800 text-xs" data-action="delete">Löschen</button>
+              </div>
+            </td>
+          </tr>`;
+        }).join('');
+      $('#taskTbody').innerHTML = rows || `<tr><td colspan="6" class="py-6 text-center text-slate-400">Noch keine Aufgaben – lege mit „Neue Aufgabe“ los!</td></tr>`;
+    }
+
+    // ------- Roadmap -------
+    function renderRoadmap(){
+      const allDates = tasks.flatMap(t=>[parseISO(t.start), parseISO(t.due)]);
+      if(allDates.length===0){
+        $('#roadmapHeader').innerHTML='';
+        $('#roadmapBody').innerHTML='<div class="p-6 text-center text-slate-400">Keine Daten – füge Aufgaben hinzu.</div>';
+        $('#roadmapRange').textContent='';
+        return;
+      }
+      const minDate = new Date(Math.min(...allDates.map(d=>d.getTime())));
+      const maxDate = new Date(Math.max(...allDates.map(d=>d.getTime())));
+      const totalDays = daysInclusive(minDate, maxDate);
+
+      // Header in 12 gleich große Abschnitte teilen (inklusive Kanten korrekt berechnet)
+      const cols = 12;
+      let headerHtml='';
+      for(let i=0;i<cols;i++){
+        const sOffset = Math.floor(i * totalDays / cols);
+        const eOffset = Math.floor((i+1) * totalDays / cols) - 1; // inklusiv
+        const s = addDays(minDate, sOffset);
+        const e = addDays(minDate, Math.min(totalDays-1, eOffset));
+        headerHtml += `<div class="px-2 py-2 border-r last:border-r-0 border-slate-200">${formatDE(s)} – ${formatDE(e)}</div>`;
+      }
+      $('#roadmapHeader').innerHTML = headerHtml;
+      $('#roadmapRange').textContent = `${formatDE(minDate)} bis ${formatDE(maxDate)} · ${totalDays} Tage`;
+
+      // Body: Aufgaben pro Person, mit Lane-Stacking bei Überschneidung
+      const byPerson = Object.groupBy(tasks, t=>t.assignee);
+      const bodyHtml = people.map(p=>{
+        const personTasks = (byPerson[p.id]||[]).slice().sort((a,b)=>{
+          const as=parseISO(a.start), bs=parseISO(b.start);
+          return as - bs || parseISO(a.due) - parseISO(b.due);
+        });
+
+        // Greedy Lane-Zuordnung
+        /** lanes: Array<Date> => Enddatum der letzten Aufgabe in Lane (UTC Mitternacht) */
+        const lanesEnd = []; // each item is Date of last occupied end (inclusive)
+        const withLane = personTasks.map(t=>{
+          const s = parseISO(t.start), e = parseISO(t.due);
+          let lane = 0;
+          for(lane=0; lane<lanesEnd.length; lane++){
+            if(s.getTime() > lanesEnd[lane].getTime()) break; // kein Overlap, passt in diese Lane
+          }
+          if(lane===lanesEnd.length) lanesEnd.push(e); else lanesEnd[lane] = e;
+          return { t, lane, s, e };
+        });
+        const lanesCount = Math.max(1, lanesEnd.length);
+        const laneH = 32; // px
+        const barH = 28; // px (h-7)
+        const containerH = lanesCount * laneH + 8; // padding/gap
+
+        const bars = withLane.map(({t, lane, s, e})=>{
+          const offsetDays = Math.floor((s - minDate)/MS);
+          const duration = daysInclusive(s, e);
+          const offsetPct = (offsetDays / totalDays) * 100;
+          const widthPct = (duration / totalDays) * 100;
+          const top = lane * laneH + 4; // px
+          const colorMap={low:'bg-slate-300',medium:'bg-sky-500',high:'bg-amber-500',critical:'bg-rose-600'};
+          const barColor=colorMap[t.priority]||'bg-sky-500';
+          return `<div class="absolute h-7 ${barColor} text-white text-xs rounded-md flex items-center px-2 shadow" style="left:${offsetPct}%; width:${widthPct}%; top:${top}px" title="${t.title} (${t.start}–${t.due})">${t.title}</div>`;
+        }).join('');
+
+        return `<div class="grid grid-cols-12">
+          <div class="col-span-12 md:col-span-2 border-r border-slate-200 p-2 flex items-center gap-2">${avatarFor(p.name)}<span class="text-sm">${p.name}</span></div>
+          <div class="col-span-12 md:col-span-10 relative overflow-hidden p-2" style="height:${containerH}px">${bars || '<span class="text-xs text-slate-400">Keine Aufgaben</span>'}</div>
+        </div>`;
+      }).join('');
+
+      $('#roadmapBody').innerHTML = bodyHtml;
+    }
+
+    // ------- Events -------
+    // Inline-Änderungen speichern
+    document.addEventListener('change', (e)=>{
+      const row = e.target.closest('tr[data-index]');
+      if(!row) return;
+      const idx = Number(row.dataset.index);
+      const field = e.target.dataset.field;
+      if(!field) return;
+      const value = e.target.type==='date' || e.target.tagName==='SELECT' ? e.target.value : e.target.value.trim();
+      if(field==='start' || field==='due'){
+        const other = field==='start' ? parseISO(tasks[idx].due) : parseISO(tasks[idx].start);
+        if(field==='start' && parseISO(value) > other){ e.target.value = tasks[idx].start; return alert('Start darf nicht nach Fällig liegen.'); }
+        if(field==='due' && parseISO(value) < other){ e.target.value = tasks[idx].due; return alert('Fällig darf nicht vor Start liegen.'); }
+      }
+      tasks[idx][field] = value;
+      renderRoadmap();
+    });
+
+    // Buttons in Tabelle
+    $('#taskTbody').addEventListener('click', (e)=>{
+      const row = e.target.closest('tr[data-index]');
+      if(!row) return;
+      const idx = Number(row.dataset.index);
+      const action = e.target.dataset.action;
+      if(action==='delete'){
+        if(confirm('Diese Aufgabe wirklich löschen?')){
+          tasks.splice(idx,1);
+          renderTasks();
+          renderRoadmap();
+        }
+      }
+      if(action==='open'){
+        loadTaskIntoDrawer(idx);
+        openDrawer('Aufgabe bearbeiten', idx);
+      }
+    });
+
+    // Filter & Suche & Roadmap
+    $('#search').addEventListener('input', renderTasks);
+    $('#filterAssignee').addEventListener('change', renderTasks);
+    $('#generateRoadmapBtn').addEventListener('click', renderRoadmap);
+
+    // Sidebar Controls
+    $('#drawerClose').addEventListener('click', closeDrawer);
+    $('#d_cancel').addEventListener('click', closeDrawer);
+    $('#drawerOverlay').addEventListener('click', closeDrawer);
+
+    // Neue Aufgabe
+    $('#newTaskBtn').addEventListener('click', ()=>{
+      clearDrawer();
+      const today = new Date();
+      const todayUTC = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+      $('#d_start').value = fmtDateISO(todayUTC);
+      const inThree = addDays(todayUTC, 3);
+      $('#d_due').value = fmtDateISO(inThree);
+      openDrawer('Neue Aufgabe');
+    });
+
+    // Drawer: Attachments + Kommentare
+    function renderAttachmentList(arr){
+      $('#d_attachments').innerHTML = arr.map((a,i)=>`<div class="flex items-center justify-between gap-2 text-sm bg-slate-50 rounded-lg px-2 py-1">
+        <a href="#" class="truncate hover:underline">${a}</a>
+        <button data-idx="${i}" class="px-2 py-1 text-xs rounded-lg bg-slate-100 hover:bg-slate-200" data-role="del-attach">Entfernen</button>
+      </div>`).join('');
+    }
+    function renderComments(arr){
+      $('#d_comments').innerHTML = arr.map((c)=>`<div class="text-sm bg-slate-50 rounded-lg p-2"><div class="text-slate-500 text-xs">${new Date(c.ts).toLocaleString('de-DE')}</div><div>${c.text}</div></div>`).join('');
+    }
+
+    $('#d_attach_add').addEventListener('click', ()=>{
+      const idx = $('#drawerIndex').value ? Number($('#drawerIndex').value) : null;
+      const val = $('#d_attach_input').value.trim();
+      if(!val) return;
+      if(idx===null){ // temp in form state
+        if(!$('#d_attachments').dataset.tmp){ $('#d_attachments').dataset.tmp = '[]'; }
+        const tmp = JSON.parse($('#d_attachments').dataset.tmp);
+        tmp.push(val); $('#d_attachments').dataset.tmp = JSON.stringify(tmp); renderAttachmentList(tmp);
+      } else {
+        tasks[idx].attachments.push(val); renderAttachmentList(tasks[idx].attachments);
+      }
+      $('#d_attach_input').value='';
+    });
+
+    $('#d_attachments').addEventListener('click', (e)=>{
+      if(e.target.dataset.role==='del-attach'){
+        const i = Number(e.target.dataset.idx);
+        const idx = $('#drawerIndex').value ? Number($('#drawerIndex').value) : null;
+        if(idx===null){
+          const tmp = JSON.parse($('#d_attachments').dataset.tmp||'[]'); tmp.splice(i,1); $('#d_attachments').dataset.tmp = JSON.stringify(tmp); renderAttachmentList(tmp);
+        } else { tasks[idx].attachments.splice(i,1); renderAttachmentList(tasks[idx].attachments); }
+      }
+    });
+
+    $('#d_comment_add').addEventListener('click', ()=>{
+      const text = $('#d_comment_input').value.trim(); if(!text) return;
+      const idx = $('#drawerIndex').value ? Number($('#drawerIndex').value) : null;
+      const entry = { text, ts: Date.now() };
+      if(idx===null){
+        if(!$('#d_comments').dataset.tmp){ $('#d_comments').dataset.tmp = '[]'; }
+        const tmp = JSON.parse($('#d_comments').dataset.tmp); tmp.push(entry); $('#d_comments').dataset.tmp = JSON.stringify(tmp); renderComments(tmp);
+      } else { tasks[idx].comments.push(entry); renderComments(tasks[idx].comments); }
+      $('#d_comment_input').value='';
+    });
+
+    // Drawer laden/säubern
+    function loadTaskIntoDrawer(idx){
+      const t = tasks[idx];
+      $('#drawerIndex').value = String(idx);
+      $('#d_title').value = t.title;
+      $('#d_assignee').value = t.assignee;
+      $('#d_priority').value = t.priority;
+      $('#d_start').value = t.start;
+      $('#d_due').value = t.due;
+      $('#d_desc').value = t.desc || '';
+      renderAttachmentList(t.attachments||[]);
+      renderComments(t.comments||[]);
+    }
+    function clearDrawer(){
+      $('#drawerIndex').value='';
+      $('#d_title').value='';
+      $('#d_assignee').selectedIndex=0;
+      $('#d_priority').value='medium';
+      $('#d_start').value=''; $('#d_due').value='';
+      $('#d_desc').value='';
+      $('#d_attachments').dataset.tmp='[]'; renderAttachmentList([]);
+      $('#d_comments').dataset.tmp='[]'; renderComments([]);
+      $('#d_msg').classList.add('hidden');
+    }
+
+    // Drawer speichern/löschen
+    $('#drawerForm').addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const title=$('#d_title').value.trim();
+      const assignee=$('#d_assignee').value; const priority=$('#d_priority').value;
+      const start=$('#d_start').value; const due=$('#d_due').value;
+      const desc=$('#d_desc').value.trim();
+      const msg=$('#d_msg'); msg.classList.add('hidden');
+      if(!title) return; if(parseISO(start)>parseISO(due)){ msg.textContent='Fälligkeitsdatum muss nach dem Startdatum liegen.'; msg.classList.remove('hidden'); return; }
+      const idxStr=$('#drawerIndex').value;
+      if(idxStr){
+        const idx=Number(idxStr);
+        Object.assign(tasks[idx], {title,assignee,priority,start,due,desc});
+      } else {
+        const attachments = JSON.parse($('#d_attachments').dataset.tmp||'[]');
+        const comments = JSON.parse($('#d_comments').dataset.tmp||'[]');
+        tasks.push({ title, assignee, priority, start, due, desc, attachments, comments });
+      }
+      renderTasks(); renderRoadmap(); closeDrawer();
+    });
+
+    $('#d_delete').addEventListener('click', ()=>{
+      const idxStr=$('#drawerIndex').value; if(!idxStr) return closeDrawer();
+      if(confirm('Diese Aufgabe wirklich löschen?')){
+        tasks.splice(Number(idxStr),1); renderTasks(); renderRoadmap(); closeDrawer();
+      }
+    });
+
+    // Seed Data
+    $('#seedBtn').addEventListener('click', ()=>{
+      const base = new Date();
+      const todayUTC = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate()));
+      const d=(n)=> fmtDateISO(addDays(todayUTC,n));
+      tasks.push(
+        { title:'MFA eingerichtet', assignee:'p1', priority:'high', start:d(0), due:d(3), desc:'Agenda, Ziele, Teilnehmer', attachments:[], comments:[] },
+        { title:'Firewall auf Server aktiviert', assignee:'p2', priority:'medium', start:d(2), due:d(10), desc:'Mobile & Desktop', attachments:['wireframes_v1.pdf'], comments:[] },
+        { title:'API Endpunkte geschützt', assignee:'p3', priority:'critical', start:d(1), due:d(5), desc:'Auth, CRUD', attachments:[], comments:[] },
+        { title:'Awareness-Schulung geplant', assignee:'p4', priority:'medium', start:d(6), due:d(14), desc:'Hero, Signup', attachments:['copy.docx'], comments:[] },
+        { title:'Nachweis EDR hochgeladen', assignee:'p1', priority:'low', start:d(12), due:d(18), desc:'Smoke, E2E', attachments:[], comments:[] },
+      );
+      renderTasks(); renderRoadmap();
+    });
+
+    // Boot
+    (function init(){
+      populatePeopleSelects();
+      renderTasks();
+      renderRoadmap();
+    })();
+  </script>
+</body>
+</html>

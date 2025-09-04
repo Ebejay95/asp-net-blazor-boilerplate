@@ -1,0 +1,287 @@
+@* Pages/CockpitPagesSuperAdmins/LibraryControls.razor *@
+@attribute [Authorize(Roles = "super-admin")]
+@using System
+@using System.Linq
+@using CMC.Contracts.LibraryControls
+@using CMC.Web.Services
+@using CMC.Web.Util
+@using CMC.Domain.Entities
+
+@inject CMC.Application.Services.LibraryControlService LibraryControlService
+@inject EFEditService EFEditService
+@inject DialogService ConfirmService
+
+<div class="card">
+    <EFTable TItem="LibraryControlDto"
+             Items="_controls"
+             AllowEdit="true"
+             OnEdit="StartEdit"
+             AllowCreate="true"
+             OnCreate="StartCreate" />
+</div>
+
+@code {
+    private List<LibraryControlDto> _controls = new();
+
+    protected override async Task OnInitializedAsync()
+        => _controls = await LibraryControlService.GetAllAsync();
+
+    private async Task Reload()
+    {
+        _controls = await LibraryControlService.GetAllAsync();
+        StateHasChanged();
+    }
+
+    private void StartEdit(LibraryControlDto control)
+    {
+        var req = new EFEditRequest
+        {
+            Title = "Control bearbeiten",
+            Model = control,
+            ContractsAssembly = typeof(LibraryControlDto).Assembly,
+            EfParentType = typeof(LibraryControl),
+            GetParentKey  = m => ((LibraryControlDto)m).Id,
+            IsCreate = false,
+            OnSave = async ctx =>
+            {
+                try
+                {
+                    var dto = (LibraryControlDto)ctx.Model;
+
+                    var name = ctx.TryGetValue("Name", out var rawName)
+                        ? rawName?.ToString()?.Trim() ?? ""
+                        : dto.Name;
+
+                    var capex   = TryGetDecimal(ctx, "CapexEur", dto.CapexEur);
+                    var opex    = TryGetDecimal(ctx, "OpexYearEur", dto.OpexYearEur);
+                    var iDays   = TryGetInt(ctx, "InternalDays", dto.InternalDays);
+                    var eDays   = TryGetInt(ctx, "ExternalDays", dto.ExternalDays);
+                    var tDays   = ctx.TryGetValue("TotalDays", out var _) ? TryGetInt(ctx, "TotalDays", dto.TotalDays) : (int?)null;
+
+                    var tagIds      = ExtractGuidArray(ctx.TryGetValue("TagIds", out var rawTags) ? rawTags : dto.TagIds);
+                    var industryIds = ExtractGuidArray(ctx.TryGetValue("IndustryIds", out var rawInds) ? rawInds : dto.IndustryIds);
+                    var scenIds     = ExtractGuidArray(ctx.TryGetValue("LibraryScenarioIds", out var rawScen) ? rawScen : dto.LibraryScenarioIds);
+
+                    var up = new UpdateLibraryControlRequest(
+                        Id: dto.Id,
+                        InternalDays: iDays,
+                        ExternalDays: eDays,
+                        TotalDays: tDays,
+                        CapexEur: capex,
+                        OpexYearEur: opex,
+                        TagIds: tagIds,
+                        IndustryIds: industryIds,
+                        LibraryScenarioIds: scenIds
+                    );
+
+                    _ = await LibraryControlService.UpdateAsync(up);
+                    await Reload();
+                    EFEditService.Close();
+                }
+                catch (Exception ex)
+                {
+                    ConfirmService.Open(new DialogRequest
+                    {
+                        Title = "Fehler beim Speichern",
+                        Message = ex.Message,
+                        ConfirmText = "Okay",
+                        OnConfirm = () => Task.CompletedTask
+                    });
+                }
+            },
+            OnDelete = ctx =>
+            {
+                var model = (LibraryControlDto)ctx.Model;
+
+                ConfirmService.Open(new DialogRequest
+                {
+                    Title = "Löschen bestätigen",
+                    Message = "Control " + model.Name + " wirklich löschen?",
+                    ConfirmText = "Löschen",
+                    CancelText = "Abbrechen",
+                    OnConfirm = async () =>
+                    {
+                        try
+                        {
+                            await LibraryControlService.DeleteAsync(model.Id);
+                            await Reload();
+                            EFEditService.Close();
+                        }
+                        catch (Exception ex)
+                        {
+                            ConfirmService.Open(new DialogRequest
+                            {
+                                Title = "Löschen fehlgeschlagen",
+                                Message = ex.Message,
+                                ConfirmText = "Okay",
+                                OnConfirm = () => Task.CompletedTask
+                            });
+                        }
+                    }
+                });
+
+                return Task.CompletedTask;
+            },
+            OnAfterRestore = async () =>
+            {
+                await Reload();
+                EFEditService.Close();
+            }
+        };
+
+        EFEditService.Open(req);
+    }
+
+    private void StartCreate()
+    {
+        var empty = new LibraryControlDto
+        {
+            Id = Guid.Empty,
+            Name = string.Empty,
+            CapexEur = 0m,
+            OpexYearEur = 0m,
+            InternalDays = 0,
+            ExternalDays = 0,
+            TotalDays = 0,
+
+            TagIds = Array.Empty<Guid>(),
+            IndustryIds = Array.Empty<Guid>(),
+            LibraryScenarioIds = Array.Empty<Guid>(),
+            TagLabels = Array.Empty<string>(),
+            IndustryLabels = Array.Empty<string>(),
+            LibraryScenarioLabels = Array.Empty<string>(),
+
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
+        };
+
+        var req = new EFEditRequest
+        {
+            Title = "Control anlegen",
+            Model = empty,
+            ContractsAssembly = typeof(LibraryControlDto).Assembly,
+            EfParentType = typeof(LibraryControl),
+            GetParentKey  = m => ((LibraryControlDto)m).Id,
+            IsCreate = true,
+            OnSave = async ctx =>
+            {
+                try
+                {
+                    var dto = (LibraryControlDto)ctx.Model;
+
+                    var name = ctx.TryGetValue("Name", out var rawName)
+                        ? rawName?.ToString()?.Trim() ?? ""
+                        : dto.Name;
+
+                    var capex = TryGetDecimal(ctx, "CapexEur", dto.CapexEur);
+                    var opex  = TryGetDecimal(ctx, "OpexYearEur", dto.OpexYearEur);
+                    var iDays = TryGetInt(ctx, "InternalDays", dto.InternalDays);
+                    var eDays = TryGetInt(ctx, "ExternalDays", dto.ExternalDays);
+                    var tDays = ctx.TryGetValue("TotalDays", out var _) ? TryGetInt(ctx, "TotalDays", dto.TotalDays) : (int?)null;
+
+                    var tagIds      = ExtractGuidArray(ctx.TryGetValue("TagIds", out var rawTags) ? rawTags : dto.TagIds);
+                    var industryIds = ExtractGuidArray(ctx.TryGetValue("IndustryIds", out var rawInds) ? rawInds : dto.IndustryIds);
+                    var scenIds     = ExtractGuidArray(ctx.TryGetValue("LibraryScenarioIds", out var rawScen) ? rawScen : dto.LibraryScenarioIds);
+
+                    var create = new CreateLibraryControlRequest(
+                        Name: name,
+                        CapexEur: capex,
+                        OpexYearEur: opex,
+                        InternalDays: iDays,
+                        ExternalDays: eDays,
+                        TotalDays: tDays,
+                        TagIds: tagIds,
+                        IndustryIds: industryIds,
+                        LibraryScenarioIds: scenIds
+                    );
+
+                    _ = await LibraryControlService.CreateAsync(create);
+                    await Reload();
+                    EFEditService.Close();
+                }
+                catch (Exception ex)
+                {
+                    ConfirmService.Open(new DialogRequest
+                    {
+                        Title = "Fehler beim Anlegen",
+                        Message = ex.Message,
+                        ConfirmText = "Okay",
+                        OnConfirm = () => Task.CompletedTask
+                    });
+                }
+            }
+        };
+
+        EFEditService.Open(req);
+    }
+
+    // ---------- Helpers ----------
+
+    private static decimal TryGetDecimal(EditContextAdapter ctx, string name, decimal fallback)
+    {
+        if (!ctx.TryGetValue(name, out var raw) || raw is null) return fallback;
+
+        if (raw is decimal d) return d;
+        if (raw is double dbl) return (decimal)dbl;
+        if (raw is float fl) return (decimal)fl;
+        if (raw is int i) return i;
+        if (raw is long l) return l;
+
+        var s = raw.ToString();
+        return decimal.TryParse(s, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var parsed)
+            ? parsed
+            : decimal.TryParse(s, out parsed) ? parsed : fallback;
+    }
+
+    private static int TryGetInt(EditContextAdapter ctx, string name, int fallback)
+    {
+        if (!ctx.TryGetValue(name, out var raw) || raw is null) return fallback;
+
+        if (raw is int i) return i;
+        if (raw is long l) return (int)l;
+        if (raw is decimal d) return (int)d;
+        if (raw is double dbl) return (int)dbl;
+        if (raw is float fl) return (int)fl;
+
+        var s = raw.ToString();
+        return int.TryParse(s, out var parsed) ? parsed : fallback;
+    }
+
+    private static Guid[] ExtractGuidArray(object? value)
+    {
+        var list = new List<Guid>();
+
+        switch (value)
+        {
+            case null:
+                return Array.Empty<Guid>();
+
+            case IEnumerable<Guid> gs:
+                list.AddRange(gs.Where(g => g != Guid.Empty));
+                break;
+
+            case IEnumerable<string> ss:
+                foreach (var s in ss)
+                    if (Guid.TryParse(s, out var g) && g != Guid.Empty)
+                        list.Add(g);
+                break;
+
+            case System.Collections.IEnumerable seq when value is not string:
+                foreach (var e in seq)
+                {
+                    var s = e?.ToString();
+                    if (!string.IsNullOrWhiteSpace(s) && Guid.TryParse(s, out var g) && g != Guid.Empty)
+                        list.Add(g);
+                }
+                break;
+
+            default:
+                var one = value?.ToString();
+                if (!string.IsNullOrWhiteSpace(one) && Guid.TryParse(one, out var g1) && g1 != Guid.Empty)
+                    list.Add(g1);
+                break;
+        }
+
+        return list.Distinct().ToArray();
+    }
+}

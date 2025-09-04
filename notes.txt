@@ -1,5 +1,12 @@
-find . -name "bin" -type d -exec rm -rf {} + && find . -name "obj" -type d -exec rm -rf {} + && (find . -type f -not -path "./.git/*" -not -path "./wwwroot/fonts/*" -exec ls -la {} \; && echo "=== FILE CONTENTS ===" && find . -type f -not -path "./.git/*" -not -path "./wwwroot/fonts/*" -exec sh -c 'echo "=== {} ==="; cat "{}"' \;) > ./../out
+find . -name "bin" -type d -exec rm -rf {} + && find . -name "obj" -type d -exec rm -rf {} + && (find . -type f -not -path "./.git/*" -not -path "./wwwroot/*"  -not -path "./Styles/*" -not -path "./Pages/*" -exec ls -la {} \; && echo "=== FILE CONTENTS ===" && find . -type f -not -path "./.git/*" -not -path "./wwwroot/*"  -not -path "./Styles/*" -not -path "./Pages/*" -exec sh -c 'echo "=== {} ==="; cat "{}"' \;) > ./../out
 
-find . -name "bin" -type d -exec rm -rf {} + && find . -name "obj" -type d -exec rm -rf {} + && (find . -type f -not -path "./.git/*" -not -path "./wwwroot/fonts/*" -not -path "./src/CMC.Application/*" -not -path "./src/CMC.Contracts/*"  -not -path "./src/CMC.Domain/*" -not -path "./src/CMC.Infrastructure/*" -not -path "./tests/*" -exec ls -la {} \; && echo "=== FILE CONTENTS ===" && find . -type f -not -path "./.git/*" -not -path "./wwwroot/fonts/*"  -not -path "./src/CMC.Application/*" -not -path "./src/CMC.Contracts/*"  -not -path "./src/CMC.Domain/*" -not -path "./src/CMC.Infrastructure/*" -not -path "./tests/*" -exec sh -c 'echo "=== {} ==="; cat "{}"' \;) > ./../out
+find . -name "bin" -type d -exec rm -rf {} + && find . -name "obj" -type d -exec rm -rf {} + && (find . -type f -not -path "./.git/*" -not -path "./wwwroot/*"  -not -path "./Styles/*" -not -path "./src/CMC.Application/*" -not -path "./src/CMC.Contracts/*"  -not -path "./src/CMC.Domain/*" -not -path "./src/CMC.Infrastructure/*" -not -path "./tests/*" -exec ls -la {} \; && echo "=== FILE CONTENTS ===" && find . -type f -not -path "./.git/*" -not -path "./wwwroot/*"  -not -path "./Styles/*"  -not -path "./src/CMC.Application/*" -not -path "./src/CMC.Contracts/*"  -not -path "./src/CMC.Domain/*" -not -path "./src/CMC.Infrastructure/*" -not -path "./tests/*" -exec sh -c 'echo "=== {} ==="; cat "{}"' \;) > ./../out
 
 find . -not -path '*/.git/*' -exec ls -la {} \; > ./../out
+
+find . -name "bin" -type d -exec rm -rf {} + && find . -name "obj" -type d -exec rm -rf {} + && (find . -type f -not -path "./.git/*" -not -path "./Migrations/*" -exec ls -la {} \; && echo "=== FILE CONTENTS ===" && find . -type f -not -path "./.git/*" -not -path "./Migrations/*" -exec sh -c 'echo "=== {} ==="; cat "{}"' \;) > ./../out
+
+find . -name "out" -type f -delete
+
+
+https://github.com/tailwindlabs/heroicons/tree/master/src

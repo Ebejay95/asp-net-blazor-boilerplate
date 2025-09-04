@@ -1,0 +1,142 @@
+@attribute [Authorize(Roles = "super-admin")]
+@using System.Linq
+@using CMC.Contracts.Users
+@using CMC.Web.Services
+@using CMC.Web.Util
+@using CMC.Domain.Entities
+
+@inject CMC.Application.Services.UserService UserService
+@inject EFEditService EFEditService
+@inject DialogService ConfirmService
+
+<div class="card">
+  <EFTable TItem="UserDto"
+           Items="_users"
+           AllowEdit="true"
+           OnEdit="StartEdit"
+           AllowCreate="true"
+           OnCreate="StartCreate" />
+</div>
+
+@code {
+    private List<UserDto> _users = new();
+
+    protected override async Task OnInitializedAsync()
+        => _users = await UserService.GetAllAsync();
+
+    private async Task ReloadAsync()
+    {
+        _users = await UserService.GetAllAsync();
+        StateHasChanged();
+    }
+
+    private EFEditRequest BuildUserDrawer(UserDto model, bool isCreate)
+    {
+        var req = new EFEditRequest
+        {
+            Title = isCreate ? "Benutzer anlegen" : "Benutzer bearbeiten",
+            Model = model,
+            ContractsAssembly = typeof(UserDto).Assembly,
+            IsCreate = isCreate,
+            EfParentType = typeof(User),
+            GetParentKey = m => ((UserDto)m).Id,
+
+            OnSave = async ctx =>
+            {
+                try
+                {
+                    if (isCreate)
+                    {
+                        var reg = (RegisterUserRequest)ctx.Build("Register");
+                        _ = await UserService.RegisterAsync(reg);
+                    }
+                    else
+                    {
+                        var up = (UpdateUserRequest)ctx.Build("Update");
+                        await UserService.UpdateAsync(up);
+                    }
+
+                    await ReloadAsync();
+                    EFEditService.Close();
+                }
+                catch (Exception ex)
+                {
+                    ConfirmService.Open(new DialogRequest
+                    {
+                        Title = "Fehler",
+                        Message = ex.Message,
+                        ConfirmText = "Okay",
+                        OnConfirm = () => Task.CompletedTask
+                    });
+                }
+            },
+
+            OnDelete = ctx =>
+            {
+                var m = (UserDto)ctx.Model;
+
+                ConfirmService.Open(new DialogRequest
+                {
+                    Title = "Löschen bestätigen",
+                    Message = "Benutzer " + m.FirstName + " " + m.LastName + " wirklich löschen?",
+                    ConfirmText = "Löschen",
+                    OnConfirm = async () =>
+                    {
+                        try
+                        {
+                            await UserService.DeleteAsync(m.Id);
+                            await ReloadAsync();
+                            EFEditService.Close();
+                        }
+                        catch (Exception ex)
+                        {
+                            ConfirmService.Open(new DialogRequest
+                            {
+                                Title = "Löschen fehlgeschlagen",
+                                Message = ex.Message,
+                                ConfirmText = "Okay",
+                                OnConfirm = () => Task.CompletedTask
+                            });
+                        }
+                    }
+                });
+
+                return Task.CompletedTask;
+            }
+        };
+
+        if (isCreate)
+        {
+            req.ExtraFields.Add(new ExtraField(
+                Name: "Password",
+                Label: "Passwort",
+                Type: typeof(string),
+                ReadOnly: false,
+                Hint: "Mindestens 8 Zeichen",
+                DataType: "password"
+            ));
+        }
+        return req;
+    }
+
+    private void StartEdit(UserDto u) => EFEditService.Open(BuildUserDrawer(u, isCreate: false));
+
+    private void StartCreate()
+    {
+        var empty = new UserDto(
+            Id: Guid.Empty,
+            Email: "",
+            FirstName: "",
+            LastName: "",
+            Role: "",
+            Department: "",
+            IsEmailConfirmed: false,
+            CreatedAt: DateTimeOffset.UtcNow,
+            LastLoginAt: null,
+            CustomerId: null,
+            CustomerName: null
+        );
+
+        EFEditService.Open(BuildUserDrawer(empty, isCreate: true));
+    }
+}
