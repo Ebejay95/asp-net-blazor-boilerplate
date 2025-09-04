@@ -51,11 +51,13 @@ jobs:
   build-and-deploy:
     needs: test
     runs-on: ubuntu-latest
-    # Deploy nur für echte Branch-Pushes auf 'test', nicht für PRs:
     if: github.ref == 'refs/heads/test'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Normalize image name
+        run: echo "IMAGE_NAME_LOWER=$(echo '${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
       - name: Log in to Container Registry
         uses: docker/login-action@v3
@@ -70,7 +72,7 @@ jobs:
           context: .
           file: Dockerfile.prod
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:test-latest
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}:test-latest
 
       - name: Setup kubectl
         uses: azure/setup-kubectl@v4
@@ -85,7 +87,7 @@ jobs:
 
       - name: Replace image name in manifests
         run: |
-          sed -i "s|ghcr.io/USERNAME/REPOSITORY|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}|g" k8s/test/cmc-app.yaml
+          sed -i "s|ghcr.io/USERNAME/REPOSITORY|${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}|g" k8s/test/cmc-app.yaml
 
       - name: Create namespaces
         run: |
@@ -95,12 +97,10 @@ jobs:
         env:
           DB_PASSWORD: ${{ secrets.DB_PW }}
         run: |
-          # Postgres Secret
           kubectl -n cmc-test create secret generic postgres-secret \
             --from-literal=password="${DB_PASSWORD}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
-          # App Connection String Secret
           CONNECTION_STRING="Host=postgres;Port=5432;Database=cmc_test;Username=cmc_user;Password=${DB_PASSWORD};Pooling=true;SslMode=Disable;"
           kubectl -n cmc-test create secret generic cmc-app-secret \
             --from-literal=connection="${CONNECTION_STRING}" \
@@ -115,7 +115,6 @@ jobs:
           if kubectl -n cmc-test get deploy postgres >/dev/null 2>&1; then
             kubectl -n cmc-test rollout status deploy/postgres --timeout=600s
           else
-            # Fallback, wenn es ein anderer Typ ist:
             kubectl wait --for=condition=available --timeout=600s deployment/postgres -n cmc-test || true
           fi
           kubectl -n cmc-test rollout status deploy/cmc-app --timeout=600s
