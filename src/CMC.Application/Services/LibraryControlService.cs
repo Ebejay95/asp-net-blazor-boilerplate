@@ -31,9 +31,7 @@ namespace CMC.Application.Services
                 totalDays: r.TotalDays
             );
 
-            // Szenario-Links initial setzen (optional)
             e.SetLibraryScenarios(r.LibraryScenarioIds);
-
             await _repo.AddAsync(e, ct);
             return Map(e);
         }
@@ -57,7 +55,6 @@ namespace CMC.Application.Services
 
             e.UpdateEffort(r.InternalDays, r.ExternalDays, r.TotalDays);
             e.UpdateCosts(r.CapexEur, r.OpexYearEur);
-
             e.SetTags(r.TagIds);
             e.SetIndustries(r.IndustryIds);
             e.SetLibraryScenarios(r.LibraryScenarioIds);
@@ -73,6 +70,10 @@ namespace CMC.Application.Services
             await _repo.DeleteAsync(e, ct);
             return true;
         }
+
+        // Direkte Repository-Delegation
+        public Task<HashSet<Guid>> GetIdsByLibraryScenarioIdsAsync(IEnumerable<Guid> libraryScenarioIds, CancellationToken ct = default)
+            => _repo.GetIdsByLibraryScenarioIdsAsync(libraryScenarioIds, ct);
 
         private static LibraryControlDto Map(LibraryControl e) => new LibraryControlDto
         {

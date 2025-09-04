@@ -15,5 +15,11 @@ namespace CMC.Application.Ports
 		Task AddAsync(LibraryScenario entity, CancellationToken ct = default);
 		Task UpdateAsync(LibraryScenario entity, CancellationToken ct = default);
 		Task DeleteAsync(LibraryScenario entity, CancellationToken ct = default);
+
+		// NEU: Query-Methoden
+		Task<List<LibraryScenarioLite>> GetByIndustriesAsync(IEnumerable<Guid> industryIds, CancellationToken ct = default);
 	}
+
+	// NEU: Simple DTO für Lightweight-Queries
+	public sealed record LibraryScenarioLite(Guid Id, string Name);
 }

@@ -72,4 +72,6 @@ public class ScenarioRepository : IScenarioRepository
         _db.Scenarios.AddRange(items);
         await _db.SaveChangesAsync(ct);
     }
+	public Task<int> CountByCustomerAsync(Guid customerId, CancellationToken ct = default)
+    => _db.Scenarios.CountAsync(s => s.CustomerId == customerId && !s.IsDeleted, ct);
 }

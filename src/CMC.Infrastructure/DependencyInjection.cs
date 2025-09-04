@@ -40,17 +40,18 @@ public static class DependencyInjection
         services.AddScoped<ITagRepository, TagRepository>();
         services.AddScoped<IRiskAcceptanceRepository, RiskAcceptanceRepository>();
 
-        // Services
+        // Infrastructure Services (Technical Services only)
         services.AddScoped<IEmailService, EmailService>();
+        services.AddScoped<RevisionService>();
+        services.AddScoped<RecycleBinService>();
+        services.AddScoped<LibraryProvisioningService>();
+
+        // Application Services (Domain/Business Logic)
         services.AddScoped<UserService>();
         services.AddScoped<CustomerService>();
         services.AddScoped<FrameworkService>();
-        services.AddScoped<RevisionService>();
-        services.AddScoped<RecycleBinService>();
         services.AddScoped<IndustryService>();
         services.AddScoped<TagService>();
-
-        services.AddScoped<LibraryProvisioningService>();
 
         return services;
     }

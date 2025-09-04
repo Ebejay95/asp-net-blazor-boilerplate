@@ -23,6 +23,8 @@ namespace CMC.Domain.Entities
         private static string Normalize(string? s) => (s ?? string.Empty).Trim();
 
         public Guid Id { get; private set; }
+        public string Name { get; private set; } = string.Empty;
+
         public Guid CustomerId { get; private set; }
         public virtual Customer? Customer { get; private set; }
 
@@ -60,8 +62,10 @@ namespace CMC.Domain.Entities
 
         private Control() { }
 
+        // KORRIGIERTER KONSTRUKTOR: name als zweiter Parameter
         public Control(
             Guid customerId,
+            string name,
             Guid libraryControlId,
             bool implemented = false,
             decimal coverage = 0m,
@@ -77,9 +81,11 @@ namespace CMC.Domain.Entities
             DateTimeOffset? createdAtUtc = null)
         {
             if (customerId == Guid.Empty) throw new ArgumentException("CustomerId required.", nameof(customerId));
+            if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Name required.", nameof(name));
             if (libraryControlId == Guid.Empty) throw new ArgumentException("LibraryControlId required.", nameof(libraryControlId));
 
             Id = Guid.NewGuid();
+            Name = name.Trim();
             CustomerId = customerId;
             LibraryControlId = libraryControlId;
 
@@ -125,6 +131,7 @@ namespace CMC.Domain.Entities
 
             return new Control(
                 customerId: customerId,
+                name: lib.Name, // Name aus LibraryControl übernehmen
                 libraryControlId: lib.Id,
                 implemented: implemented,
                 coverage: coverage,
@@ -142,6 +149,13 @@ namespace CMC.Domain.Entities
         }
 
         // ===== Domain-API =====
+        public void SetName(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Name required.", nameof(name));
+            Name = name.Trim();
+            Touch();
+        }
+
         public void SetImplemented(bool implemented) { Implemented = implemented; Touch(); }
         public void SetCoverage(decimal coverage)
         {

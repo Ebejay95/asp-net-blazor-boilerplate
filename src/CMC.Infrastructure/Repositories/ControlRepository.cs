@@ -62,5 +62,7 @@ namespace CMC.Infrastructure.Repositories
             _db.Controls.AddRange(controls);
             await _db.SaveChangesAsync(ct);
         }
+        public Task<int> CountByCustomerAsync(Guid customerId, CancellationToken ct = default)
+            => _db.Controls.CountAsync(c => c.CustomerId == customerId && !c.IsDeleted, ct);
     }
 }

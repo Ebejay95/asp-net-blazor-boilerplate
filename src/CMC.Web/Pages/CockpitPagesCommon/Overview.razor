@@ -1,10 +1,12 @@
 @page "/overview"
+@page "/cockpit/overview"
 @attribute [Authorize]
 
 @using Microsoft.AspNetCore.Components.Forms
 @using CMC.Application.Services
 @using CMC.Contracts.Customers
 @using CMC.Contracts.Users
+@using CMC.Contracts.Controls
 @using CMC.Web.Services
 
 @inherits RoleBasedComponentBase
@@ -12,10 +14,10 @@
 @inject UserService Users
 @inject CustomerService Customers
 @inject IndustryService IndustrySvc
-@inject CMC.Infrastructure.Services.LibraryScenarioQuery LibScenarios
-@inject CMC.Infrastructure.Services.LibraryControlQuery  LibControls
-@inject CMC.Infrastructure.Services.ScenarioQuery       ScenarioQuery
-@inject CMC.Infrastructure.Services.ControlQuery       ControlQuery
+@inject LibraryScenarioService LibScenarios
+@inject LibraryControlService LibControls
+@inject ScenarioService Scenarios
+@inject ControlService Controls
 @inject CMC.Infrastructure.Services.LibraryProvisioningService Provision
 @inject NavigationManager Nav
 
@@ -116,29 +118,151 @@
             <div class="card">
                 <h2>@_myCompany.Name</h2>
                 <p>Willkommen, @GetFullName()! Du kannst deine Firmeneinstellungen unter <b>Settings</b> bearbeiten.</p>
-                <p>
-                    <b>Mitarbeiter:</b> @_myCompany.EmployeeCount<br />
-                    <b>Umsatz/Jahr:</b> @_myCompany.RevenuePerYear
-                </p>
-                <p>
-                    <b>Szenarien:</b> @_scenarioCount<br />
-                    <b>Kontrollen:</b> @_controlCount
-                </p>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <span class="stat-number">@_scenarioCount</span>
+                        <span class="stat-label">Szenarien</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">@_controlCount</span>
+                        <span class="stat-label">Kontrollen</span>
+                    </div>
+                </div>
+
+                <h3>Deine Kontrollen</h3>
+                @if (_controls.Count == 0)
+                {
+                    <p class="text-muted">Keine Kontrollen vorhanden.</p>
+                }
+                else
+                {
+                    <div class="controls-grid">
+                        @foreach (var c in _controls)
+                        {
+                            <div class="control-card">
+                                <div class="control-status status-@c.Status.ToLower()">@c.Status</div>
+                                <div class="control-name">@c.Name</div>
+                                <div class="control-metrics">
+                                    <span class="metric">
+                                        <small>Coverage:</small> @c.Coverage.ToString("P1")
+                                    </span>
+                                    <span class="metric">
+                                        <small>Maturity:</small> @c.Maturity
+                                    </span>
+                                    @if (c.DueDate.HasValue)
+                                    {
+                                        <span class="metric due-date">
+                                            <small>Due:</small> @c.DueDate.Value.ToString("dd.MM.yyyy")
+                                        </span>
+                                    }
+                                </div>
+                                @if (c.Implemented)
+                                {
+                                    <div class="implemented-badge">Implementiert</div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
             </div>
         }
     }
 </section>
 
+<style>
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 1rem;
+    margin: 1rem 0;
+}
+
+.stat-item {
+    text-align: center;
+    padding: 1rem;
+    background: var(--surface-light);
+    border-radius: 8px;
+}
+
+.stat-number {
+    display: block;
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--primary);
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.controls-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.control-card {
+    padding: 1rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: white;
+}
+
+.control-status {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+}
+
+.status-proposed { background: #fef3cd; color: #856404; }
+.status-approved { background: #d4edda; color: #155724; }
+.status-implemented { background: #cce7ff; color: #004085; }
+.status-rejected { background: #f8d7da; color: #721c24; }
+
+.control-name {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.control-metrics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.metric small {
+    color: var(--text-muted);
+}
+
+.implemented-badge {
+    display: inline-block;
+    background: var(--success);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    margin-top: 0.5rem;
+}
+</style>
+
 @code {
     private bool _loading = true;
     private CustomerDto? _myCompany;
+    private readonly List<ControlDto> _controls = new();
 
     // Company-Setup
     private sealed class UpdateCompanyForm
     {
         public string Name { get; set; } = "";
-        public int EmployeeCount { get; set; } = 0;
-        public decimal RevenuePerYear { get; set; } = 0m;
+        public int EmployeeCount { get; set; }
+        public decimal RevenuePerYear { get; set; }
     }
     private readonly UpdateCompanyForm _form = new();
     private readonly List<(Guid Id, string Name)> _industryOptions = new();
@@ -169,12 +293,20 @@
 
                 if (_myCompany != null)
                 {
-                    // 2) Zahlen zur Übersicht
-                    _scenarioCount = await ScenarioQuery.CountByCustomerAsync(_myCompany.Id);
-                    _controlCount  = await ControlQuery.CountByCustomerAsync(_myCompany.Id);
-                    _hasScenarios  = _scenarioCount > 0;
+                    // 2) Zahlen zur Übersicht - verwende Repository Count-Methoden
+                    _scenarioCount = await Scenarios.CountByCustomerAsync(_myCompany.Id);
+                    _controlCount = await Controls.CountByCustomerAsync(_myCompany.Id);
+                    _hasScenarios = _scenarioCount > 0;
 
-                    // 3) Falls keine Szenarien vorhanden: Auswahl der Library-Szenarien nach Branchen
+                    // 3) Konkrete Controls laden (vollständige DTOs für Anzeige)
+                    if (_hasScenarios)
+                    {
+                        var controlDtos = await Controls.GetByCustomerAsync(_myCompany.Id);
+                        _controls.Clear();
+                        _controls.AddRange(controlDtos.OrderBy(c => c.Status).ThenBy(c => c.CreatedAt));
+                    }
+
+                    // 4) Falls keine Szenarien vorhanden: Library-Szenarien laden
                     if (!_hasScenarios)
                     {
                         var libs = await LibScenarios.GetByIndustriesAsync(_myCompany.IndustryIds);

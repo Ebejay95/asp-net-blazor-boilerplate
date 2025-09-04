@@ -60,6 +60,8 @@ builder.Services.AddScoped<IRevisionsClient, EfRevisionsClient>();
 builder.Services.AddScoped<CMC.Infrastructure.Services.RevisionService>();
 builder.Services.AddScoped<RecycleBinService>();
 builder.Services.AddScoped<IRecycleBinClient, RecycleBinClient>();
+
+// Application Services
 builder.Services.AddScoped<LibraryScenarioService>();
 builder.Services.AddScoped<LibraryControlService>();
 builder.Services.AddScoped<ReportService>();
@@ -71,10 +73,12 @@ builder.Services.AddScoped<ToDoService>();
 builder.Services.AddScoped<EvidenceService>();
 builder.Services.AddScoped<TagService>();
 builder.Services.AddScoped<IndustryService>();
-builder.Services.AddScoped<LibraryScenarioQuery>();
-builder.Services.AddScoped<LibraryControlQuery>();
-builder.Services.AddScoped<ScenarioQuery>();
-builder.Services.AddScoped<ControlQuery>();
+
+// ENTFERNE diese Zeilen - Query-Services werden jetzt über DI automatisch registriert:
+// builder.Services.AddScoped<LibraryScenarioQuery>();
+// builder.Services.AddScoped<LibraryControlQuery>();
+// builder.Services.AddScoped<ScenarioQuery>();
+// builder.Services.AddScoped<ControlQuery>();
 
 // ✅ DB-gestützte Claims-Aktualisierung
 builder.Services.AddScoped<IClaimsTransformation, DbBackedClaimsTransformation>();
@@ -108,7 +112,7 @@ builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddHttpContextAccessor();
 
 // Infrastruktur (ConnectionString via Config/Env)
-// Registriert u. a. AppDbContext
+// Registriert u. a. AppDbContext und alle Query Services über Interfaces
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddRevisionsSupport();
 
@@ -117,6 +121,7 @@ builder.Services.AddScoped<DbContext>(sp => sp.GetRequiredService<AppDbContext>(
 
 var app = builder.Build();
 
+// Rest bleibt unverändert...
 // Forwarded Headers (wichtig hinter Nginx für HTTPS/Cookies)
 var fwdOptions = new ForwardedHeadersOptions
 {

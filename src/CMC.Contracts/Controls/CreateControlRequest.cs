@@ -6,6 +6,8 @@ using CMC.Contracts.Common; // ✅ needed for SelectFrom
 namespace CMC.Contracts.Controls
 {
     public record CreateControlRequest(
+        [property: Required, StringLength(200, MinimumLength = 1), Display(Name = "Tag")]
+		string Name,
         [property: Required] Guid CustomerId,
         [property: Required] Guid LibraryControlId,
 

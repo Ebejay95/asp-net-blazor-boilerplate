@@ -10,6 +10,10 @@ namespace CMC.Contracts.Controls
         [ScaffoldColumn(false)]
         public Guid Id { get; set; }
 
+		[Required, StringLength(200, MinimumLength = 1)]
+		[Display(Name = "Tag")]
+		public string Name { get; set; } = string.Empty;
+
         [Display(Name = "Kunde", AutoGenerateField = false)]
         [RelationFrom(IsMany = false, RelationName = "Customer")]
         public Guid CustomerId { get; set; }

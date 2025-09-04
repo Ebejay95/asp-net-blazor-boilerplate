@@ -15,7 +15,10 @@ namespace CMC.Application.Services
         private readonly ILibraryControlRepository _libRepo;
         private readonly IEvidenceRepository _evidenceRepo;
 
-        public ControlService(IControlRepository repo, ILibraryControlRepository libRepo, IEvidenceRepository evidenceRepo)
+        public ControlService(
+            IControlRepository repo,
+            ILibraryControlRepository libRepo,
+            IEvidenceRepository evidenceRepo)
         {
             _repo = repo ?? throw new ArgumentNullException(nameof(repo));
             _libRepo = libRepo ?? throw new ArgumentNullException(nameof(libRepo));
@@ -26,6 +29,7 @@ namespace CMC.Application.Services
         {
             var c = new Control(
                 customerId:      r.CustomerId,
+                name:            r.Name,
                 libraryControlId:r.LibraryControlId,
                 implemented:     r.Implemented,
                 coverage:        r.Coverage,
@@ -41,7 +45,6 @@ namespace CMC.Application.Services
 
             if (r.DueDate.HasValue) c.SetDueDate(r.DueDate);
 
-            // NEU: Relationen setzen
             c.SetTags(r.TagIds ?? Array.Empty<Guid>());
             c.SetIndustries(r.IndustryIds ?? Array.Empty<Guid>());
 
@@ -86,7 +89,6 @@ namespace CMC.Application.Services
             if (!string.IsNullOrWhiteSpace(r.StatusTag))
                 c.TransitionTo(r.StatusTag!, DateTimeOffset.UtcNow);
 
-            // NEU: Relationen
             c.SetTags(r.TagIds ?? Array.Empty<Guid>());
             c.SetIndustries(r.IndustryIds ?? Array.Empty<Guid>());
 
@@ -142,9 +144,14 @@ namespace CMC.Application.Services
             return list.Select(Map).ToList();
         }
 
+        // Direkte Repository-Delegation
+        public Task<int> CountByCustomerAsync(Guid customerId, CancellationToken ct = default)
+            => _repo.CountByCustomerAsync(customerId, ct);
+
         private static ControlDto Map(Control c) => new ControlDto
         {
             Id = c.Id,
+            Name = c.Name,
             CustomerId = c.CustomerId,
             LibraryControlId = c.LibraryControlId,
             EvidenceId = c.EvidenceId,
@@ -161,7 +168,6 @@ namespace CMC.Application.Services
             CreatedAt = c.CreatedAt,
             UpdatedAt = c.UpdatedAt,
 
-            // Initialwerte optional – Editor lädt Ist-Zuordnung ohnehin über RelationshipManager.
             TagIds = Array.Empty<Guid>(),
             IndustryIds = Array.Empty<Guid>(),
             TagLabels = Array.Empty<string>(),

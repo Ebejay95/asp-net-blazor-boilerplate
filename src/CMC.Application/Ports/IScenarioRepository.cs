@@ -15,5 +15,8 @@ namespace CMC.Application.Ports
 		Task AddRangeAsync(IEnumerable<Scenario> scenarios, CancellationToken ct = default);
 		Task UpdateAsync(Scenario scenario, CancellationToken ct = default);
 		Task DeleteAsync(Scenario scenario, CancellationToken ct = default);
+
+		// NEU: Einfache Count-Methode
+		Task<int> CountByCustomerAsync(Guid customerId, CancellationToken ct = default);
 	}
 }

@@ -1,0 +1,78 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cmc-app-config
+  namespace: cmc-test
+data:
+  ASPNETCORE_ENVIRONMENT: "Development"
+  ASPNETCORE_URLS: "http://+:8080"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cmc-app
+  namespace: cmc-test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cmc-app
+  template:
+    metadata:
+      labels:
+        app: cmc-app
+    spec:
+      containers:
+      - name: cmc-app
+        image: ghcr.io/USERNAME/REPOSITORY:test-latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: ASPNETCORE_ENVIRONMENT
+          valueFrom:
+            configMapKeyRef:
+              name: cmc-app-config
+              key: ASPNETCORE_ENVIRONMENT
+        - name: ASPNETCORE_URLS
+          valueFrom:
+            configMapKeyRef:
+              name: cmc-app-config
+              key: ASPNETCORE_URLS
+        - name: ConnectionStrings__DefaultConnection
+          valueFrom:
+            secretKeyRef:
+              name: cmc-app-secret
+              key: connection
+        livenessProbe:
+          tcpSocket:
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          failureThreshold: 3
+        readinessProbe:
+          tcpSocket:
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cmc-app
+  namespace: cmc-test
+spec:
+  selector:
+    app: cmc-app
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+    nodePort: 30081
+  type: NodePort

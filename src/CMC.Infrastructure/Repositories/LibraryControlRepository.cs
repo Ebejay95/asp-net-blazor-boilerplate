@@ -59,5 +59,18 @@ namespace CMC.Infrastructure.Repositories
                 .OrderBy(x => x.Name)
                 .ToListAsync(ct);
         }
+        public async Task<HashSet<Guid>> GetIdsByLibraryScenarioIdsAsync(
+            IEnumerable<Guid> libraryScenarioIds,
+            CancellationToken ct = default)
+        {
+            var scen = (libraryScenarioIds ?? Array.Empty<Guid>()).Where(x => x != Guid.Empty).ToArray();
+            if (scen.Length == 0) return new();
+
+            var q = from link in _db.LibraryControlScenarios
+                    where scen.Contains(link.LibraryScenarioId)
+                    select link.LibraryControlId;
+
+            return (await q.Distinct().ToListAsync(ct)).ToHashSet();
+        }
     }
 }

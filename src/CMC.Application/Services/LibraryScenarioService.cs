@@ -12,7 +12,11 @@ namespace CMC.Application.Services
     public class LibraryScenarioService
     {
         private readonly ILibraryScenarioRepository _repo;
-        public LibraryScenarioService(ILibraryScenarioRepository repo) => _repo = repo ?? throw new ArgumentNullException(nameof(repo));
+
+        public LibraryScenarioService(ILibraryScenarioRepository repo)
+        {
+            _repo = repo ?? throw new ArgumentNullException(nameof(repo));
+        }
 
         public async Task<LibraryScenarioDto> CreateAsync(CreateLibraryScenarioRequest r, CancellationToken ct = default)
         {
@@ -21,7 +25,7 @@ namespace CMC.Application.Services
                 annualFrequency: r.AnnualFrequency,
                 impactPctRevenue: r.ImpactPctRevenue,
                 tagIds: r.TagIds ?? Array.Empty<Guid>(),
-                industryIds: r.IndustryIds ?? Array.Empty<Guid>() // ← NEU
+                industryIds: r.IndustryIds ?? Array.Empty<Guid>()
             );
             await _repo.AddAsync(e, ct);
             return Map(e);
@@ -36,7 +40,7 @@ namespace CMC.Application.Services
             e.SetAnnualFrequency(r.AnnualFrequency);
             e.SetImpactPctRevenue(r.ImpactPctRevenue);
             e.SetTags(r.TagIds ?? Array.Empty<Guid>());
-            e.SetIndustries(r.IndustryIds ?? Array.Empty<Guid>()); // ← NEU
+            e.SetIndustries(r.IndustryIds ?? Array.Empty<Guid>());
 
             await _repo.UpdateAsync(e, ct);
             return Map(e);
@@ -62,6 +66,10 @@ namespace CMC.Application.Services
             return true;
         }
 
+        // Direkte Repository-Delegation
+        public Task<List<LibraryScenarioLite>> GetByIndustriesAsync(IEnumerable<Guid> industryIds, CancellationToken ct = default)
+            => _repo.GetByIndustriesAsync(industryIds, ct);
+
         private static LibraryScenarioDto Map(LibraryScenario e) => new LibraryScenarioDto
         {
             Id = e.Id,
@@ -70,9 +78,8 @@ namespace CMC.Application.Services
             ImpactPctRevenue = e.ImpactPctRevenue,
 
             TagIds = e.GetTagIds(),
-            IndustryIds = e.GetIndustryIds(), // ← NEU
+            IndustryIds = e.GetIndustryIds(),
 
-            // Labels nur, wenn via Repo inkludiert (sonst leer)
             TagLabels = e.TagLinks?
                 .Select(l => l.Tag?.Name)
                 .Where(n => !string.IsNullOrWhiteSpace(n))

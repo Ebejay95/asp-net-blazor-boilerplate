@@ -14,7 +14,9 @@ namespace CMC.Application.Services
         private readonly IScenarioRepository _repo;
         private readonly ILibraryScenarioRepository _libRepo;
 
-        public ScenarioService(IScenarioRepository repo, ILibraryScenarioRepository libRepo)
+        public ScenarioService(
+            IScenarioRepository repo,
+            ILibraryScenarioRepository libRepo)
         {
             _repo = repo ?? throw new ArgumentNullException(nameof(repo));
             _libRepo = libRepo ?? throw new ArgumentNullException(nameof(libRepo));
@@ -24,7 +26,6 @@ namespace CMC.Application.Services
         {
             var s = new Scenario(r.CustomerId, r.LibraryScenarioId, r.Name, r.AnnualFrequency, r.ImpactPctRevenue, r.TagIds);
             await _repo.AddAsync(s, ct);
-            // Nach Save neu laden (jetzt inkl. Customer/Library/TagLinks, s. Repository-Fix)
             var reloaded = await _repo.GetByIdAsync(s.Id, ct) ?? s;
             return Map(reloaded);
         }
@@ -49,7 +50,7 @@ namespace CMC.Application.Services
 
         public async Task<ScenarioDto?> UpdateAsync(UpdateScenarioRequest r, CancellationToken ct = default)
         {
-            var s = await _repo.GetByIdAsync(r.Id, ct); // 👈 kommt jetzt mit geladenen TagLinks
+            var s = await _repo.GetByIdAsync(r.Id, ct);
             if (s == null) return null;
 
             s.Rename(r.Name);
@@ -86,6 +87,10 @@ namespace CMC.Application.Services
             }
             return result;
         }
+
+        // Direkte Repository-Delegation
+        public Task<int> CountByCustomerAsync(Guid customerId, CancellationToken ct = default)
+            => _repo.CountByCustomerAsync(customerId, ct);
 
         private static ScenarioDto Map(Scenario s) => new ScenarioDto
         {

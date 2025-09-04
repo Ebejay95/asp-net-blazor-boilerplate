@@ -15,5 +15,8 @@ namespace CMC.Application.Ports
 		Task AddAsync(LibraryControl entity, CancellationToken ct = default);
 		Task UpdateAsync(LibraryControl entity, CancellationToken ct = default);
 		Task DeleteAsync(LibraryControl entity, CancellationToken ct = default);
+
+		// NEU: Query-Methode
+		Task<HashSet<Guid>> GetIdsByLibraryScenarioIdsAsync(IEnumerable<Guid> libraryScenarioIds, CancellationToken ct = default);
 	}
 }

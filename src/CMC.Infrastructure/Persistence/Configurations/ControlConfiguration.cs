@@ -11,6 +11,7 @@ namespace CMC.Infrastructure.Persistence.Configurations
             e.ToTable("Controls");
             e.HasKey(x => x.Id);
 
+            e.Property(x => x.Name).IsRequired().HasMaxLength(200);
             // FIXED: Changed from Restrict to Cascade - Controls are owned by Customer
             e.HasOne(x => x.Customer)
              .WithMany(c => c.Controls)

@@ -7,6 +7,8 @@ namespace CMC.Contracts.Controls
 {
     public record UpdateControlRequest(
         [property: Required] Guid Id,
+        		[property: Required, StringLength(200, MinimumLength = 1), Display(Name = "Tag")]
+		string Name,
         [property: Display(Name = "Umgesetzt")] bool Implemented,
         [property: Range(0, 1)] decimal Coverage,
         [property: Display(Name = "Maturity")] int Maturity,
