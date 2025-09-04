@@ -1,6 +1,7 @@
 using CMC.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using CMC.Infrastructure.Persistence.Extensions;
 
 namespace CMC.Infrastructure.Persistence.Configurations
 {

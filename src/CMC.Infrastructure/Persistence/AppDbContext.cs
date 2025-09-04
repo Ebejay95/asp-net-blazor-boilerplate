@@ -2,6 +2,7 @@ using CMC.Domain.Entities;
 using CMC.Domain.Entities.Joins;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
+using CMC.Infrastructure.Persistence.Extensions;
 
 namespace CMC.Infrastructure.Persistence;
 

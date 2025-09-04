@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using CMC.Infrastructure.Persistence;
 using CMC.Infrastructure.Persistence.Configurations;
 using CMC.Infrastructure.Persistence.Interceptors;
+using CMC.Infrastructure.Persistence.Extensions;
 
 namespace CMC.Infrastructure;
 
