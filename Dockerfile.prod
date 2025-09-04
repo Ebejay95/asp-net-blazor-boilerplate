@@ -1,0 +1,91 @@
+# Production Dockerfile für CMC
+# ------------------------------------------------------------
+# Stage 0: Assets (Tailwind Standalone, kein Node nötig)
+# ------------------------------------------------------------
+FROM alpine:3.20 AS assets
+WORKDIR /work
+
+# Tailwind Standalone binär (Version Pinnen für Reproduzierbarkeit)
+ARG TAILWIND_VERSION=3.4.10
+ADD https://github.com/tailwindlabs/tailwindcss/releases/download/v${TAILWIND_VERSION}/tailwindcss-linux-x64 ./tailwindcss
+RUN chmod +x ./tailwindcss
+
+# Nur das Web-Projekt kopieren (enthält tailwind.config.js, Styles, Views, etc.)
+COPY src/CMC.Web ./CMC.Web
+WORKDIR /work/CMC.Web
+ENV NODE_ENV=production
+
+# Tailwind bauen (spiegelt dein Makefile-Aufruf)
+# Falls dein Config- oder Input-Pfad anders heißt, hier anpassen.
+RUN ../tailwindcss \
+  -c tailwind.config.js \
+  -i ./Styles/app.css \
+  -o ./wwwroot/style.css \
+  -m
+
+# ------------------------------------------------------------
+# Stage 1: .NET Build & Publish
+# ------------------------------------------------------------
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+
+# Dependencies zuerst (Caching)
+COPY ["src/CMC.Domain/CMC.Domain.csproj", "src/CMC.Domain/"]
+COPY ["src/CMC.Contracts/CMC.Contracts.csproj", "src/CMC.Contracts/"]
+COPY ["src/CMC.Application/CMC.Application.csproj", "src/CMC.Application/"]
+COPY ["src/CMC.Infrastructure/CMC.Infrastructure.csproj", "src/CMC.Infrastructure/"]
+COPY ["src/CMC.Web/CMC.Web.csproj", "src/CMC.Web/"]
+
+# Restore dependencies
+RUN dotnet restore "src/CMC.Web/CMC.Web.csproj"
+
+# Source kopieren
+COPY . .
+
+# Build & Publish
+WORKDIR "/src/src/CMC.Web"
+RUN dotnet publish "CMC.Web.csproj" \
+    -c Release \
+    -o /app/publish \
+    --no-restore \
+    /p:UseAppHost=false \
+    /p:PublishTrimmed=false
+
+# ------------------------------------------------------------
+# Stage 2: Runtime
+# ------------------------------------------------------------
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
+
+# Non-root user
+RUN groupadd -r appgroup && useradd -r -g appgroup appuser
+
+# curl für Healthcheck
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Veröffentlichtes .NET-Appverzeichnis
+COPY --from=build /app/publish .
+
+# Die gebaute Tailwind-CSS aus der Asset-Stage einspielen
+# (überschreibt ggf. vorhandene Datei aus Publish)
+COPY --from=assets /work/CMC.Web/wwwroot/style.css ./wwwroot/style.css
+
+# Ownership
+RUN chown -R appuser:appgroup /app
+
+# Non-root
+USER appuser
+
+# Env
+ENV ASPNETCORE_ENVIRONMENT=Production
+ENV ASPNETCORE_URLS=http://+:8080
+ENV DOTNET_RUNNING_IN_CONTAINER=true
+ENV DOTNET_USE_POLLING_FILE_WATCHER=true
+
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+EXPOSE 8080
+ENTRYPOINT ["dotnet", "CMC.Web.dll"]
