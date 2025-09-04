@@ -14,9 +14,7 @@ RUN dotnet restore "src/CMC.Web/CMC.Web.csproj"
 # 2) Restlicher Quellcode
 COPY . .
 
-# 3) Node + Tailwind global installieren und CSS bauen (wie Makefile)
-#    - Tailwind-Version Pinnen: passe bei Bedarf auf 4.x an (z. B. 4.0.0-rc o.ä.)
-#    - Wenn du PostCSS/Autoprefixer brauchst, ent-kommentiere die npm i -g Zeile
+# 3) Node installieren
 RUN apt-get update \
  && apt-get install -y curl ca-certificates gnupg \
  && install -d -m 0755 /etc/apt/keyrings \
@@ -24,23 +22,28 @@ RUN apt-get update \
  && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" > /etc/apt/sources.list.d/nodesource.list \
  && apt-get update \
  && apt-get install -y nodejs \
- && npm i -g tailwindcss@3.4.10 \
- # && npm i -g postcss@8 autoprefixer@10 \
  && rm -rf /var/lib/apt/lists/*
 
-# Falls keine tailwind.config.js existiert, minimal erstellen (optional)
-# Entferne diesen Block, wenn du deine eigene Config im Repo hast.
-RUN if [ ! -f src/CMC.Web/tailwind.config.js ]; then \
-      printf "module.exports = {\n  content: [\n    './src/CMC.Web/**/*.razor',\n    './src/CMC.Web/**/*.cshtml',\n    './src/CMC.Web/**/*.html',\n    './src/CMC.Web/**/*.{js,ts}',\n  ],\n  theme: { extend: {} },\n  plugins: [],\n};\n" > src/CMC.Web/tailwind.config.js ; \
-    fi
-
-# Tailwind-Build (Makefile-äquivalent)
+# 3b) Tailwind bauen – auto-Erkennung v4 vs. v3 anhand der CSS-Datei
+# - v4: '@import "tailwindcss";'  -> lokale Installation im Web-Ordner + npx
+# - v3: '@tailwind base;' etc.    -> CLI reicht, optional mit Config
 ENV NODE_ENV=production TAILWIND_MODE=build
-RUN tailwindcss \
-    -c src/CMC.Web/tailwind.config.js \
-    -i src/CMC.Web/Styles/app.css \
-    -o src/CMC.Web/wwwroot/style.css \
-    -m
+RUN set -eux; \
+  if grep -q '@import[[:space:]]\+"tailwindcss"' src/CMC.Web/Styles/app.css; then \
+    echo "Detected Tailwind v4 syntax -> installing local tailwindcss v4"; \
+    cd src/CMC.Web; \
+    npm init -y >/dev/null 2>&1; \
+    npm install --no-audit --no-fund --save-dev tailwindcss@^4.0.0; \
+    npx tailwindcss -i ./Styles/app.css -o ./wwwroot/style.css -m; \
+  else \
+    echo "Assuming Tailwind v3 -> installing CLI globally"; \
+    npm install -g tailwindcss@3.4.10; \
+    # Minimal-Config nur erzeugen, falls keine vorhanden ist
+    if [ ! -f src/CMC.Web/tailwind.config.js ]; then \
+      printf "module.exports = {\n  content: [\n    './src/CMC.Web/**/*.razor',\n    './src/CMC.Web/**/*.cshtml',\n    './src/CMC.Web/**/*.html',\n    './src/CMC.Web/**/*.{js,ts}',\n  ],\n  theme: { extend: {} },\n  plugins: [],\n};\n" > src/CMC.Web/tailwind.config.js ; \
+    fi; \
+    tailwindcss -c src/CMC.Web/tailwind.config.js -i src/CMC.Web/Styles/app.css -o src/CMC.Web/wwwroot/style.css -m; \
+  fi
 
 # 4) Publish
 WORKDIR "/src/src/CMC.Web"
