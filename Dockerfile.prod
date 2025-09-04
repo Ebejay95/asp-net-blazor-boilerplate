@@ -1,6 +1,4 @@
-# ------------------------------------------------------------
 # Production Dockerfile für CMC
-# ------------------------------------------------------------
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
@@ -16,7 +14,7 @@ RUN dotnet restore "src/CMC.Web/CMC.Web.csproj"
 # 2) Restlicher Quellcode
 COPY . .
 
-# 3) Node installieren (für Tailwind Build)
+# 3) Node installieren
 RUN apt-get update \
  && apt-get install -y curl ca-certificates gnupg \
  && install -d -m 0755 /etc/apt/keyrings \
@@ -29,25 +27,25 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 # 3b) Tailwind bauen – Auto-Erkennung v4 vs. v3 anhand der CSS-Datei
-ENV NODE_ENV=production TAILWIND_MODE=build
+# v4: '@import "tailwindcss";'  -> npx mit temporären Paketen (@tailwindcss/cli + tailwindcss)
+# v3: '@tailwind base;' etc.    -> globales CLI
+ENV TAILWIND_MODE=build
 RUN set -eux; \
   if grep -q '@import[[:space:]]\+"tailwindcss"' src/CMC.Web/Styles/app.css; then \
-    echo "Detected Tailwind v4 syntax -> installing tailwindcss + CLI"; \
-    cd src/CMC.Web; \
-    npm init -y >/dev/null 2>&1; \
-    npm install --no-audit --no-fund --save-dev tailwindcss@^4 @tailwindcss/cli@latest; \
-    npx --yes @tailwindcss/cli -i ./Styles/app.css -o ./wwwroot/style.css -m; \
+    echo "Tailwind v4 erkannt -> baue mit npx + temporären Paketen"; \
+    npx --yes -p @tailwindcss/cli@latest -p tailwindcss@^4 \
+      tailwindcss -i src/CMC.Web/Styles/app.css -o src/CMC.Web/wwwroot/style.css -m; \
   else \
-    echo "Assuming Tailwind v3 -> installing CLI globally"; \
+    echo "Tailwind v3 vermutet -> globales CLI"; \
     npm install -g tailwindcss@3.4.10; \
     if [ ! -f src/CMC.Web/tailwind.config.js ]; then \
       printf "module.exports = {\n  content: [\n    './src/CMC.Web/**/*.razor',\n    './src/CMC.Web/**/*.cshtml',\n    './src/CMC.Web/**/*.html',\n    './src/CMC.Web/**/*.{js,ts}',\n  ],\n  theme: { extend: {} },\n  plugins: [],\n};\n" > src/CMC.Web/tailwind.config.js ; \
     fi; \
-    tailwindcss -c src/CMC.Web/tailwind.config.js -i src/CMC.Web/Styles/app.css -o src/CMC.Web/wwwroot/style.css -m; \
+    tailwindcss -c src/CMC.Web/tailwind.config.js \
+      -i src/CMC.Web/Styles/app.css -o src/CMC.Web/wwwroot/style.css -m; \
   fi
 
-
-# 4) Publish (wwwroot/style.css ist jetzt vorhanden)
+# 4) Publish (.NET)
 WORKDIR "/src/src/CMC.Web"
 RUN dotnet publish "CMC.Web.csproj" \
     -c Release \
@@ -68,7 +66,7 @@ RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Veröffentlichtes .NET-Appverzeichnis (enthält bereits wwwroot/style.css)
+# Veröffentlichtes .NET-Appverzeichnis (enthält bereits wwwroot/style.css aus dem Publish)
 COPY --from=build /app/publish .
 
 RUN chown -R appuser:appgroup /app
