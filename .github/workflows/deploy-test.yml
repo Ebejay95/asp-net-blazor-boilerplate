@@ -1,9 +1,14 @@
 name: Deploy CMC Test
+
 on:
   push:
-    branches: [develop]
+    branches: [test]
   pull_request:
-    branches: [develop]
+    branches: [test]
+
+permissions:
+  contents: read
+  packages: write
 
 env:
   REGISTRY: ghcr.io
@@ -46,20 +51,41 @@ jobs:
   build-and-deploy:
     needs: test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/develop'
+    # Deploy nur für echte Branch-Pushes auf 'test', nicht für PRs:
+    if: github.ref == 'refs/heads/test'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js (with npm cache)
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'src/CMC.Web/package-lock.json'
+
+      - name: Install Frontend deps
+        working-directory: src/CMC.Web
+        run: npm ci
+        # Falls kein package.json vorhanden:
+        #   diesen Step löschen und im nächsten Step gepinnte npx-Variante verwenden.
 
       - name: Build Tailwind CSS
+        working-directory: src/CMC.Web
+        env:
+          NODE_ENV: production
         run: |
-          cd src/CMC.Web
-          npx tailwindcss -i ./Styles/app.css -o ./wwwroot/style.css --minify
+          npx tailwindcss -c tailwind.config.js \
+            -i ./Styles/app.css \
+            -o ./wwwroot/style.css \
+            -m
+        # Alternative ohne npm ci:
+        # run: |
+        #   NODE_ENV=production npx --yes tailwindcss@3.4.10 \
+        #     -c tailwind.config.js \
+        #     -i ./Styles/app.css \
+        #     -o ./wwwroot/style.css \
+        #     -m
 
       - name: Log in to Container Registry
         uses: docker/login-action@v3
@@ -116,8 +142,13 @@ jobs:
 
       - name: Wait for deployment
         run: |
-          kubectl wait --for=condition=available --timeout=300s deployment/postgres -n cmc-test
-          kubectl wait --for=condition=available --timeout=300s deployment/cmc-app -n cmc-test
+          if kubectl -n cmc-test get deploy postgres >/dev/null 2>&1; then
+            kubectl -n cmc-test rollout status deploy/postgres --timeout=600s
+          else
+            # Fallback, wenn es ein anderer Typ ist:
+            kubectl wait --for=condition=available --timeout=600s deployment/postgres -n cmc-test || true
+          fi
+          kubectl -n cmc-test rollout status deploy/cmc-app --timeout=600s
 
       - name: Get service info
         run: |
