@@ -23,9 +23,6 @@ obj/
 .env.local
 .env.*.local
 
-## Docker
-Dockerfile.prod
-
 ## Test Coverage
 coverage/
 TestResults/
