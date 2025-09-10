@@ -59,7 +59,7 @@ jobs:
           mkdir -p ~/.kube
           echo "${{ secrets.KUBECONFIG_B64 }}" | base64 -d > ~/.kube/config
           chmod 600 ~/.kube/config
-          kubectl version --short
+          kubectl version
 
       - name: Replace image name in manifests
         run: |
