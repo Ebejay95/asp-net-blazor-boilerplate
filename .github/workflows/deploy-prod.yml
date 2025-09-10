@@ -45,18 +45,30 @@ jobs:
         with:
           version: 'v1.31.0' # kompatibel zu deinem Cluster
 
-      - name: Write kubeconfig from secret
+      - name: Write kubeconfig from secret + verify CA
         shell: bash
+        env:
+          KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
         run: |
           set -euo pipefail
           mkdir -p ~/.kube
-          echo "${KUBECONFIG_B64}" | base64 -d > ~/.kube/config
+          echo "$KUBECONFIG_B64" | base64 -d > ~/.kube/config
           chmod 600 ~/.kube/config
+
           echo "Server in kubeconfig:"
           kubectl config view --minify --raw -o jsonpath='{.clusters[0].cluster.server}'; echo
+
+          # CA extrahieren & einmal gegen /version testen – das gibt eine klarere Diagnose
+          CA_TMP=/tmp/ca.crt
+          kubectl config view --raw -o jsonpath='{.clusters[0].cluster.certificate-authority-data}' | base64 -d > "$CA_TMP"
+          echo "Probiere TLS mit eingebettetem CA gegen /version ..."
+          curl -fsS https://23.88.50.66:6443/version --cacert "$CA_TMP" >/dev/null && echo "CA passt." || {
+            echo "ACHTUNG: Die im Secret eingebettete CA passt NICHT zum Server-Zertifikat."
+            echo "→ Prüfe, ob das Secret KUBECONFIG_B64 wirklich aus dem aktuellen ~/.kube/config stammt (mit externer IP)."
+            exit 1
+          }
+
           kubectl cluster-info
-        env:
-          KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
 
       - name: Replace image name in manifests (prod)
         run: |
