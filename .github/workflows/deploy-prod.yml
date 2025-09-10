@@ -53,31 +53,47 @@ jobs:
           KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
         run: |
           set -euo pipefail
+
           if [ -z "${KUBECONFIG_B64:-}" ]; then
             echo "Fehler: Secret KUBECONFIG_B64 fehlt."
             exit 1
           fi
+
           mkdir -p ~/.kube
-          # Strict decode (fail fast bei ungültigem Base64)
           echo "$KUBECONFIG_B64" | base64 -d > ~/.kube/config 2>/dev/null || {
             echo "Fehler: KUBECONFIG_B64 ist kein gültiges Base64 (einzeilig!)."
             exit 1
           }
           chmod 600 ~/.kube/config
 
-          echo -n "Server in kubeconfig: "
-          kubectl config view --minify --raw -o jsonpath='{.clusters[0].cluster.server}'; echo
+          SERVER="$(kubectl config view --minify --raw -o jsonpath='{.clusters[0].cluster.server}')"
+          echo "Server in kubeconfig: $SERVER"
 
-          # Optional: schneller TLS-Check mit eingebettetem CA (falls vorhanden)
+          # CA extrahieren (falls vorhanden)
           CA_TMP=/tmp/ca.crt
-          kubectl config view --raw -o jsonpath='{.clusters[0].cluster.certificate-authority-data}' | base64 -d > "$CA_TMP" 2>/dev/null || true
+          kubectl config view --raw -o jsonpath='{.clusters[0].cluster.certificate-authority-data}' \
+            | base64 -d > "$CA_TMP" 2>/dev/null || true
+
+          # TLS-Erreichbarkeit prüfen (401/403 sind OK! nur TLS zählt)
           if [ -s "$CA_TMP" ]; then
-            curl -fsS "$(kubectl config view --minify --raw -o jsonpath='{.clusters[0].cluster.server}')"'/version' --cacert "$CA_TMP" >/dev/null || {
-              echo "ACHTUNG: TLS/CA-Problem zwischen kubeconfig und API-Server."
-              exit 1
-            }
+            CODE="$(curl -sS -o /dev/null -w '%{http_code}' --cacert "$CA_TMP" "$SERVER/version" || true)"
+          else
+            # Falls keine CA eingebettet ist, trotzdem testen (z.B. öffentliche CA)
+            CODE="$(curl -sS -o /dev/null -w '%{http_code}' "$SERVER/version" || true)"
           fi
 
+          case "$CODE" in
+            200|401|403)
+              echo "TLS ok (HTTP $CODE)."
+              ;;
+            *)
+              echo "TLS/CA-Problem oder Server unerreichbar (HTTP $CODE)."
+              echo "Hinweis: 401/403 wären in Ordnung; alles andere weist auf TLS/Netz hin."
+              exit 1
+              ;;
+          esac
+
+          # Kubectl spricht mit dem Cluster (hier kann Auth fehlschlagen; das zeigt echte RBAC/Token-Probleme)
           kubectl cluster-info
 
       - name: Replace image name in manifests
