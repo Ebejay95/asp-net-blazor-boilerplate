@@ -25,15 +25,6 @@ jobs:
       - name: Normalize image name (lowercase)
         run: echo "IMAGE_NAME_LOWER=$(echo '${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
-      # Optional: Tailwind vor dem Docker-Build bauen (damit style.css sicher im Image ist)
-      #- name: Build Tailwind CSS
-      #  run: |
-      #    cd src/CMC.Web
-      #    npm --version || true
-      #    node --version || true
-      #    npx @tailwindcss/cli@latest -i ./Styles/app.css -o ./wwwroot/style.css --minify
-      #    test -s ./wwwroot/style.css
-
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
@@ -52,26 +43,34 @@ jobs:
       - name: Setup kubectl
         uses: azure/setup-kubectl@v4
         with:
-          version: 'latest'
+          version: 'v1.31.0' # kompatibel zu deinem Cluster
 
       - name: Write kubeconfig from secret
+        shell: bash
         run: |
+          set -euo pipefail
           mkdir -p ~/.kube
-          echo "${{ secrets.KUBECONFIG_B64 }}" | base64 -d > ~/.kube/config
+          echo "${KUBECONFIG_B64}" | base64 -d > ~/.kube/config
           chmod 600 ~/.kube/config
-          kubectl version
+          echo "Server in kubeconfig:"
+          kubectl config view --minify --raw -o jsonpath='{.clusters[0].cluster.server}'; echo
+          kubectl cluster-info
+        env:
+          KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
 
-      - name: Replace image name in manifests
+      - name: Replace image name in manifests (prod)
         run: |
+          set -e
           sed -i "s|ghcr.io/USERNAME/REPOSITORY|${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}|g" k8s/prod/cmc-app.yaml
 
       - name: Create namespaces
         run: kubectl apply -f k8s/namespaces.yaml
 
-      - name: Create/update secrets
+      - name: Create/update secrets (prod)
         env:
           DB_PASSWORD: ${{ secrets.DB_PW }}
         run: |
+          set -euo pipefail
           kubectl -n cmc-prod create secret generic postgres-secret \
             --from-literal=password="${DB_PASSWORD}" \
             --dry-run=client -o yaml | kubectl apply -f -
@@ -85,16 +84,27 @@ jobs:
         run: kubectl apply -f k8s/prod/
 
       - name: Wait for rollout
+        shell: bash
         run: |
-          # Falls Postgres als Deployment/StatefulSet vorhanden, warte darauf
-          kubectl -n cmc-prod get statefulset postgres >/dev/null 2>&1 && \
-            kubectl -n cmc-prod rollout status statefulset/postgres --timeout=600s || true
-
-          kubectl -n cmc-prod rollout status deploy/cmc-app --timeout=600s
+          set -e
+          # Falls Postgres als StatefulSet existiert, warte darauf
+          if kubectl -n cmc-prod get statefulset postgres >/dev/null 2>&1; then
+            kubectl -n cmc-prod rollout status statefulset/postgres --timeout=600s
+          fi
+          # Falls Postgres als Deployment existiert, warte darauf
+          if kubectl -n cmc-prod get deployment postgres >/dev/null 2>&1; then
+            kubectl -n cmc-prod rollout status deployment/postgres --timeout=600s
+          fi
+          # App
+          kubectl -n cmc-prod rollout status deployment/cmc-app --timeout=600s
 
       - name: Show service info
+        shell: bash
         run: |
+          set -e
           kubectl get pods -n cmc-prod
           kubectl get services -n cmc-prod
-          # NodePort ausgeben (falls kein Ingress genutzt wird)
-          kubectl get svc cmc-app -n cmc-prod -o jsonpath='{.spec.ports[0].nodePort}'; echo
+          if kubectl -n cmc-prod get svc cmc-app >/dev/null 2>&1; then
+            echo -n "NodePort cmc-app: "
+            kubectl get svc cmc-app -n cmc-prod -o jsonpath='{.spec.ports[0].nodePort}'; echo
+          fi
