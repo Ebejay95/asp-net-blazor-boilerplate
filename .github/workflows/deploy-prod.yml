@@ -26,13 +26,13 @@ jobs:
         run: echo "IMAGE_NAME_LOWER=$(echo '${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
       # Optional: Tailwind vor dem Docker-Build bauen (damit style.css sicher im Image ist)
-      - name: Build Tailwind CSS
-        run: |
-          cd src/CMC.Web
-          npm --version || true
-          node --version || true
-          npx @tailwindcss/cli@latest -i ./Styles/app.css -o ./wwwroot/style.css --minify
-          test -s ./wwwroot/style.css
+      #- name: Build Tailwind CSS
+      #  run: |
+      #    cd src/CMC.Web
+      #    npm --version || true
+      #    node --version || true
+      #    npx @tailwindcss/cli@latest -i ./Styles/app.css -o ./wwwroot/style.css --minify
+      #    test -s ./wwwroot/style.css
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
