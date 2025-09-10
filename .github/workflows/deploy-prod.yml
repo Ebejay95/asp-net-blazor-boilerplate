@@ -21,6 +21,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: false
 
       - name: Normalize image name (lowercase)
         run: echo "IMAGE_NAME_LOWER=$(echo '${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
@@ -43,42 +45,49 @@ jobs:
       - name: Setup kubectl
         uses: azure/setup-kubectl@v4
         with:
-          version: 'v1.31.0' # kompatibel zu deinem Cluster
+          version: 'latest'
 
-      - name: Write kubeconfig from secret + verify CA
+      - name: Write kubeconfig from KUBECONFIG_B64 (single source of truth)
         shell: bash
         env:
           KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
         run: |
           set -euo pipefail
+          if [ -z "${KUBECONFIG_B64:-}" ]; then
+            echo "Fehler: Secret KUBECONFIG_B64 fehlt."
+            exit 1
+          fi
           mkdir -p ~/.kube
-          echo "$KUBECONFIG_B64" | base64 -d > ~/.kube/config
-          chmod 600 ~/.kube/config
-
-          echo "Server in kubeconfig:"
-          kubectl config view --minify --raw -o jsonpath='{.clusters[0].cluster.server}'; echo
-
-          # CA extrahieren & einmal gegen /version testen – das gibt eine klarere Diagnose
-          CA_TMP=/tmp/ca.crt
-          kubectl config view --raw -o jsonpath='{.clusters[0].cluster.certificate-authority-data}' | base64 -d > "$CA_TMP"
-          echo "Probiere TLS mit eingebettetem CA gegen /version ..."
-          curl -fsS https://23.88.50.66:6443/version --cacert "$CA_TMP" >/dev/null && echo "CA passt." || {
-            echo "ACHTUNG: Die im Secret eingebettete CA passt NICHT zum Server-Zertifikat."
-            echo "→ Prüfe, ob das Secret KUBECONFIG_B64 wirklich aus dem aktuellen ~/.kube/config stammt (mit externer IP)."
+          # Strict decode (fail fast bei ungültigem Base64)
+          echo "$KUBECONFIG_B64" | base64 -d > ~/.kube/config 2>/dev/null || {
+            echo "Fehler: KUBECONFIG_B64 ist kein gültiges Base64 (einzeilig!)."
             exit 1
           }
+          chmod 600 ~/.kube/config
+
+          echo -n "Server in kubeconfig: "
+          kubectl config view --minify --raw -o jsonpath='{.clusters[0].cluster.server}'; echo
+
+          # Optional: schneller TLS-Check mit eingebettetem CA (falls vorhanden)
+          CA_TMP=/tmp/ca.crt
+          kubectl config view --raw -o jsonpath='{.clusters[0].cluster.certificate-authority-data}' | base64 -d > "$CA_TMP" 2>/dev/null || true
+          if [ -s "$CA_TMP" ]; then
+            curl -fsS "$(kubectl config view --minify --raw -o jsonpath='{.clusters[0].cluster.server}')"'/version' --cacert "$CA_TMP" >/dev/null || {
+              echo "ACHTUNG: TLS/CA-Problem zwischen kubeconfig und API-Server."
+              exit 1
+            }
+          fi
 
           kubectl cluster-info
 
-      - name: Replace image name in manifests (prod)
+      - name: Replace image name in manifests
         run: |
-          set -e
           sed -i "s|ghcr.io/USERNAME/REPOSITORY|${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}|g" k8s/prod/cmc-app.yaml
 
       - name: Create namespaces
         run: kubectl apply -f k8s/namespaces.yaml
 
-      - name: Create/update secrets (prod)
+      - name: Create/update secrets
         env:
           DB_PASSWORD: ${{ secrets.DB_PW }}
         run: |
@@ -96,27 +105,15 @@ jobs:
         run: kubectl apply -f k8s/prod/
 
       - name: Wait for rollout
-        shell: bash
         run: |
-          set -e
-          # Falls Postgres als StatefulSet existiert, warte darauf
           if kubectl -n cmc-prod get statefulset postgres >/dev/null 2>&1; then
             kubectl -n cmc-prod rollout status statefulset/postgres --timeout=600s
           fi
-          # Falls Postgres als Deployment existiert, warte darauf
-          if kubectl -n cmc-prod get deployment postgres >/dev/null 2>&1; then
-            kubectl -n cmc-prod rollout status deployment/postgres --timeout=600s
-          fi
-          # App
-          kubectl -n cmc-prod rollout status deployment/cmc-app --timeout=600s
+          kubectl -n cmc-prod rollout status deploy/cmc-app --timeout=600s
 
       - name: Show service info
-        shell: bash
         run: |
-          set -e
           kubectl get pods -n cmc-prod
           kubectl get services -n cmc-prod
-          if kubectl -n cmc-prod get svc cmc-app >/dev/null 2>&1; then
-            echo -n "NodePort cmc-app: "
-            kubectl get svc cmc-app -n cmc-prod -o jsonpath='{.spec.ports[0].nodePort}'; echo
-          fi
+          echo -n "NodePort: "
+          kubectl get svc cmc-app -n cmc-prod -o jsonpath='{.spec.ports[0].nodePort}'; echo

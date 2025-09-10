@@ -5,7 +5,6 @@ on:
     branches: [test]
   pull_request:
     branches: [test]
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -29,11 +28,11 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-        ports:
-          - 5432:5432
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: false
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -59,17 +58,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: false
 
-      - name: Normalize image name (lowercase)
+      - name: Normalize image name
         run: echo "IMAGE_NAME_LOWER=$(echo '${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
-
-      # Optional: Tailwind CSS vor dem Build erzeugen (nur wenn du die Datei nicht im Docker-Build erzeugst)
-      - name: Build Tailwind CSS
-        run: |
-          set -e
-          cd src/CMC.Web
-          npx @tailwindcss/cli@latest -i ./Styles/app.css -o ./wwwroot/style.css --minify
-          test -s ./wwwroot/style.css
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -89,22 +82,41 @@ jobs:
       - name: Setup kubectl
         uses: azure/setup-kubectl@v4
         with:
-          version: 'v1.31.0'
+          version: 'latest'
 
-      - name: Write kubeconfig from secret
+      - name: Write kubeconfig from KUBECONFIG_B64 (single source of truth)
         shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p ~/.kube
-          echo "${KUBECONFIG_B64}" | base64 -d > ~/.kube/config
-          chmod 600 ~/.kube/config
-          kubectl cluster-info
         env:
           KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
+        run: |
+          set -euo pipefail
+          if [ -z "${KUBECONFIG_B64:-}" ]; then
+            echo "Fehler: Secret KUBECONFIG_B64 fehlt."
+            exit 1
+          fi
+          mkdir -p ~/.kube
+          echo "$KUBECONFIG_B64" | base64 -d > ~/.kube/config 2>/dev/null || {
+            echo "Fehler: KUBECONFIG_B64 ist kein gültiges Base64 (einzeilig!)."
+            exit 1
+          }
+          chmod 600 ~/.kube/config
+
+          echo -n "Server in kubeconfig: "
+          kubectl config view --minify --raw -o jsonpath='{.clusters[0].cluster.server}'; echo
+
+          CA_TMP=/tmp/ca.crt
+          kubectl config view --raw -o jsonpath='{.clusters[0].cluster.certificate-authority-data}' | base64 -d > "$CA_TMP" 2>/dev/null || true
+          if [ -s "$CA_TMP" ]; then
+            curl -fsS "$(kubectl config view --minify --raw -o jsonpath='{.clusters[0].cluster.server}')"'/version' --cacert "$CA_TMP" >/dev/null || {
+              echo "ACHTUNG: TLS/CA-Problem zwischen kubeconfig und API-Server."
+              exit 1
+            }
+          fi
+
+          kubectl cluster-info
 
       - name: Replace image name in test manifests
         run: |
-          set -e
           sed -i "s|ghcr.io/USERNAME/REPOSITORY|${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}|g" k8s/test/cmc-app.yaml
 
       - name: Create namespaces
@@ -128,24 +140,14 @@ jobs:
         run: kubectl apply -f k8s/test/
 
       - name: Wait for rollout
-        shell: bash
         run: |
-          set -e
-          if kubectl -n cmc-test get statefulset postgres >/dev/null 2>&1; then
-            kubectl -n cmc-test rollout status statefulset/postgres --timeout=600s
-          fi
           if kubectl -n cmc-test get deployment postgres >/dev/null 2>&1; then
             kubectl -n cmc-test rollout status deployment/postgres --timeout=600s
           fi
           kubectl -n cmc-test rollout status deployment/cmc-app --timeout=600s
 
       - name: Show service info
-        shell: bash
         run: |
-          set -e
           kubectl get pods -n cmc-test
           kubectl get services -n cmc-test
-          if kubectl -n cmc-test get svc cmc-app >/dev/null 2>&1; then
-            echo -n "NodePort cmc-app: "
-            kubectl get svc cmc-app -n cmc-test -o jsonpath='{.spec.ports[0].nodePort}'; echo
-          fi
+          echo "Port-forward via: kubectl -n cmc-test port-forward service/cmc-app 8080:8080"
