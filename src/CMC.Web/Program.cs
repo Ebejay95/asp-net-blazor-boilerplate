@@ -8,42 +8,46 @@ using CMC.Web.Auth;
 using CMC.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 🔧 SSL Development Fix – nur im Development
+// Nur im Development ein paar Bequemlichkeiten (KEIN HTTPS in Prod erzwingen!)
 if (builder.Environment.IsDevelopment())
 {
-    builder.WebHost.ConfigureKestrel(options =>
+    // Kein Zertifikatszwang bei lokalen Calls (nur Dev)
+    builder.Services.AddHttpClient("default", client =>
     {
-        options.ConfigureHttpsDefaults(httpsOptions => { httpsOptions.ServerCertificate = null; });
+        client.Timeout = TimeSpan.FromSeconds(30);
+    })
+    .ConfigurePrimaryHttpMessageHandler(() =>
+    {
+        var handler = new HttpClientHandler
+        {
+            // Nur in DEV Zertifikatsfehler ignorieren
+            ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true
+        };
+        return handler;
+    });
+}
+else
+{
+    // In Production normaler HttpClient
+    builder.Services.AddHttpClient("default", client =>
+    {
+        client.Timeout = TimeSpan.FromSeconds(30);
     });
 }
 
-// Add services
+// UI / Framework
 builder.Services.AddRazorPages();
-builder.Services.AddServerSideBlazor(options => { options.DetailedErrors = true; });
+builder.Services.AddServerSideBlazor(o => o.DetailedErrors = builder.Environment.IsDevelopment());
 builder.Services.AddControllers();
-builder.Services.AddSignalR(options =>
+builder.Services.AddSignalR(o =>
 {
-    options.EnableDetailedErrors = true;
-    options.ClientTimeoutInterval = TimeSpan.FromSeconds(60);
-    options.HandshakeTimeout = TimeSpan.FromSeconds(30);
-});
-
-// HttpClient mit SSL-Bypass nur im Development
-builder.Services.AddHttpClient("default", client =>
-{
-    client.Timeout = TimeSpan.FromSeconds(30);
-})
-.ConfigurePrimaryHttpMessageHandler(() =>
-{
-    var handler = new HttpClientHandler();
-    if (builder.Environment.IsDevelopment())
-        handler.ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true;
-    return handler;
+    o.EnableDetailedErrors = builder.Environment.IsDevelopment();
+    o.ClientTimeoutInterval = TimeSpan.FromSeconds(60);
+    o.HandshakeTimeout = TimeSpan.FromSeconds(30);
 });
 
 // App-Services (DI)
@@ -51,10 +55,10 @@ builder.Services.AddScoped<DialogService>();
 builder.Services.AddScoped<RelationDialogService>();
 builder.Services.AddScoped<EFEditService>();
 
-// ✅ RelationshipManager an deinen konkreten DbContext binden
+// Bridge für @inject DbContext Db
 builder.Services.AddScoped<IRelationshipManager, RelationshipManager<AppDbContext>>();
 
-// ✅ DB-gestützte Revisions-/Papierkorb-Services (wie gehabt)
+// Revisions-/Papierkorb-Services
 builder.Services.AddScoped<IRevisionKeyResolver, DefaultRevisionKeyResolver>();
 builder.Services.AddScoped<IRevisionsClient, EfRevisionsClient>();
 builder.Services.AddScoped<CMC.Infrastructure.Services.RevisionService>();
@@ -74,16 +78,7 @@ builder.Services.AddScoped<EvidenceService>();
 builder.Services.AddScoped<TagService>();
 builder.Services.AddScoped<IndustryService>();
 
-// ENTFERNE diese Zeilen - Query-Services werden jetzt über DI automatisch registriert:
-// builder.Services.AddScoped<LibraryScenarioQuery>();
-// builder.Services.AddScoped<LibraryControlQuery>();
-// builder.Services.AddScoped<ScenarioQuery>();
-// builder.Services.AddScoped<ControlQuery>();
-
-// ✅ DB-gestützte Claims-Aktualisierung
-builder.Services.AddScoped<IClaimsTransformation, DbBackedClaimsTransformation>();
-
-// Authentication + Cookie Setup
+// Auth
 builder.Services.AddScoped<CookieEvents>();
 builder.Services
     .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -92,7 +87,7 @@ builder.Services
         options.Cookie.Name = "CMC_Auth";
         options.Cookie.HttpOnly = true;
         options.Cookie.SameSite = SameSiteMode.Lax;
-        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest; // hinter Ingress ok
 
         options.ExpireTimeSpan = TimeSpan.FromDays(30);
         options.SlidingExpiration = true;
@@ -111,18 +106,16 @@ builder.Services.AddAuthorization();
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddHttpContextAccessor();
 
-// Infrastruktur (ConnectionString via Config/Env)
-// Registriert u. a. AppDbContext und alle Query Services über Interfaces
+// Infrastruktur (AppDbContext, Repos, Queries, ConnectionString via Config/Env)
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddRevisionsSupport();
 
-// 🔌 WICHTIG: Bridge-Registrierung, damit @inject DbContext Db funktioniert
+// Bridge für Razor/DI
 builder.Services.AddScoped<DbContext>(sp => sp.GetRequiredService<AppDbContext>());
 
 var app = builder.Build();
 
-// Rest bleibt unverändert...
-// Forwarded Headers (wichtig hinter Nginx für HTTPS/Cookies)
+// Forwarded Headers (wichtig hinter Ingress für korrekte Scheme/RemoteIP)
 var fwdOptions = new ForwardedHeadersOptions
 {
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
@@ -134,17 +127,17 @@ app.UseForwardedHeaders(fwdOptions);
 // Pipeline
 if (!app.Environment.IsDevelopment())
 {
+    // HSTS nur als Header für die Browser; TLS endet am Ingress (X-Forwarded-Proto = https)
     app.UseExceptionHandler("/Error");
     app.UseHsts();
 }
 else
 {
     app.UseDeveloperExceptionPage();
-    Console.WriteLine("🔧 Development SSL Info:");
-    Console.WriteLine("   dotnet dev-certs https --trust");
-    Console.WriteLine("   oder nutze http://localhost:5000");
+    Console.WriteLine("🔧 Development-Hinweis: nutze http://localhost:5000 oder https mit dev-certs.");
 }
 
+// KEIN UseHttpsRedirection hier nötig (TLS-Termination macht der Ingress)
 app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthentication();
@@ -155,7 +148,7 @@ app.MapBlazorHub();
 app.MapRazorPages();
 app.MapFallbackToPage("/_Host");
 
-// Datenbank-Migration
+// DB-Migration beim Start
 using (var scope = app.Services.CreateScope())
 {
     try
@@ -172,7 +165,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 Console.WriteLine("🚀 Starting CMC application...");
-Console.WriteLine("   📡 URLs kommen aus ASPNETCORE_URLS oder appsettings.json");
+Console.WriteLine("   📡 URLs kommen aus Kestrel-Endpunkten (Production: http://0.0.0.0:8080) oder ASPNETCORE_URLS.");
 
 app.Run();
 
