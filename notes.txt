@@ -8,5 +8,6 @@ find . -name "bin" -type d -exec rm -rf {} + && find . -name "obj" -type d -exec
 
 find . -name "out" -type f -delete
 
+find . -name "bin" -type d -exec rm -rf {} + && find . -name "obj" -type d -exec rm -rf {} + && (find . -type f -not -path "./.git/*" -not -path "./tests/*"  -not -path "./src/*" -exec ls -la {} \; && echo "=== FILE CONTENTS ===" && find . -type f -not -path "./.git/*" -not -path "./tests/*"  -not -path "./src/*"  -exec sh -c 'echo "=== {} ==="; cat "{}"' \;) > ./../out
 
 https://github.com/tailwindlabs/heroicons/tree/master/src

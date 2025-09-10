@@ -22,10 +22,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Normalize image name
+      - name: Normalize image name (lowercase)
         run: echo "IMAGE_NAME_LOWER=$(echo '${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
-      - name: Log in to Container Registry
+      # Optional: Tailwind vor dem Docker-Build bauen (damit style.css sicher im Image ist)
+      - name: Build Tailwind CSS
+        run: |
+          cd src/CMC.Web
+          npm --version || true
+          node --version || true
+          npx @tailwindcss/cli@latest -i ./Styles/app.css -o ./wwwroot/style.css --minify
+          test -s ./wwwroot/style.css
+
+      - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -45,21 +54,21 @@ jobs:
         with:
           version: 'latest'
 
-      - name: Setup kubeconfig
+      - name: Write kubeconfig from secret
         run: |
           mkdir -p ~/.kube
           echo "${{ secrets.KUBECONFIG_B64 }}" | base64 -d > ~/.kube/config
           chmod 600 ~/.kube/config
+          kubectl version --short
 
       - name: Replace image name in manifests
         run: |
           sed -i "s|ghcr.io/USERNAME/REPOSITORY|${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}|g" k8s/prod/cmc-app.yaml
 
       - name: Create namespaces
-        run: |
-          kubectl apply -f k8s/namespaces.yaml
+        run: kubectl apply -f k8s/namespaces.yaml
 
-      - name: Create secrets
+      - name: Create/update secrets
         env:
           DB_PASSWORD: ${{ secrets.DB_PW }}
         run: |
@@ -73,20 +82,19 @@ jobs:
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Deploy to production
-        run: |
-          kubectl apply -f k8s/prod/
+        run: kubectl apply -f k8s/prod/
 
-      - name: Wait for deployment
+      - name: Wait for rollout
         run: |
-          if kubectl -n cmc-prod get deploy postgres >/dev/null 2>&1; then
-            kubectl -n cmc-prod rollout status deploy/postgres --timeout=600s
-          fi
+          # Falls Postgres als Deployment/StatefulSet vorhanden, warte darauf
+          kubectl -n cmc-prod get statefulset postgres >/dev/null 2>&1 && \
+            kubectl -n cmc-prod rollout status statefulset/postgres --timeout=600s || true
+
           kubectl -n cmc-prod rollout status deploy/cmc-app --timeout=600s
 
-      - name: Get service info
+      - name: Show service info
         run: |
-          echo "Production deployment completed!"
           kubectl get pods -n cmc-prod
           kubectl get services -n cmc-prod
-          NODEPORT=$(kubectl get service cmc-app -n cmc-prod -o jsonpath='{.spec.ports[0].nodePort}')
-          echo "App accessible on: http://YOUR_SERVER_IP:$NODEPORT"
+          # NodePort ausgeben (falls kein Ingress genutzt wird)
+          kubectl get svc cmc-app -n cmc-prod -o jsonpath='{.spec.ports[0].nodePort}'; echo

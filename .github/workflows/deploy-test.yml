@@ -24,7 +24,7 @@ jobs:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: cmc_test
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U postgres -d cmc_test"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -37,7 +37,7 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Restore dependencies
+      - name: Restore
         run: dotnet restore
 
       - name: Build
@@ -50,8 +50,8 @@ jobs:
 
   build-and-deploy:
     needs: test
-    runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/test'
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -59,14 +59,20 @@ jobs:
       - name: Normalize image name
         run: echo "IMAGE_NAME_LOWER=$(echo '${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
-      - name: Log in to Container Registry
+      - name: Build Tailwind CSS
+        run: |
+          cd src/CMC.Web
+          npx @tailwindcss/cli@latest -i ./Styles/app.css -o ./wwwroot/style.css --minify
+          test -s ./wwwroot/style.css
+
+      - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Docker image
+      - name: Build and push test image
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -79,21 +85,21 @@ jobs:
         with:
           version: 'latest'
 
-      - name: Setup kubeconfig
+      - name: Write kubeconfig from secret
         run: |
           mkdir -p ~/.kube
           echo "${{ secrets.KUBECONFIG_B64 }}" | base64 -d > ~/.kube/config
           chmod 600 ~/.kube/config
+          kubectl version --short
 
-      - name: Replace image name in manifests
+      - name: Replace image name in test manifests
         run: |
           sed -i "s|ghcr.io/USERNAME/REPOSITORY|${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}|g" k8s/test/cmc-app.yaml
 
       - name: Create namespaces
-        run: |
-          kubectl apply -f k8s/namespaces.yaml
+        run: kubectl apply -f k8s/namespaces.yaml
 
-      - name: Create secrets
+      - name: Create/update secrets (test)
         env:
           DB_PASSWORD: ${{ secrets.DB_PW }}
         run: |
@@ -107,21 +113,16 @@ jobs:
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Deploy to test
-        run: |
-          kubectl apply -f k8s/test/
+        run: kubectl apply -f k8s/test/
 
-      - name: Wait for deployment
+      - name: Wait for rollout
         run: |
-          if kubectl -n cmc-test get deploy postgres >/dev/null 2>&1; then
-            kubectl -n cmc-test rollout status deploy/postgres --timeout=600s
-          else
-            kubectl wait --for=condition=available --timeout=600s deployment/postgres -n cmc-test || true
-          fi
-          kubectl -n cmc-test rollout status deploy/cmc-app --timeout=600s
+          kubectl -n cmc-test get deployment postgres >/dev/null 2>&1 && \
+            kubectl -n cmc-test rollout status deployment/postgres --timeout=600s || true
+          kubectl -n cmc-test rollout status deployment/cmc-app --timeout=600s
 
-      - name: Get service info
+      - name: Show service info
         run: |
-          echo "Test deployment completed!"
           kubectl get pods -n cmc-test
           kubectl get services -n cmc-test
-          echo "Access via: kubectl port-forward -n cmc-test service/cmc-app 8080:8080"
+          echo "Port-forward via: kubectl -n cmc-test port-forward service/cmc-app 8080:8080"
