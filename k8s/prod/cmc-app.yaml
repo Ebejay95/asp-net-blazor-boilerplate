@@ -1,18 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cmc-app-config
+  namespace: cmc-prod
+data:
+  ASPNETCORE_ENVIRONMENT: "Production"
+  ASPNETCORE_URLS: "http://+:8080"
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: cmc-app
   namespace: cmc-prod
-  labels:
-    app: cmc-app
 spec:
-  replicas: 2
-  revisionHistoryLimit: 5
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxUnavailable: 0
-      maxSurge: 1
+  replicas: 1
   selector:
     matchLabels:
       app: cmc-app
@@ -22,91 +23,77 @@ spec:
         app: cmc-app
     spec:
       containers:
-        - name: cmc-app
-          image: ghcr.io/USERNAME/REPOSITORY:latest
-          imagePullPolicy: Always
-          ports:
-            - name: http
-              containerPort: 8080
-          env:
-            - name: ASPNETCORE_ENVIRONMENT
-              value: "Production"
-            - name: ASPNETCORE_URLS
-              value: "http://0.0.0.0:8080"
-            # ConnectionString aus Secret in .NET-Konfig-Struktur mappen:
-            - name: ConnectionStrings__DefaultConnection
-              valueFrom:
-                secretKeyRef:
-                  name: cmc-app-secret
-                  key: connection
-          volumeMounts:
-            # Persistente DataProtection-Keys (verhindert Cookie-Invalidation bei Restarts / mehreren Replikas)
-            - name: dp-keys
-              mountPath: /keys
-            # Optional: appsettings.json aus ConfigMap mounten, falls du das so nutzt
-            # - name: appsettings
-            #   mountPath: /app/appsettings.json
-            #   subPath: appsettings.json
-          readinessProbe:
-            httpGet:
-              path: /
-              port: http
-            initialDelaySeconds: 10
-            periodSeconds: 10
-            timeoutSeconds: 2
-            failureThreshold: 6
-          livenessProbe:
-            httpGet:
-              path: /
-              port: http
-            initialDelaySeconds: 30
-            periodSeconds: 20
-            timeoutSeconds: 2
-            failureThreshold: 3
-          resources:
-            requests:
-              cpu: "100m"
-              memory: "256Mi"
-            limits:
-              cpu: "500m"
-              memory: "512Mi"
+      - name: cmc-app
+        image: ghcr.io/audicialex/cybersecurity-management-cockpit:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 8080
+        env:
+        - name: ASPNETCORE_ENVIRONMENT
+          valueFrom:
+            configMapKeyRef:
+              name: cmc-app-config
+              key: ASPNETCORE_ENVIRONMENT
+        - name: ASPNETCORE_URLS
+          valueFrom:
+            configMapKeyRef:
+              name: cmc-app-config
+              key: ASPNETCORE_URLS
+        - name: ConnectionStrings__DefaultConnection
+          valueFrom:
+            secretKeyRef:
+              name: cmc-app-secret
+              key: connection
+
+        # Wichtig: beide Appsettings mounten (überdecken die im Image)
+        volumeMounts:
+        - name: appsettings
+          mountPath: /app/appsettings.json
+          subPath: appsettings.json
+        - name: appsettings
+          mountPath: /app/appsettings.Production.json
+          subPath: appsettings.Production.json
+
+        # einfache Probes (TCP reicht, bis App stabil läuft)
+        livenessProbe:
+          tcpSocket: { port: http }
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          failureThreshold: 3
+        readinessProbe:
+          tcpSocket: { port: http }
+          initialDelaySeconds: 10
+          periodSeconds: 5
+
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
       volumes:
-        - name: dp-keys
-          persistentVolumeClaim:
-            claimName: cmc-dp-keys-pvc
-        # - name: appsettings
-        #   configMap:
-        #     name: cmc-app-config
-        #     items:
-        #       - key: appsettings.json
-        #         path: appsettings.json
+      - name: appsettings
+        configMap:
+          name: cmc-app-settings
+          items:
+          - key: appsettings.json
+            path: appsettings.json
+          - key: appsettings.Production.json
+            path: appsettings.Production.json
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: cmc-app
   namespace: cmc-prod
-  labels:
-    app: cmc-app
 spec:
-  type: NodePort
   selector:
     app: cmc-app
+  type: NodePort
   ports:
-    - name: http
-      port: 8080
-      targetPort: http
-      nodePort: 30080  # optional, sonst vom Cluster vergeben lassen
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: cmc-dp-keys-pvc
-  namespace: cmc-prod
-spec:
-  accessModes:
-    - ReadWriteMany   # ideal bei mehreren Replikas; falls deine StorageClass nur RWO kann, setze ReadWriteOnce
-  resources:
-    requests:
-      storage: 1Gi
-  # storageClassName: <deine-storageclass>
+  - name: http
+    port: 80
+    targetPort: http
+    nodePort: 30080
