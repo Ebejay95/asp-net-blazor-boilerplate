@@ -46,7 +46,6 @@ spec:
               name: cmc-app-secret
               key: connection
 
-        # Wichtig: beide Appsettings mounten (überdecken die im Image)
         volumeMounts:
         - name: appsettings
           mountPath: /app/appsettings.json
@@ -55,7 +54,6 @@ spec:
           mountPath: /app/appsettings.Production.json
           subPath: appsettings.Production.json
 
-        # einfache Probes (TCP reicht, bis App stabil läuft)
         livenessProbe:
           tcpSocket: { port: http }
           initialDelaySeconds: 60
@@ -91,9 +89,8 @@ metadata:
 spec:
   selector:
     app: cmc-app
-  type: NodePort
+  type: ClusterIP
   ports:
   - name: http
     port: 80
     targetPort: http
-    nodePort: 30080
