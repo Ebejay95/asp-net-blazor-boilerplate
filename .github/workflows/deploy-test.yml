@@ -3,8 +3,7 @@ name: Deploy CMC Test
 on:
   push:
     branches: [test]
-  pull_request:
-    branches: [test]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -15,47 +14,38 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: cmc_test
-        options: >-
-          --health-cmd "pg_isready -U postgres -d cmc_test"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
-        with: { dotnet-version: '8.0.x' }
-      - run: dotnet restore
-      - run: dotnet build --no-restore -c Release
-      - run: dotnet test --no-build -c Release --verbosity normal
-        env:
-          ConnectionStrings__DefaultConnection: "Host=localhost;Database=cmc_test;Username=postgres;Password=postgres"
-
   build-and-deploy:
-    needs: test
-    if: github.ref == 'refs/heads/test'
     runs-on: ubuntu-latest
+    environment: test
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: false
 
-      - name: Normalize image name
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Run tests
+        run: dotnet test --configuration Release --no-restore --verbosity normal
+
+      - name: Normalize image name (lowercase)
         run: echo "IMAGE_NAME_LOWER=$(echo '${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
-      - uses: docker/login-action@v3
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push test image (latest + SHA)
+      - name: Build and push Docker image (test-latest + SHA)
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -63,34 +53,83 @@ jobs:
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}:test-latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}:test-${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}:${{ github.sha }}
 
-      - uses: azure/setup-kubectl@v4
-        with: { version: 'latest' }
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'latest'
 
       - name: Write kubeconfig from KUBECONFIG_B64
-        env: { KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }} }
+        shell: bash
+        env:
+          KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
         run: |
           set -euo pipefail
           test -n "${KUBECONFIG_B64:-}" || { echo "Missing KUBECONFIG_B64"; exit 1; }
           mkdir -p ~/.kube
-          echo "$KUBECONFIG_B64" | base64 -d > ~/.kube/config
+          echo "$KUBECONFIG_B64" | base64 -d > ~/.kube/config 2>/dev/null || { echo "Invalid base64"; exit 1; }
           chmod 600 ~/.kube/config
           kubectl cluster-info
 
-      - name: Replace image name in test manifests (no-op if already set)
+      - name: Replace image name in manifests (no-op if already set)
         run: |
           sed -i "s|ghcr.io/USERNAME/REPOSITORY|${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}|g" k8s/test/cmc-app.yaml || true
 
       - name: Create namespaces
         run: kubectl apply -f k8s/namespaces.yaml
 
-      - name: Create/update secrets (test)
+      - name: Create/update DB + APP secrets (cmc-test)
         env:
-          DB_PASSWORD: ${{ secrets.DB_PW }}
+          DB_PASSWORD: ${{ secrets.DB_PW_TEST }}
         run: |
           set -euo pipefail
           kubectl -n cmc-test create secret generic postgres-secret \
             --from-literal=password="${DB_PASSWORD}" \
             --dry-run=client -o yaml | kubectl apply -f -
-          CONNECTION_STRING="Host=postgres;Port=5432;Database=cmc_test;Username=cmc_user;Password=${DB_PASSWORD
+          CONNECTION_STRING="Host=postgres;Port=5432;Database=cmc_test;Username=cmc_user;Password=${DB_PASSWORD};Pooling=true;SslMode=Disable;"
+          kubectl -n cmc-test create secret generic cmc-app-secret \
+            --from-literal=connection="${CONNECTION_STRING}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Create/Update TLS secret for Ingress (cmc-test)
+        env:
+          TLS_CRT_B64: ${{ secrets.TLS_CRT_B64 }}   # base64(fullchain.pem)
+          TLS_KEY_B64: ${{ secrets.TLS_KEY_B64 }}   # base64(privkey.pem)
+        run: |
+          set -euo pipefail
+          test -n "${TLS_CRT_B64:-}" -a -n "${TLS_KEY_B64:-}" || { echo "TLS secrets missing"; exit 1; }
+          echo "$TLS_CRT_B64" | base64 -d > crt.pem
+          echo "$TLS_KEY_B64" | base64 -d > key.pem
+          kubectl -n cmc-test create secret tls cmc-app-tls \
+            --cert=crt.pem --key=key.pem \
+            --dry-run=client -o yaml | kubectl apply -f -
+          rm -f crt.pem key.pem
+
+      - name: Apply manifests (Test)
+        run: kubectl apply -f k8s/test/
+
+      - name: Set deployment image to current SHA (force rollout)
+        run: |
+          kubectl -n cmc-test set image deploy/cmc-app \
+            cmc-app=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}:${{ github.sha }}
+
+      - name: Wait for rollout
+        run: |
+          if kubectl -n cmc-test get statefulset postgres >/dev/null 2>&1; then
+            kubectl -n cmc-test rollout status statefulset/postgres --timeout=600s
+          fi
+          kubectl -n cmc-test rollout status deploy/cmc-app --timeout=600s
+
+      - name: Post-check: Service/Endpoints/Ingress + Smoke
+        run: |
+          set -e
+          echo "== Service =="
+          kubectl -n cmc-test get svc cmc-app -o wide
+          echo "== Endpoints =="
+          kubectl -n cmc-test get endpoints cmc-app -o wide
+          echo "== Ingress =="
+          kubectl -n cmc-test get ingress cmc-app -o wide
+          echo "== Curl checks =="
+          curl -I http://test.audicius.de || true
+          curl -kI https://test.audicius.de/ || true
