@@ -30,12 +30,12 @@ jobs:
           --health-timeout 5s
           --health-retries 5
         ports:
-          - 5432:5432
+          - "5432:5432"   # Muss als String angegeben werden
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          submodules: false
+          submodules: false   # vermeidet Submodule-Fehler (exit 128)
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -51,6 +51,7 @@ jobs:
       - name: Test
         run: dotnet test --no-build -c Release --verbosity normal
         env:
+          # Test-DB aus dem Services-Container
           ConnectionStrings__Default: "Host=localhost;Port=5432;Database=cmc_test;Username=postgres;Password=postgres;Pooling=true;SslMode=Disable;"
 
   build-and-deploy:
@@ -65,7 +66,7 @@ jobs:
         with:
           submodules: false
 
-      - name: Normalize image name
+      - name: Normalize image name (lowercase)
         run: echo "IMAGE_NAME_LOWER=$(echo '${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
       - name: Login GHCR
@@ -88,7 +89,7 @@ jobs:
       - name: Setup kubectl
         uses: azure/setup-kubectl@v4
         with:
-          version: latest
+          version: 'latest'
 
       - name: Write kubeconfig from KUBECONFIG_B64
         shell: bash
