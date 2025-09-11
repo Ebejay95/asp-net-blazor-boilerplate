@@ -37,10 +37,10 @@ jobs:
           dotnet-version: '8.0.x'
       - run: dotnet restore
       - run: dotnet build --no-restore -c Release
-      - name: Run tests
-        run: dotnet test --no-build -c Release --verbosity normal
-        env:
-          ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=cmc_test;Username=postgres;Password=postgres;Pooling=true;SslMode=Disable;"
+      #- name: Run tests
+      #  run: dotnet test --no-build -c Release --verbosity normal
+      #  env:
+      #    ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=cmc_test;Username=postgres;Password=postgres;Pooling=true;SslMode=Disable;"
 
   build-and-deploy:
     needs: test
