@@ -1,28 +1,36 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-data
+  namespace: cmc-test
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 5Gi
+  # Falls du Longhorn/andere StorageClass nutzt, hier setzen:
+  # storageClassName: longhorn
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: postgres
   namespace: cmc-test
-  labels: { app: postgres }
 spec:
   replicas: 1
   selector:
-    matchLabels: { app: postgres }
+    matchLabels:
+      app: postgres
   template:
     metadata:
-      labels: { app: postgres }
+      labels:
+        app: postgres
     spec:
-      securityContext:
-        runAsUser: 999
-        runAsGroup: 999
-        fsGroup: 999
       containers:
         - name: postgres
-          image: postgres:16
-          imagePullPolicy: IfNotPresent
+          image: postgres:15
           ports:
-            - name: pg
-              containerPort: 5432
+            - containerPort: 5432
           env:
             - name: POSTGRES_DB
               value: cmc_test
@@ -33,38 +41,20 @@ spec:
                 secretKeyRef:
                   name: postgres-secret
                   key: password
-          readinessProbe:
-            exec:
-              command: ["pg_isready","-U","cmc_user","-d","cmc_test"]
-            initialDelaySeconds: 5
-            periodSeconds: 5
-            timeoutSeconds: 3
-            failureThreshold: 12
-          livenessProbe:
-            exec:
-              command: ["pg_isready","-U","cmc_user","-d","cmc_test"]
-            initialDelaySeconds: 20
-            periodSeconds: 10
-          resources:
-            requests:
-              cpu: "100m"
-              memory: "256Mi"
-            limits:
-              cpu: "500m"
-              memory: "512Mi"
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
+              subPath: data
       volumes:
         - name: data
-          emptyDir: {}   # Ephemeral Storage für Tests
+          persistentVolumeClaim:
+            claimName: postgres-data
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: postgres
   namespace: cmc-test
-  labels: { app: postgres }
 spec:
   selector:
     app: postgres

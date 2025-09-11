@@ -4,12 +4,12 @@ metadata:
   name: cmc-app
   namespace: cmc-test
   annotations:
-    nginx.ingress.kubernetes.io/proxy-body-size: "20m"
+    # Falls du nginx ingress nutzt:
+    kubernetes.io/ingress.class: nginx
 spec:
   tls:
-    - hosts:
-        - test.audicius.de
-      secretName: cmc-app-tls
+    - hosts: [ "test.audicius.de" ]
+      secretName: cmc-app-tls  # wird im Workflow optional erstellt
   rules:
     - host: test.audicius.de
       http:
