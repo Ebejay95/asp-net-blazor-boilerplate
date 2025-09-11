@@ -152,7 +152,7 @@ jobs:
           fi
           kubectl -n cmc-test rollout status deploy/cmc-app --timeout=600s
 
-      - name: Post-check: Service/Endpoints/Ingress + Smoke
+      - name: Post-check Service/Endpoints/Ingress + Smoke
         run: |
           set -e
           echo "== Service =="
