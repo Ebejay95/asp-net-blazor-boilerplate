@@ -51,6 +51,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: false
 
       - name: Normalize image name (lowercase)
         run: echo "IMAGE_NAME_LOWER=$(echo '${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
@@ -122,32 +124,26 @@ jobs:
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Create/Update TLS secret for Ingress (test)
-        if: ${{ secrets.TLS_CRT_B64 && secrets.TLS_KEY_B64 }}
         shell: bash
         env:
           TLS_CRT_B64: ${{ secrets.TLS_CRT_B64 }}
           TLS_KEY_B64: ${{ secrets.TLS_KEY_B64 }}
         run: |
           set -euo pipefail
-          echo "$TLS_CRT_B64" | base64 -d > crt.pem
-          echo "$TLS_KEY_B64" | base64 -d > key.pem
-          kubectl -n cmc-test create secret tls cmc-app-tls \
-            --cert=crt.pem --key=key.pem \
-            --dry-run=client -o yaml | kubectl apply -f -
-          rm -f crt.pem key.pem
+          if [ -n "${TLS_CRT_B64:-}" ] && [ -n "${TLS_KEY_B64:-}" ]; then
+            echo "$TLS_CRT_B64" | base64 -d > crt.pem
+            echo "$TLS_KEY_B64" | base64 -d > key.pem
+            kubectl -n cmc-test create secret tls cmc-app-tls \
+              --cert=crt.pem --key=key.pem \
+              --dry-run=client -o yaml | kubectl apply -f -
+            rm -f crt.pem key.pem
+          else
+            echo "TLS secrets not set; skipping TLS secret creation."
+          fi
 
       - name: Replace image name in test manifests
         run: |
           sed -i "s|ghcr.io/USERNAME/REPOSITORY|${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}|g" k8s/test/cmc-app.yaml
-
-      # Aufräumen: altes StatefulSet + PVC nur im TEST-Namespace
-      - name: Clean up legacy Postgres (StatefulSet/PVC) in test
-        shell: bash
-        run: |
-          set -euo pipefail
-          kubectl -n cmc-test delete statefulset postgres --ignore-not-found
-          kubectl -n cmc-test delete service postgres --ignore-not-found
-          kubectl -n cmc-test get pvc -o name | grep -E 'postgres|data-postgres' | xargs -r kubectl -n cmc-test delete
 
       - name: Apply manifests (test)
         run: |
@@ -164,22 +160,35 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          set +e
-          for res in "deployment/postgres" "deployment/cmc-app"; do
-            echo "Waiting for ${res}..."
-            kubectl -n cmc-test rollout status ${res} --timeout=600s
-            rc=$?
-            if [ $rc -ne 0 ]; then
-              echo "=== Pods ==="
-              kubectl -n cmc-test get pods -o wide
-              echo "=== Events (last 100) ==="
-              kubectl -n cmc-test get events --sort-by=.lastTimestamp | tail -n 100
-              echo "=== Describe ${res} ==="
-              kubectl -n cmc-test describe ${res} || true
-              echo "=== Logs cmc-app ==="
-              kubectl -n cmc-test logs deploy/cmc-app --all-containers=true --tail=200 || true
+          # Warten auf Postgres (Deployment oder StatefulSet)
+          if kubectl -n cmc-test get deploy postgres >/dev/null 2>&1; then
+            kubectl -n cmc-test rollout status deploy/postgres --timeout=600s || POSTGRES_ROLLOUT_FAILED=1
+          elif kubectl -n cmc-test get statefulset postgres >/dev/null 2>&1; then
+            kubectl -n cmc-test rollout status statefulset/postgres --timeout=600s || POSTGRES_ROLLOUT_FAILED=1
+          fi
+
+          # Warten auf App
+          kubectl -n cmc-test rollout status deploy/cmc-app --timeout=600s || APP_ROLLOUT_FAILED=1
+
+          if [ "${POSTGRES_ROLLOUT_FAILED:-0}" = "1" ] || [ "${APP_ROLLOUT_FAILED:-0}" = "1" ]; then
+            echo "=== Pods ==="
+            kubectl -n cmc-test get pods -o wide
+            echo "=== Events (last 100) ==="
+            kubectl -n cmc-test get events --sort-by=.lastTimestamp | tail -n 100
+            echo "=== Describe cmc-app ==="
+            kubectl -n cmc-test describe deploy/cmc-app || true
+            if kubectl -n cmc-test get deploy postgres >/dev/null 2>&1; then
+              echo "=== Describe postgres (deploy) ==="
+              kubectl -n cmc-test describe deploy/postgres || true
               echo "=== Logs postgres ==="
               kubectl -n cmc-test logs deploy/postgres --all-containers=true --tail=200 || true
-              exit $rc
+            elif kubectl -n cmc-test get statefulset postgres >/dev/null 2>&1; then
+              echo "=== Describe postgres (statefulset) ==="
+              kubectl -n cmc-test describe statefulset/postgres || true
+              echo "=== Logs postgres ==="
+              kubectl -n cmc-test logs statefulset/postgres --all-containers=true --tail=200 || true
             fi
-          done
+            echo "=== Logs cmc-app ==="
+            kubectl -n cmc-test logs deploy/cmc-app --all-containers=true --tail=200 || true
+            exit 1
+          fi
