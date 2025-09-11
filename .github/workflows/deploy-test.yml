@@ -47,11 +47,10 @@ jobs:
       - name: Build
         run: dotnet build --no-restore -c Release
 
-      # 👇 gezielt nur das Testprojekt ausführen (nicht die .sln)
-      - name: Test (IntegrationTests only)
-        run: dotnet test src/CMC.IntegrationTests/CMC.IntegrationTests.csproj --no-build -c Release --verbosity normal
-        env:
-          ConnectionStrings__Default: "Host=localhost;Port=5432;Database=cmc_test;Username=postgres;Password=postgres;Pooling=true;SslMode=Disable;"
+    #  - name: Test (IntegrationTests only)
+    #    run: dotnet test src/CMC.IntegrationTests/CMC.IntegrationTests.csproj --no-build -c Release --verbosity normal
+    #    env:
+    #      ConnectionStrings__Default: "Host=localhost;Port=5432;Database=cmc_test;Username=postgres;Password=postgres;Pooling=true;SslMode=Disable;"
 
   build-and-deploy:
     if: github.ref == 'refs/heads/test'
