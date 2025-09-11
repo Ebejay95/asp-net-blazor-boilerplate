@@ -37,10 +37,11 @@ jobs:
           dotnet-version: '8.0.x'
       - run: dotnet restore
       - run: dotnet build --no-restore -c Release
-      #- name: Run tests
-      #  run: dotnet test --no-build -c Release --verbosity normal
-      #  env:
-      #    ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=cmc_test;Username=postgres;Password=postgres;Pooling=true;SslMode=Disable;"
+      # Tests bei Bedarf wieder aktivieren:
+      # - name: Run tests
+      #   run: dotnet test --no-build -c Release --verbosity normal
+      #   env:
+      #     ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=cmc_test;Username=postgres;Password=postgres;Pooling=true;SslMode=Disable;"
 
   build-and-deploy:
     needs: test
@@ -94,30 +95,38 @@ jobs:
       - name: Create namespaces
         run: kubectl apply -f k8s/namespaces.yaml
 
-      # GHCR Pull im Cluster (cmc-test) ermöglichen – benötigt Repo-Secrets GHCR_USER + GHCR_PAT (read:packages)
+      # GHCR Pull im Cluster (cmc-test) – nutzt NUR GHCR_PAT; Username = Repo-Owner
       - name: Create/Update GHCR imagePullSecret (cmc-test)
         shell: bash
         env:
-          GHCR_USER: ${{ secrets.GHCR_USER }}
           GHCR_PAT: ${{ secrets.GHCR_PAT }}
+          GHCR_USER_FALLBACK: ${{ github.repository_owner }}
         run: |
           set -euo pipefail
-          test -n "${GHCR_USER:-}" -a -n "${GHCR_PAT:-}" || { echo "Missing GHCR_USER/GHCR_PAT"; exit 1; }
-          kubectl -n cmc-test delete secret ghcr-cred --ignore-not-found
-          kubectl -n cmc-test create secret docker-registry ghcr-cred \
-            --docker-server=${{ env.REGISTRY }} \
-            --docker-username="${GHCR_USER}" \
-            --docker-password="${GHCR_PAT}"
+          if [ -n "${GHCR_PAT:-}" ]; then
+            kubectl -n cmc-test delete secret ghcr-cred --ignore-not-found
+            kubectl -n cmc-test create secret docker-registry ghcr-cred \
+              --docker-server=${{ env.REGISTRY }} \
+              --docker-username="${GHCR_USER_FALLBACK}" \
+              --docker-password="${GHCR_PAT}"
+          else
+            echo "No GHCR_PAT provided; skipping imagePullSecret (images must be public)."
+          fi
 
       - name: Create/update DB + APP secrets (test)
         shell: bash
         env:
-          DB_PASSWORD: ${{ secrets.DB_PW_TEST }}
+          DB_PW_TEST: ${{ secrets.DB_PW_TEST }}
+          DB_PW_PROD: ${{ secrets.DB_PW }}
         run: |
           set -euo pipefail
+          DB_PASSWORD="${DB_PW_TEST:-$DB_PW_PROD}"
+          test -n "${DB_PASSWORD:-}" || { echo "No DB password provided (DB_PW_TEST/DB_PW)"; exit 1; }
+
           kubectl -n cmc-test create secret generic postgres-secret \
             --from-literal=password="${DB_PASSWORD}" \
             --dry-run=client -o yaml | kubectl apply -f -
+
           CONNECTION_STRING="Host=postgres;Port=5432;Database=cmc_test;Username=cmc_user;Password=${DB_PASSWORD};Pooling=true;SslMode=Disable;"
           kubectl -n cmc-test create secret generic cmc-app-secret \
             --from-literal=connection="${CONNECTION_STRING}" \
@@ -151,6 +160,20 @@ jobs:
           kubectl apply -f k8s/test/cmc-app.yaml
           kubectl apply -f k8s/test/ingress.yaml
 
+      # Falls Private-Images: imagePullSecrets am Deployment sicherstellen
+      - name: Ensure imagePullSecrets on cmc-app (if private images)
+        shell: bash
+        env:
+          GHCR_PAT: ${{ secrets.GHCR_PAT }}
+        run: |
+          set -euo pipefail
+          if [ -n "${GHCR_PAT:-}" ]; then
+            kubectl -n cmc-test patch deploy cmc-app \
+              --type=merge -p '{"spec":{"template":{"spec":{"imagePullSecrets":[{"name":"ghcr-cred"}]}}}}' || true
+          else
+            echo "No GHCR_PAT -> assuming public image; skipping imagePullSecrets patch."
+          fi
+
       - name: Set deployment image to current test-SHA (force rollout)
         run: |
           kubectl -n cmc-test set image deploy/cmc-app \
@@ -160,21 +183,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Warten auf Postgres (Deployment oder StatefulSet)
+          # Postgres (Deployment ODER StatefulSet) warten:
           if kubectl -n cmc-test get deploy postgres >/dev/null 2>&1; then
             kubectl -n cmc-test rollout status deploy/postgres --timeout=600s || POSTGRES_ROLLOUT_FAILED=1
           elif kubectl -n cmc-test get statefulset postgres >/dev/null 2>&1; then
             kubectl -n cmc-test rollout status statefulset/postgres --timeout=600s || POSTGRES_ROLLOUT_FAILED=1
           fi
 
-          # Warten auf App
+          # App warten:
           kubectl -n cmc-test rollout status deploy/cmc-app --timeout=600s || APP_ROLLOUT_FAILED=1
 
           if [ "${POSTGRES_ROLLOUT_FAILED:-0}" = "1" ] || [ "${APP_ROLLOUT_FAILED:-0}" = "1" ]; then
             echo "=== Pods ==="
-            kubectl -n cmc-test get pods -o wide
+            kubectl -n cmc-test get pods -o wide || true
             echo "=== Events (last 100) ==="
-            kubectl -n cmc-test get events --sort-by=.lastTimestamp | tail -n 100
+            kubectl -n cmc-test get events --sort-by=.lastTimestamp | tail -n 100 || true
             echo "=== Describe cmc-app ==="
             kubectl -n cmc-test describe deploy/cmc-app || true
             if kubectl -n cmc-test get deploy postgres >/dev/null 2>&1; then
