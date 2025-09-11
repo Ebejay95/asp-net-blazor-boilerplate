@@ -1,9 +1,11 @@
+# .github/workflows/deploy-test.yml
 name: Deploy CMC Test
 
 on:
   push:
     branches: [test]
-  workflow_dispatch:
+  pull_request:
+    branches: [test]
 
 permissions:
   contents: read
@@ -14,38 +16,57 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cmc_test
+        options: >-
+          --health-cmd "pg_isready -U postgres -d cmc_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - run: dotnet restore
+      - run: dotnet build --no-restore -c Release
+      # Wichtig: gleiche Variable wie im K8s-Deployment verwenden (Default statt DefaultConnection)
+      - run: dotnet test --no-build -c Release --verbosity normal
+        env:
+          ConnectionStrings__Default: "Host=localhost;Port=5432;Database=cmc_test;Username=postgres;Password=postgres;Pooling=true;SslMode=Disable;"
+
   build-and-deploy:
+    # Deploy nur bei Push auf Branch test, nicht bei PRs
+    if: github.ref == 'refs/heads/test'
+    needs: test
     runs-on: ubuntu-latest
     environment: test
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           submodules: false
 
-      - name: Setup .NET 8
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
-
-      - name: Restore
-        run: dotnet restore
-
-      - name: Run tests
-        run: dotnet test --configuration Release --no-restore --verbosity normal
-
-      - name: Normalize image name (lowercase)
+      - name: Normalize image name
         run: echo "IMAGE_NAME_LOWER=$(echo '${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
+      - uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Docker image (test-latest + SHA)
+      - name: Build and push test image (latest + SHA)
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -53,10 +74,9 @@ jobs:
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}:test-latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}:test-${{ github.sha }}
 
-      - name: Setup kubectl
-        uses: azure/setup-kubectl@v4
+      - uses: azure/setup-kubectl@v4
         with:
           version: 'latest'
 
@@ -72,14 +92,14 @@ jobs:
           chmod 600 ~/.kube/config
           kubectl cluster-info
 
-      - name: Replace image name in manifests (no-op if already set)
+      - name: Replace image name in test manifests (no-op if already set)
         run: |
           sed -i "s|ghcr.io/USERNAME/REPOSITORY|${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}|g" k8s/test/cmc-app.yaml || true
 
       - name: Create namespaces
         run: kubectl apply -f k8s/namespaces.yaml
 
-      - name: Create/update DB + APP secrets (cmc-test)
+      - name: Create/update secrets (test)
         env:
           DB_PASSWORD: ${{ secrets.DB_PW_TEST }}
         run: |
@@ -92,10 +112,10 @@ jobs:
             --from-literal=connection="${CONNECTION_STRING}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: Create/Update TLS secret for Ingress (cmc-test)
+      - name: Create/Update TLS secret for Ingress (test)
         env:
-          TLS_CRT_B64: ${{ secrets.TLS_CRT_B64 }}   # base64(fullchain.pem)
-          TLS_KEY_B64: ${{ secrets.TLS_KEY_B64 }}   # base64(privkey.pem)
+          TLS_CRT_B64: ${{ secrets.TLS_CRT_B64 }}
+          TLS_KEY_B64: ${{ secrets.TLS_KEY_B64 }}
         run: |
           set -euo pipefail
           test -n "${TLS_CRT_B64:-}" -a -n "${TLS_KEY_B64:-}" || { echo "TLS secrets missing"; exit 1; }
@@ -112,7 +132,7 @@ jobs:
       - name: Set deployment image to current SHA (force rollout)
         run: |
           kubectl -n cmc-test set image deploy/cmc-app \
-            cmc-app=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}:${{ github.sha }}
+            cmc-app=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}:test-${{ github.sha }}
 
       - name: Wait for rollout
         run: |

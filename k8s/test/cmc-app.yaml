@@ -27,7 +27,7 @@ spec:
     spec:
       containers:
         - name: cmc-app
-          # Dieser Platzhalter wird im Workflow via `set image` überschrieben.
+          # Wird im Workflow via "set image" auf :test-${SHA} gesetzt
           image: ghcr.io/USERNAME/REPOSITORY:test-latest
           ports:
             - containerPort: 8080

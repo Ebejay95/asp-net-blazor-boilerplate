@@ -47,7 +47,7 @@ spec:
               mountPath: /var/lib/postgresql/data
           readinessProbe:
             exec:
-              command: ["pg_isready","-U","cmc_user"]
+              command: ["pg_isready","-U","cmc_user","-d","cmc_test"]
             initialDelaySeconds: 5
             periodSeconds: 5
           livenessProbe:
