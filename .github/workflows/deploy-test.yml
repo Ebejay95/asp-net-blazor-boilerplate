@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16
+        image: postgres:15
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: cmc_test
@@ -29,52 +29,40 @@ jobs:
           --health-timeout 5s
           --health-retries 5
         ports:
-          - "5432:5432"
+          - 5432:5432
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: false
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-
-      - name: Restore
-        run: dotnet restore
-
-      - name: Build
-        run: dotnet build --no-restore -c Release
-
-    #  - name: Test (IntegrationTests only)
-    #    run: dotnet test src/CMC.IntegrationTests/CMC.IntegrationTests.csproj --no-build -c Release --verbosity normal
-    #    env:
-    #      ConnectionStrings__Default: "Host=localhost;Port=5432;Database=cmc_test;Username=postgres;Password=postgres;Pooling=true;SslMode=Disable;"
+      - run: dotnet restore
+      - run: dotnet build --no-restore -c Release
+      - name: Run tests
+        run: dotnet test --no-build -c Release --verbosity normal
+        env:
+          ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=cmc_test;Username=postgres;Password=postgres;Pooling=true;SslMode=Disable;"
 
   build-and-deploy:
-    if: github.ref == 'refs/heads/test'
     needs: test
+    if: github.ref == 'refs/heads/test'
     runs-on: ubuntu-latest
     environment: test
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          submodules: false
 
       - name: Normalize image name (lowercase)
         run: echo "IMAGE_NAME_LOWER=$(echo '${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
-      - name: Login GHCR
+      - name: Log in to GHCR (for push)
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build & push test image (latest + SHA)
+      - name: Build and push Docker image (test-latest + test-SHA)
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -101,14 +89,26 @@ jobs:
           chmod 600 ~/.kube/config
           kubectl cluster-info
 
-      - name: Replace image name in test manifests (no-op if already set)
-        run: |
-          sed -i "s|ghcr.io/USERNAME/REPOSITORY|${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}|g" k8s/test/cmc-app.yaml || true
-
       - name: Create namespaces
         run: kubectl apply -f k8s/namespaces.yaml
 
-      - name: Create/update secrets (test)
+      # GHCR Pull im Cluster (cmc-test) ermöglichen – benötigt Repo-Secrets GHCR_USER + GHCR_PAT (read:packages)
+      - name: Create/Update GHCR imagePullSecret (cmc-test)
+        shell: bash
+        env:
+          GHCR_USER: ${{ secrets.GHCR_USER }}
+          GHCR_PAT: ${{ secrets.GHCR_PAT }}
+        run: |
+          set -euo pipefail
+          test -n "${GHCR_USER:-}" -a -n "${GHCR_PAT:-}" || { echo "Missing GHCR_USER/GHCR_PAT"; exit 1; }
+          kubectl -n cmc-test delete secret ghcr-cred --ignore-not-found
+          kubectl -n cmc-test create secret docker-registry ghcr-cred \
+            --docker-server=${{ env.REGISTRY }} \
+            --docker-username="${GHCR_USER}" \
+            --docker-password="${GHCR_PAT}"
+
+      - name: Create/update DB + APP secrets (test)
+        shell: bash
         env:
           DB_PASSWORD: ${{ secrets.DB_PW_TEST }}
         run: |
@@ -122,12 +122,13 @@ jobs:
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Create/Update TLS secret for Ingress (test)
+        if: ${{ secrets.TLS_CRT_B64 && secrets.TLS_KEY_B64 }}
+        shell: bash
         env:
           TLS_CRT_B64: ${{ secrets.TLS_CRT_B64 }}
           TLS_KEY_B64: ${{ secrets.TLS_KEY_B64 }}
         run: |
           set -euo pipefail
-          test -n "${TLS_CRT_B64:-}" -a -n "${TLS_KEY_B64:-}" || { echo "TLS secrets missing"; exit 1; }
           echo "$TLS_CRT_B64" | base64 -d > crt.pem
           echo "$TLS_KEY_B64" | base64 -d > key.pem
           kubectl -n cmc-test create secret tls cmc-app-tls \
@@ -135,10 +136,26 @@ jobs:
             --dry-run=client -o yaml | kubectl apply -f -
           rm -f crt.pem key.pem
 
-      - name: Apply manifests (Test)
-        run: kubectl apply -f k8s/test/
+      - name: Replace image name in test manifests
+        run: |
+          sed -i "s|ghcr.io/USERNAME/REPOSITORY|${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}|g" k8s/test/cmc-app.yaml
 
-      - name: Set deployment image to current SHA (force rollout)
+      # Aufräumen: altes StatefulSet + PVC nur im TEST-Namespace
+      - name: Clean up legacy Postgres (StatefulSet/PVC) in test
+        shell: bash
+        run: |
+          set -euo pipefail
+          kubectl -n cmc-test delete statefulset postgres --ignore-not-found
+          kubectl -n cmc-test delete service postgres --ignore-not-found
+          kubectl -n cmc-test get pvc -o name | grep -E 'postgres|data-postgres' | xargs -r kubectl -n cmc-test delete
+
+      - name: Apply manifests (test)
+        run: |
+          kubectl apply -f k8s/test/postgres.yaml
+          kubectl apply -f k8s/test/cmc-app.yaml
+          kubectl apply -f k8s/test/ingress.yaml
+
+      - name: Set deployment image to current test-SHA (force rollout)
         run: |
           kubectl -n cmc-test set image deploy/cmc-app \
             cmc-app=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}:test-${{ github.sha }}
@@ -148,36 +165,21 @@ jobs:
         run: |
           set -euo pipefail
           set +e
-          for res in "deployment/cmc-app" "deployment/postgres"; do
-            if kubectl -n cmc-test get ${res} >/dev/null 2>&1; then
-              echo "Waiting for ${res}..."
-              kubectl -n cmc-test rollout status ${res} --timeout=600s
-              rc=$?
-              if [ $rc -ne 0 ]; then
-                echo "=== Pods ==="
-                kubectl -n cmc-test get pods -o wide
-                echo "=== Events (last 100) ==="
-                kubectl -n cmc-test get events --sort-by=.lastTimestamp | tail -n 100
-                kind=${res%%/*}; name=${res##*/}
-                echo "=== Describe ${res} ==="
-                kubectl -n cmc-test describe ${res} || true
-                echo "=== Logs ${res} ==="
-                kubectl -n cmc-test logs ${res} --all-containers=true --tail=200 || true
-                exit $rc
-              fi
+          for res in "deployment/postgres" "deployment/cmc-app"; do
+            echo "Waiting for ${res}..."
+            kubectl -n cmc-test rollout status ${res} --timeout=600s
+            rc=$?
+            if [ $rc -ne 0 ]; then
+              echo "=== Pods ==="
+              kubectl -n cmc-test get pods -o wide
+              echo "=== Events (last 100) ==="
+              kubectl -n cmc-test get events --sort-by=.lastTimestamp | tail -n 100
+              echo "=== Describe ${res} ==="
+              kubectl -n cmc-test describe ${res} || true
+              echo "=== Logs cmc-app ==="
+              kubectl -n cmc-test logs deploy/cmc-app --all-containers=true --tail=200 || true
+              echo "=== Logs postgres ==="
+              kubectl -n cmc-test logs deploy/postgres --all-containers=true --tail=200 || true
+              exit $rc
             fi
           done
-
-
-      - name: Post-check Service/Endpoints/Ingress + Smoke
-        run: |
-          set -e
-          echo "== Service =="
-          kubectl -n cmc-test get svc cmc-app -o wide
-          echo "== Endpoints =="
-          kubectl -n cmc-test get endpoints cmc-app -o wide
-          echo "== Ingress =="
-          kubectl -n cmc-test get ingress cmc-app -o wide
-          echo "== Curl checks =="
-          curl -I http://test.audicius.de || true
-          curl -kI https://test.audicius.de/ || true
