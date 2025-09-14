@@ -54,7 +54,9 @@ docker-clean:
 # ==== DB & Tests ====
 dev-migrate:
 	@echo "🔄 Running database migrations…"
-	cd src/CMC.Web && dotnet ef database update --project ../CMC.Infrastructure
+	cd src/CMC.Web && \
+	ConnectionStrings__DefaultConnection="Host=localhost;Port=5432;Database=cmc_dev;Username=postgres;Password=password;Pooling=true;SslMode=Disable;" \
+	dotnet ef database update --project ../CMC.Infrastructure
 	@echo "✅ Database migrations completed"
 
 dev-test:
@@ -64,7 +66,9 @@ dev-test:
 # ==== App (.NET Hot Reload) ====
 app-watch:
 	@echo "👀 .NET Hot Reload…"
-	@cd src/CMC.Web && DOTNET_WATCH_RESTART_ON_RUDE_EDIT=1 DOTNET_USE_POLLING_FILE_WATCHER=1 \
+	cd src/CMC.Web && \
+	ConnectionStrings__DefaultConnection="Host=localhost;Port=5432;Database=cmc_dev;Username=postgres;Password=password;Pooling=true;SslMode=Disable;" \
+	DOTNET_WATCH_RESTART_ON_RUDE_EDIT=1 DOTNET_USE_POLLING_FILE_WATCHER=1 \
 	dotnet watch --non-interactive run
 
 # ==== Help ====
