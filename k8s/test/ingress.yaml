@@ -1,0 +1,28 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cmc-app
+  namespace: cmc-test
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/redirectscheme.scheme: https
+    traefik.ingress.kubernetes.io/redirectscheme.permanent: "true"
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - test.audicius.de
+      secretName: cmc-app-tls   # gleicher Name wie in Prod (Workflow legt ihn optional an)
+  rules:
+    - host: test.audicius.de
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: cmc-app
+                port:
+                  number: 80
