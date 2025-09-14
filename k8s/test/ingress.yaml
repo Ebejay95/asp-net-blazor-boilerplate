@@ -4,12 +4,17 @@ metadata:
   name: cmc-app
   namespace: cmc-test
   annotations:
-    # Falls du nginx ingress nutzt:
-    kubernetes.io/ingress.class: nginx
+    kubernetes.io/ingress.class: traefik
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/redirectscheme.scheme: https
+    traefik.ingress.kubernetes.io/redirectscheme.permanent: "true"
 spec:
+  ingressClassName: traefik
   tls:
-    - hosts: [ "test.audicius.de" ]
-      secretName: cmc-app-tls  # wird im Workflow optional erstellt
+    - hosts:
+        - test.audicius.de
+      secretName: cmc-app-tls   # gleicher Name wie in Prod (Workflow legt ihn optional an)
   rules:
     - host: test.audicius.de
       http:

@@ -13,19 +13,17 @@ spec:
       labels:
         app: cmc-app
     spec:
-      # Falls Images privat sind, wird dieses Secret im Workflow erzeugt.
-      imagePullSecrets:
-        - name: ghcr-cred
       containers:
         - name: cmc-app
-          # Platzhalter – wird im Workflow per 'set image' überschrieben
+          # Platzhalter – der Test-Workflow ersetzt das automatisch (test-latest / test-SHA)
           image: ghcr.io/USERNAME/REPOSITORY:test-latest
+          imagePullPolicy: IfNotPresent
           ports:
-            - containerPort: 8080
+            - name: http
+              containerPort: 8080
           env:
             - name: ASPNETCORE_URLS
               value: http://+:8080
-            # WICHTIG: Secret -> ENV wie .NET es erwartet
             - name: ConnectionStrings__DefaultConnection
               valueFrom:
                 secretKeyRef:
@@ -34,15 +32,17 @@ spec:
           readinessProbe:
             httpGet:
               path: /
-              port: 8080
+              port: http
             initialDelaySeconds: 10
             periodSeconds: 10
+            failureThreshold: 6
           livenessProbe:
             httpGet:
               path: /
-              port: 8080
+              port: http
             initialDelaySeconds: 30
             periodSeconds: 20
+            failureThreshold: 6
 ---
 apiVersion: v1
 kind: Service
@@ -52,7 +52,8 @@ metadata:
 spec:
   selector:
     app: cmc-app
+  type: ClusterIP
   ports:
     - name: http
       port: 80
-      targetPort: 8080
+      targetPort: http
