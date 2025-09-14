@@ -46,10 +46,15 @@
 
 	.card {
 		@apply rounded-2xl border border-slate-200 bg-white p-5;
+	}
+	/*
+	.card {
+		@apply rounded-2xl border border-slate-200 bg-white p-5;
 		--tw-shadow: 0 10px 25px -10px rgba(2, 6, 23, .15);
 		--tw-shadow-colored: 0 10px 25px -10px var(--tw-shadow-color);
 		box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
 	}
+	*/
 
 	.box {
 		@apply border border-slate-200 bg-white p-5;
