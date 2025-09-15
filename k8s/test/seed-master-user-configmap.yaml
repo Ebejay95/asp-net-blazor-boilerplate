@@ -7,7 +7,6 @@ data:
   seed.sql: |
     DO $$
     BEGIN
-      CREATE EXTENSION IF NOT EXISTS pgcrypto;
       IF NOT EXISTS (
         SELECT 1 FROM pg_indexes
         WHERE schemaname = 'public' AND indexname = 'idx_users_email_unique'
@@ -18,7 +17,7 @@ data:
       INSERT INTO "Users"
       ("Id","Email","PasswordHash","FirstName","LastName","IsEmailConfirmed","CreatedAt","Department","Role")
       VALUES
-      (gen_random_uuid(), :'email', crypt(:'pwd', gen_salt('bf', 12)), :'first', :'last', TRUE, now(), :'dept', :'role')
+      (:'uid'::uuid, :'email', :'pwdhash', :'first', :'last', TRUE, now(), :'dept', :'role')
       ON CONFLICT ("Email") DO UPDATE
       SET "FirstName" = EXCLUDED."FirstName",
           "LastName"  = EXCLUDED."LastName",

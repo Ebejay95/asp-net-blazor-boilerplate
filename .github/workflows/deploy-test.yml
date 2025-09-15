@@ -28,20 +28,14 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-        ports:
-          - 5432:5432
+        ports: [ "5432:5432" ]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
+        with: { dotnet-version: '8.0.x' }
       - run: dotnet restore
       - run: dotnet build --no-restore -c Release
-      # Tests bei Bedarf wieder aktivieren:
-      # - name: Run tests
-      #   run: dotnet test --no-build -c Release --verbosity normal
-      #   env:
-      #     ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=cmc_test;Username=postgres;Password=postgres;Pooling=true;SslMode=Disable;"
+      # (Tests optional)
 
   build-and-deploy:
     needs: test
@@ -52,8 +46,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          submodules: false
+        with: { submodules: false }
 
       - name: Normalize image name (lowercase)
         run: echo "IMAGE_NAME_LOWER=$(echo '${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
@@ -77,13 +70,11 @@ jobs:
 
       - name: Setup kubectl
         uses: azure/setup-kubectl@v4
-        with:
-          version: 'latest'
+        with: { version: 'latest' }
 
       - name: Write kubeconfig from KUBECONFIG_B64
         shell: bash
-        env:
-          KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
+        env: { KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }} }
         run: |
           set -euo pipefail
           test -n "${KUBECONFIG_B64:-}" || { echo "Missing KUBECONFIG_B64"; exit 1; }
@@ -95,7 +86,6 @@ jobs:
       - name: Create namespaces
         run: kubectl apply -f k8s/namespaces.yaml
 
-      # GHCR Pull im Cluster (cmc-test) – nutzt NUR GHCR_PAT; Username = Repo-Owner
       - name: Create/Update GHCR imagePullSecret (cmc-test)
         shell: bash
         env:
@@ -110,7 +100,7 @@ jobs:
               --docker-username="${GHCR_USER_FALLBACK}" \
               --docker-password="${GHCR_PAT}"
           else
-            echo "No GHCR_PAT provided; skipping imagePullSecret (images must be public)."
+            echo "No GHCR_PAT provided; skipping imagePullSecret."
           fi
 
       - name: Create/update DB + APP secrets (test)
@@ -132,17 +122,33 @@ jobs:
             --from-literal=connection="${CONNECTION_STRING}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: Create/Update master-user secret (email+password)
+      # === NEW: bcrypt Hash erzeugen ===
+      - name: Setup Node for bcrypt
+        uses: actions/setup-node@v4
+        with: { node-version: '20' }
+
+      - name: Generate bcrypt hash for MASTER_PW
+        id: bcrypt
+        shell: bash
+        env: { MASTER_PW: ${{ secrets.MASTER_PW }} }
+        run: |
+          set -euo pipefail
+          test -n "${MASTER_PW:-}" || { echo "MASTER_PW missing"; exit 1; }
+          npm -g i bcryptjs >/dev/null 2>&1
+          HASH=$(node -e "const b=require('bcryptjs');console.log(b.hashSync(process.env.MASTER_PW, 12));")
+          echo "HASH=$HASH" >> $GITHUB_OUTPUT
+
+      - name: Create/Update master-user secret (email+bcrypt hash)
         shell: bash
         env:
           MASTER_MAIL: ${{ secrets.MASTER_MAIL }}
-          MASTER_PW:   ${{ secrets.MASTER_PW }}
+          MASTER_PWHASH: ${{ steps.bcrypt.outputs.HASH }}
         run: |
           set -euo pipefail
-          test -n "${MASTER_MAIL:-}" -a -n "${MASTER_PW:-}" || { echo "MASTER_* secrets missing"; exit 1; }
+          test -n "${MASTER_MAIL:-}" -a -n "${MASTER_PWHASH:-}" || { echo "MASTER_* missing"; exit 1; }
           kubectl -n cmc-test create secret generic master-user \
             --from-literal=email="${MASTER_MAIL}" \
-            --from-literal=password="${MASTER_PW}" \
+            --from-literal=passwordHash="${MASTER_PWHASH}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Create/Update TLS secret for Ingress (test)
@@ -173,18 +179,14 @@ jobs:
           kubectl apply -f k8s/test/cmc-app.yaml
           kubectl apply -f k8s/test/ingress.yaml
 
-      # Falls Private-Images: imagePullSecrets am Deployment sicherstellen
       - name: Ensure imagePullSecrets on cmc-app (if private images)
         shell: bash
-        env:
-          GHCR_PAT: ${{ secrets.GHCR_PAT }}
+        env: { GHCR_PAT: ${{ secrets.GHCR_PAT }} }
         run: |
           set -euo pipefail
           if [ -n "${GHCR_PAT:-}" ]; then
             kubectl -n cmc-test patch deploy cmc-app \
               --type=merge -p '{"spec":{"template":{"spec":{"imagePullSecrets":[{"name":"ghcr-cred"}]}}}}' || true
-          else
-            echo "No GHCR_PAT -> assuming public image; skipping imagePullSecrets patch."
           fi
 
       - name: Set deployment image to current test-SHA (force rollout)
@@ -201,29 +203,11 @@ jobs:
           elif kubectl -n cmc-test get statefulset postgres >/dev/null 2>&1; then
             kubectl -n cmc-test rollout status statefulset/postgres --timeout=600s || POSTGRES_ROLLOUT_FAILED=1
           fi
-
           kubectl -n cmc-test rollout status deploy/cmc-app --timeout=600s || APP_ROLLOUT_FAILED=1
-
           if [ "${POSTGRES_ROLLOUT_FAILED:-0}" = "1" ] || [ "${APP_ROLLOUT_FAILED:-0}" = "1" ]; then
-            echo "=== Pods ==="
             kubectl -n cmc-test get pods -o wide || true
-            echo "=== Events (last 100) ==="
             kubectl -n cmc-test get events --sort-by=.lastTimestamp | tail -n 100 || true
-            echo "=== Describe cmc-app ==="
             kubectl -n cmc-test describe deploy/cmc-app || true
-            if kubectl -n cmc-test get deploy postgres >/dev/null 2>&1; then
-              echo "=== Describe postgres (deploy) ==="
-              kubectl -n cmc-test describe deploy/postgres || true
-              echo "=== Logs postgres ==="
-              kubectl -n cmc-test logs deploy/postgres --all-containers=true --tail=200 || true
-            elif kubectl -n cmc-test get statefulset postgres >/dev/null 2>&1; then
-              echo "=== Describe postgres (statefulset) ==="
-              kubectl -n cmc-test describe statefulset/postgres || true
-              echo "=== Logs postgres ==="
-              kubectl -n cmc-test logs statefulset/postgres --all-containers=true --tail=200 || true
-            fi
-            echo "=== Logs cmc-app ==="
-            kubectl -n cmc-test logs deploy/cmc-app --all-containers=true --tail=200 || true
             exit 1
           fi
 

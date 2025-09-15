@@ -21,8 +21,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          submodules: false
+        with: { submodules: false }
 
       - name: Normalize image name (lowercase)
         run: echo "IMAGE_NAME_LOWER=$(echo '${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
@@ -46,13 +45,11 @@ jobs:
 
       - name: Setup kubectl
         uses: azure/setup-kubectl@v4
-        with:
-          version: 'latest'
+        with: { version: 'latest' }
 
       - name: Write kubeconfig from KUBECONFIG_B64
         shell: bash
-        env:
-          KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
+        env: { KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }} }
         run: |
           set -euo pipefail
           test -n "${KUBECONFIG_B64:-}" || { echo "Missing KUBECONFIG_B64"; exit 1; }
@@ -61,7 +58,6 @@ jobs:
           chmod 600 ~/.kube/config
           kubectl cluster-info
 
-      # Nur wirksam, falls noch ein Platzhalter-Image im Manifest steht.
       - name: Replace image name in manifests (no-op if already set)
         shell: bash
         run: |
@@ -72,8 +68,7 @@ jobs:
 
       - name: Create/update DB + APP secrets
         shell: bash
-        env:
-          DB_PASSWORD: ${{ secrets.DB_PW }}
+        env: { DB_PASSWORD: ${{ secrets.DB_PW }} }
         run: |
           set -euo pipefail
           kubectl -n cmc-prod create secret generic postgres-secret \
@@ -85,17 +80,34 @@ jobs:
             --from-literal=connection="${CONNECTION_STRING}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: Create/Update master-user secret (email+password)
+      # === NEW: bcrypt Hash aus MASTER_PW erzeugen und als Secret (passwordHash) bereitstellen
+      - name: Setup Node for bcrypt
+        uses: actions/setup-node@v4
+        with: { node-version: '20' }
+
+      - name: Generate bcrypt hash for MASTER_PW
+        id: bcrypt
+        shell: bash
+        env:
+          MASTER_PW: ${{ secrets.MASTER_PW }}
+        run: |
+          set -euo pipefail
+          test -n "${MASTER_PW:-}" || { echo "MASTER_PW missing"; exit 1; }
+          npm -g i bcryptjs >/dev/null 2>&1
+          HASH=$(node -e "const b=require('bcryptjs');console.log(b.hashSync(process.env.MASTER_PW, 12));")
+          echo "HASH=$HASH" >> $GITHUB_OUTPUT
+
+      - name: Create/Update master-user secret (email+bcrypt hash)
         shell: bash
         env:
           MASTER_MAIL: ${{ secrets.MASTER_MAIL }}
-          MASTER_PW:   ${{ secrets.MASTER_PW }}
+          MASTER_PWHASH: ${{ steps.bcrypt.outputs.HASH }}
         run: |
           set -euo pipefail
-          test -n "${MASTER_MAIL:-}" -a -n "${MASTER_PW:-}" || { echo "MASTER_* secrets missing"; exit 1; }
+          test -n "${MASTER_MAIL:-}" -a -n "${MASTER_PWHASH:-}" || { echo "MASTER_* missing"; exit 1; }
           kubectl -n cmc-prod create secret generic master-user \
             --from-literal=email="${MASTER_MAIL}" \
-            --from-literal=password="${MASTER_PW}" \
+            --from-literal=passwordHash="${MASTER_PWHASH}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Create/Update TLS secret for Ingress
@@ -156,12 +168,8 @@ jobs:
         shell: bash
         run: |
           set -e
-          echo "== Service =="
           kubectl -n cmc-prod get svc cmc-app -o wide
-          echo "== Endpoints =="
           kubectl -n cmc-prod get endpoints cmc-app -o wide
-          echo "== Ingress =="
           kubectl -n cmc-prod get ingress cmc-app -o wide
-          echo "== Curl checks =="
           curl -I http://cmc.audicius.de || true
           curl -kI https://cmc.audicius.de/ || true

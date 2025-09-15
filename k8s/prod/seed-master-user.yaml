@@ -2,7 +2,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: seed-master-user
-  namespace: cmc-test
+  namespace: cmc-prod
 spec:
   backoffLimit: 2
   activeDeadlineSeconds: 600
@@ -18,7 +18,7 @@ spec:
         env:
         - { name: PGHOST,     value: postgres }
         - { name: PGPORT,     value: "5432" }
-        - { name: PGDATABASE, value: cmc_test }
+        - { name: PGDATABASE, value: cmc_production }
         - { name: PGUSER,     value: cmc_user }
         - name: PGPASSWORD
           valueFrom: { secretKeyRef: { name: postgres-secret, key: password } }
