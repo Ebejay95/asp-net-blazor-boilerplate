@@ -2,9 +2,11 @@ name: Deploy CMC Test
 
 on:
   push:
-    branches: [test]
+    branches:
+      - test
   pull_request:
-    branches: [test]
+    branches:
+      - test
 
 permissions:
   contents: read
@@ -29,16 +31,19 @@ jobs:
           --health-timeout 5s
           --health-retries 5
         ports:
-          - 5432:5432
+          - "5432:5432"
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
-      - run: dotnet restore
-      - run: dotnet build --no-restore -c Release
-      # Tests bei Bedarf wieder aktivieren:
-      # - name: Run tests
+          dotnet-version: 8.0.x
+      - name: Restore
+        run: dotnet restore
+      - name: Build
+        run: dotnet build --no-restore -c Release
+      # - name: Test
       #   run: dotnet test --no-build -c Release --verbosity normal
       #   env:
       #     ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=cmc_test;Username=postgres;Password=postgres;Pooling=true;SslMode=Disable;"
@@ -78,7 +83,7 @@ jobs:
       - name: Setup kubectl
         uses: azure/setup-kubectl@v4
         with:
-          version: 'latest'
+          version: latest
 
       - name: Write kubeconfig from KUBECONFIG_B64
         shell: bash
@@ -95,7 +100,6 @@ jobs:
       - name: Create namespaces
         run: kubectl apply -f k8s/namespaces.yaml
 
-      # GHCR Pull im Cluster (cmc-test) – nutzt NUR GHCR_PAT; Username = Repo-Owner
       - name: Create/Update GHCR imagePullSecret (cmc-test)
         shell: bash
         env:
@@ -132,23 +136,36 @@ jobs:
             --from-literal=connection="${CONNECTION_STRING}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: Create/Update TLS secret for Ingress (test)
+      - name: Setup Node for bcrypt
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Generate bcrypt hash for MASTER_PW
+        id: bcrypt
         shell: bash
         env:
-          TLS_CRT_B64: ${{ secrets.TLS_CRT_B64 }}
-          TLS_KEY_B64: ${{ secrets.TLS_KEY_B64 }}
+          MASTER_PW: ${{ secrets.MASTER_PW }}
         run: |
           set -euo pipefail
-          if [ -n "${TLS_CRT_B64:-}" ] && [ -n "${TLS_KEY_B64:-}" ]; then
-            echo "$TLS_CRT_B64" | base64 -d > crt.pem
-            echo "$TLS_KEY_B64" | base64 -d > key.pem
-            kubectl -n cmc-test create secret tls cmc-app-tls \
-              --cert=crt.pem --key=key.pem \
-              --dry-run=client -o yaml | kubectl apply -f -
-            rm -f crt.pem key.pem
-          else
-            echo "TLS secrets not set; skipping TLS secret creation."
-          fi
+          test -n "${MASTER_PW:-}" || { echo "MASTER_PW missing"; exit 1; }
+          npm install bcryptjs --no-save
+          HASH=$(node -e "const b=require('bcryptjs');console.log(b.hashSync(process.env.MASTER_PW, 12));")
+          echo "HASH=$HASH" >> "$GITHUB_OUTPUT"
+
+
+      - name: Create/Update master-user secret (email+bcrypt hash)
+        shell: bash
+        env:
+          MASTER_MAIL: ${{ secrets.MASTER_MAIL }}
+          MASTER_PWHASH: ${{ steps.bcrypt.outputs.HASH }}
+        run: |
+          set -euo pipefail
+          test -n "${MASTER_MAIL:-}" -a -n "${MASTER_PWHASH:-}" || { echo "MASTER_* missing"; exit 1; }
+          kubectl -n cmc-test create secret generic master-user \
+            --from-literal=email="${MASTER_MAIL}" \
+            --from-literal=passwordHash="${MASTER_PWHASH}" \
+            --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Replace image name in test manifests
         run: |
@@ -160,7 +177,6 @@ jobs:
           kubectl apply -f k8s/test/cmc-app.yaml
           kubectl apply -f k8s/test/ingress.yaml
 
-      # Falls Private-Images: imagePullSecrets am Deployment sicherstellen
       - name: Ensure imagePullSecrets on cmc-app (if private images)
         shell: bash
         env:
@@ -170,8 +186,6 @@ jobs:
           if [ -n "${GHCR_PAT:-}" ]; then
             kubectl -n cmc-test patch deploy cmc-app \
               --type=merge -p '{"spec":{"template":{"spec":{"imagePullSecrets":[{"name":"ghcr-cred"}]}}}}' || true
-          else
-            echo "No GHCR_PAT -> assuming public image; skipping imagePullSecrets patch."
           fi
 
       - name: Set deployment image to current test-SHA (force rollout)
@@ -183,35 +197,51 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Postgres (Deployment ODER StatefulSet) warten:
           if kubectl -n cmc-test get deploy postgres >/dev/null 2>&1; then
             kubectl -n cmc-test rollout status deploy/postgres --timeout=600s || POSTGRES_ROLLOUT_FAILED=1
           elif kubectl -n cmc-test get statefulset postgres >/dev/null 2>&1; then
             kubectl -n cmc-test rollout status statefulset/postgres --timeout=600s || POSTGRES_ROLLOUT_FAILED=1
           fi
-
-          # App warten:
           kubectl -n cmc-test rollout status deploy/cmc-app --timeout=600s || APP_ROLLOUT_FAILED=1
-
           if [ "${POSTGRES_ROLLOUT_FAILED:-0}" = "1" ] || [ "${APP_ROLLOUT_FAILED:-0}" = "1" ]; then
-            echo "=== Pods ==="
             kubectl -n cmc-test get pods -o wide || true
-            echo "=== Events (last 100) ==="
             kubectl -n cmc-test get events --sort-by=.lastTimestamp | tail -n 100 || true
-            echo "=== Describe cmc-app ==="
             kubectl -n cmc-test describe deploy/cmc-app || true
-            if kubectl -n cmc-test get deploy postgres >/dev/null 2>&1; then
-              echo "=== Describe postgres (deploy) ==="
-              kubectl -n cmc-test describe deploy/postgres || true
-              echo "=== Logs postgres ==="
-              kubectl -n cmc-test logs deploy/postgres --all-containers=true --tail=200 || true
-            elif kubectl -n cmc-test get statefulset postgres >/dev/null 2>&1; then
-              echo "=== Describe postgres (statefulset) ==="
-              kubectl -n cmc-test describe statefulset/postgres || true
-              echo "=== Logs postgres ==="
-              kubectl -n cmc-test logs statefulset/postgres --all-containers=true --tail=200 || true
-            fi
-            echo "=== Logs cmc-app ==="
-            kubectl -n cmc-test logs deploy/cmc-app --all-containers=true --tail=200 || true
+            exit 1
+          fi
+
+      - name: Seed master user (K8s Job - test)
+        shell: bash
+        run: |
+          set -e
+          kubectl apply -f k8s/test/seed-master-user-configmap.yaml
+          kubectl -n cmc-test delete job seed-master-user --ignore-not-found
+          kubectl apply -f k8s/test/seed-master-user.yaml
+
+          echo "=== Streaming seed job logs (live) ==="
+          # Logs streamen, beendet wenn Pod endet:
+          ( kubectl -n cmc-test logs -f job/seed-master-user --all-containers || true ) &
+
+          # Warten auf Abschluss (erfolgreich oder fehlerhaft)
+          kubectl -n cmc-test wait --for=condition=complete job/seed-master-user --timeout=480s || true
+          kubectl -n cmc-test wait --for=condition=failed   job/seed-master-user --timeout=10s  || true
+
+          echo "=== Job describe ==="
+          kubectl -n cmc-test describe job seed-master-user || true
+          echo "=== Pods ==="
+          kubectl -n cmc-test get pods -l job-name=seed-master-user -o wide || true
+          POD=$(kubectl -n cmc-test get pods -l job-name=seed-master-user -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+          if [ -n "$POD" ]; then
+            echo "=== Pod describe ==="
+            kubectl -n cmc-test describe pod "$POD" || true
+            echo "=== Final Pod logs ==="
+            kubectl -n cmc-test logs "$POD" --all-containers --tail=1000 || true
+          fi
+
+          # Exit status: success wenn Job complete ist
+          if kubectl -n cmc-test get job seed-master-user -o jsonpath='{.status.succeeded}' 2>/dev/null | grep -q '^1$'; then
+            exit 0
+          else
+            echo "❌ Seed job failed"
             exit 1
           fi

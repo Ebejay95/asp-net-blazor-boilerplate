@@ -45,9 +45,38 @@
 	}
 
 	.card {
-		@apply rounded-2xl border border-slate-200 bg-white p-5;
+		@apply rounded-2xl bg-[#ffffff55] p-5;
+		box-shadow:
+			2px 2px 2px rgba(0, 0, 0, 0.1),
+			0px 0px 2px 2px white,
+			inset -2px -2px 2px rgba(0, 0, 0, 0.1),
+			inset 2px 2px 2px white;
+
+		-webkit-box-shadow: 2px 2px 2px rgba(0, 0, 0, 0.1),
+			0px 0px 2px 2px white,
+			inset -2px -2px 2px rgba(0, 0, 0, 0.1),
+			inset 2px 2px 2px white;
+
+		-moz-box-shadow: 2px 2px 2px rgba(0, 0, 0, 0.1),
+			0px 0px 2px 2px white, inset -2px -2px 2px rgba(0, 0, 0, 0.1),
+			inset 2px 2px 2px white;
 	}
-	/*
+
+	/*@apply rounded-2xl bg-[transparent] p-5;
+	box-shadow: 4px 4px 4px rgba(0, 0, 0, 0.1),
+	0px 0px 4px 4px white,
+	inset -2px -2px 2px rgba(0, 0, 0, 0.1),
+	inset 2px 2px 2px white;
+
+	-webkit-box-shadow: 4px 4px 4px rgba(0, 0, 0, 0.1),
+	0px 0px 4px 4px white,
+	inset -2px -2px 2px rgba(0, 0, 0, 0.1),
+	inset 2px 2px 2px white;
+
+	-moz-box-shadow: 4px 4px 4px rgba(0, 0, 0, 0.1),
+	0px 0px 4px 4px white,
+	inset -2px -2px 2px rgba(0, 0, 0, 0.1),
+	inset 2px 2px 2px white;
 	.card {
 		@apply rounded-2xl border border-slate-200 bg-white p-5;
 		--tw-shadow: 0 10px 25px -10px rgba(2, 6, 23, .15);

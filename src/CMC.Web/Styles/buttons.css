@@ -1,6 +1,22 @@
 @layer components {
 	.btn {
-		@apply inline-flex items-center justify-center text-base font-semibold cursor-pointer transition-all duration-[0.2s] ease-[ease-in-out] no-underline text-[color:var(--audicius-text)] shadow-[var(--audicius-shadow)] px-[1.2rem] py-[0.6rem] rounded-lg border-[none] active:shadow-none active:scale-[0.96] focus:outline-offset-0 disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-none;
+		/*@apply inline-flex items-center justify-center text-base font-semibold cursor-pointer transition-all duration-[0.2s] ease-[ease-in-out] no-underline text-[color:var(--audicius-text)] shadow-[var(--audicius-shadow)] px-[1.2rem] py-[0.6rem] rounded-lg border-[none] active:shadow-none active:scale-[0.96] focus:outline-offset-0 disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-none;*/
+		@apply inline-flex items-center justify-center text-base font-semibold cursor-pointer transition-all duration-[0.2s] ease-[ease-in-out] no-underline text-[color:var(--audicius-text)] px-[1.2rem] py-[0.6rem] rounded-lg border-[none] active:scale-[0.96] focus:outline-offset-0;
+		box-shadow:
+			1px 1px 1px rgba(0, 0, 0, 0.1),
+			0px 0px 1px 1px white,
+			inset -1px -1px 1px rgba(0, 0, 0, 0.1),
+			inset 1px 1px 1px white;
+
+		-webkit-box-shadow: 1px 1px 1px rgba(0, 0, 0, 0.1),
+			0px 0px 1px 1px white,
+			inset -1px -1px 1px rgba(0, 0, 0, 0.1),
+			inset 1px 1px 1px white;
+
+		-moz-box-shadow: 1px 1px 1px rgba(0, 0, 0, 0.1),
+			0px 0px 1px 1px white,
+			inset -1px -1px 1px rgba(0, 0, 0, 0.1),
+			inset 1px 1px 1px white;
 	}
 
 	.btn svg {
@@ -17,35 +33,72 @@
 	}
 
 	/* Base interactive states */
-	.btn:focus {
+	.btn:hover {
+		box-shadow:
+			1px 1px 1px rgba(0, 0, 0, 0.2),
+			0px 0px 1px 1px white,
+			inset -1px -1px 1px rgba(0, 0, 0, 0.2),
+			inset 1px 1px 1px white;
+
+		-webkit-box-shadow: 1px 1px 1px rgba(0, 0, 0, 0.2),
+			0px 0px 1px 1px white,
+			inset -1px -1px 1px rgba(0, 0, 0, 0.2),
+			inset 1px 1px 1px white;
+
+		-moz-box-shadow: 1px 1px 1px rgba(0, 0, 0, 0.2),
+			0px 0px 1px 1px white,
+			inset -1px -1px 1px rgba(0, 0, 0, 0.2),
+			inset 1px 1px 1px white;
+		outline: none;
+	}
+
+	.btn:active {
+		box-shadow:
+			1px 1px 1px white,
+			0px 0px 1px 1px rgba(0, 0, 0, 0.2),
+			inset -1px -1px 1px white,
+			inset 1px 1px 1px rgba(0, 0, 0, 0.2);
+
+		-webkit-box-shadow: 1px 1px 1px white,
+			0px 0px 1px 1px rgba(0, 0, 0, 0.2),
+			inset -1px -1px 1px white,
+			inset 1px 1px 1px rgba(0, 0, 0, 0.2);
+
+		-moz-box-shadow: 1px 1px 1px white,
+			0px 0px 1px 1px rgba(0, 0, 0, 0.2),
+			inset -1px -1px 1px white,
+			inset 1px 1px 1px rgba(0, 0, 0, 0.2);
 		outline: none;
 	}
 
 	/* === Variants === */
+	.btn.primary {
+		color: white;
+		background: var(--audicius-blue);
+	}
 
-	/* PRIMARY */
+	/*
 	.btn.primary {
 		@apply relative isolate text-white overflow-hidden before:opacity-100 after:opacity-0 hover:after:opacity-100 hover:before:opacity-0;
-		/* eigener stacking context */
+
 		background: transparent;
-		/* Hintergründe liegen in ::before/::after */
 	}
 
 	.btn.primary::before,
 	.btn.primary::after {
 		@apply content-[""] absolute pointer-events-none z-[-1] transition-opacity duration-[0.2s] ease-[ease-in-out] rounded-[inherit] inset-0;
-		/* hinter dem Text */
-	}
 
-	/* Basis-Verlauf */
+	}*/
+
+	/* Basis-Verlauf
 	.btn.primary::before {
 		background: var(--audicius-flare);
-	}
+	}*/
 
-	/* Hover-Verlauf */
+	/* Hover-Verlauf
 	.btn.primary::after {
 		background: var(--audicius-flare-mod);
-	}
+	}*/
 
 	/* FLAT (clean, bordered) */
 	.btn.flat {

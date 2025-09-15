@@ -21,8 +21,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          submodules: false
+        with: { submodules: false }
 
       - name: Normalize image name (lowercase)
         run: echo "IMAGE_NAME_LOWER=$(echo '${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
@@ -46,13 +45,11 @@ jobs:
 
       - name: Setup kubectl
         uses: azure/setup-kubectl@v4
-        with:
-          version: 'latest'
+        with: { version: 'latest' }
 
       - name: Write kubeconfig from KUBECONFIG_B64
         shell: bash
-        env:
-          KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
+        env: { KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }} }
         run: |
           set -euo pipefail
           test -n "${KUBECONFIG_B64:-}" || { echo "Missing KUBECONFIG_B64"; exit 1; }
@@ -61,7 +58,6 @@ jobs:
           chmod 600 ~/.kube/config
           kubectl cluster-info
 
-      # Nur wirksam, falls noch ein Platzhalter-Image im Manifest steht.
       - name: Replace image name in manifests (no-op if already set)
         shell: bash
         run: |
@@ -72,8 +68,7 @@ jobs:
 
       - name: Create/update DB + APP secrets
         shell: bash
-        env:
-          DB_PASSWORD: ${{ secrets.DB_PW }}
+        env: { DB_PASSWORD: ${{ secrets.DB_PW }} }
         run: |
           set -euo pipefail
           kubectl -n cmc-prod create secret generic postgres-secret \
@@ -85,11 +80,41 @@ jobs:
             --from-literal=connection="${CONNECTION_STRING}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
+      # === NEW: bcrypt Hash aus MASTER_PW erzeugen und als Secret (passwordHash) bereitstellen
+      - name: Setup Node for bcrypt
+        uses: actions/setup-node@v4
+        with: { node-version: '20' }
+
+      - name: Generate bcrypt hash for MASTER_PW
+        id: bcrypt
+        shell: bash
+        env:
+          MASTER_PW: ${{ secrets.MASTER_PW }}
+        run: |
+          set -euo pipefail
+          test -n "${MASTER_PW:-}" || { echo "MASTER_PW missing"; exit 1; }
+          npm install bcryptjs --no-save
+          HASH=$(node -e "const b=require('bcryptjs');console.log(b.hashSync(process.env.MASTER_PW, 12));")
+          echo "HASH=$HASH" >> "$GITHUB_OUTPUT"
+
+      - name: Create/Update master-user secret (email+bcrypt hash)
+        shell: bash
+        env:
+          MASTER_MAIL: ${{ secrets.MASTER_MAIL }}
+          MASTER_PWHASH: ${{ steps.bcrypt.outputs.HASH }}
+        run: |
+          set -euo pipefail
+          test -n "${MASTER_MAIL:-}" -a -n "${MASTER_PWHASH:-}" || { echo "MASTER_* missing"; exit 1; }
+          kubectl -n cmc-prod create secret generic master-user \
+            --from-literal=email="${MASTER_MAIL}" \
+            --from-literal=passwordHash="${MASTER_PWHASH}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Create/Update TLS secret for Ingress
         shell: bash
         env:
-          TLS_CRT_B64: ${{ secrets.TLS_CRT_B64 }}   # base64(fullchain.pem)
-          TLS_KEY_B64: ${{ secrets.TLS_KEY_B64 }}   # base64(privkey.pem)
+          TLS_CRT_B64: ${{ secrets.TLS_CRT_B64 }}
+          TLS_KEY_B64: ${{ secrets.TLS_KEY_B64 }}
         run: |
           set -euo pipefail
           test -n "${TLS_CRT_B64:-}" -a -n "${TLS_KEY_B64:-}" || { echo "TLS secrets missing"; exit 1; }
@@ -115,16 +140,36 @@ jobs:
           fi
           kubectl -n cmc-prod rollout status deploy/cmc-app --timeout=600s
 
+      - name: Seed master user (K8s Job)
+        shell: bash
+        run: |
+          set +e
+          kubectl apply -f k8s/prod/seed-master-user-configmap.yaml
+          kubectl -n cmc-prod delete job seed-master-user --ignore-not-found
+          kubectl apply -f k8s/prod/seed-master-user.yaml
+
+          kubectl -n cmc-prod wait --for=condition=complete job/seed-master-user --timeout=480s
+          STATUS=$?
+
+          echo "=== Job ==="
+          kubectl -n cmc-prod describe job seed-master-user || true
+          echo "=== Pods ==="
+          kubectl -n cmc-prod get pods -l job-name=seed-master-user -o wide || true
+          POD=$(kubectl -n cmc-prod get pods -l job-name=seed-master-user -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+          if [ -n "$POD" ]; then
+            echo "=== Pod describe ==="
+            kubectl -n cmc-prod describe pod "$POD" || true
+            echo "=== Pod logs ==="
+            kubectl -n cmc-prod logs "$POD" --all-containers=true --tail=500 || true
+          fi
+          exit $STATUS
+
       - name: "Post-check: Service/Endpoints/Ingress + Smoke"
         shell: bash
         run: |
           set -e
-          echo "== Service =="
           kubectl -n cmc-prod get svc cmc-app -o wide
-          echo "== Endpoints =="
           kubectl -n cmc-prod get endpoints cmc-app -o wide
-          echo "== Ingress =="
           kubectl -n cmc-prod get ingress cmc-app -o wide
-          echo "== Curl checks =="
           curl -I http://cmc.audicius.de || true
           curl -kI https://cmc.audicius.de/ || true
