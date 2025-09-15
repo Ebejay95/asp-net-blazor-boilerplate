@@ -72,7 +72,7 @@ jobs:
         uses: azure/setup-kubectl@v4
         with: { version: 'latest' }
 
-      - name: Write kubeconfig from KUBECONFIG_B64
+      - name: Write kubeconfig from
         shell: bash
         env: { KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }} }
         run: |
