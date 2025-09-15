@@ -6,7 +6,7 @@ metadata:
 data:
   seed.sh: |
     #!/bin/sh
-    set -euo pipefail
+    set -eu
     echo "[seed] starting…"
     echo "[seed] email=${MASTER_MAIL:-<unset>}"
 
