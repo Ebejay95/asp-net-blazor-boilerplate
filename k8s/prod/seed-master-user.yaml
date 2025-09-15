@@ -1,26 +1,15 @@
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: seed-master-user
-  namespace: cmc-prod
-spec:
-  backoffLimit: 0
-  ttlSecondsAfterFinished: 3600
-  template:
-    spec:
-      restartPolicy: Never
       containers:
         - name: seeder
-          # bleibt absichtlich auf :latest, weil der Workflow "latest" direkt vor dem Job pusht
           image: ghcr.io/USERNAME/REPOSITORY:latest
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh", "/opt/seed/seed.sh"]
           env:
-            - name: CONNECTION_STRING
+            - name: ConnectionStrings__DefaultConnection
               valueFrom:
                 secretKeyRef:
                   name: cmc-app-secret
                   key: connection
+
             - name: MASTER_MAIL
               valueFrom:
                 secretKeyRef:
@@ -31,14 +20,11 @@ spec:
                 secretKeyRef:
                   name: master-user
                   key: passwordHash
+
+            - name: APP_DLL
+              value: "/app/CMC.Web.dll"
+
           volumeMounts:
             - name: seed-script
               mountPath: /opt/seed
               readOnly: true
-      volumes:
-        - name: seed-script
-          configMap:
-            name: seed-master-user-script
-            items:
-              - key: seed.sh
-                path: seed.sh

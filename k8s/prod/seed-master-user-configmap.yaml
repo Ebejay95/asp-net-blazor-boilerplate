@@ -5,21 +5,26 @@ metadata:
   namespace: cmc-prod
 data:
   seed.sh: |
-    #!/usr/bin/env sh
-    set -eu
+    #!/bin/sh
+    set -euo pipefail
     echo "[seed] starting…"
-    # Required envs:
-    : "${CONNECTION_STRING:?missing}"
-    : "${MASTER_MAIL:?missing}"
-    : "${MASTER_PWHASH:?missing}"
+    echo "[seed] email=${MASTER_MAIL:-<unset>}"
 
-    echo "[seed] email=${MASTER_MAIL}"
+    # 1) Falls self-contained Binary vorhanden
+    BIN="$(find /app -maxdepth 1 -type f -perm -111 2>/dev/null | head -n1 || true)"
 
-    # Beispiel: deine App übernimmt das Seeding via CLI/HTTP – hier CLI-Aufruf skizziert:
-    # Passe den Pfad/Command an dein Image an.
-    dotnet /app/Cmc.App.dll seed-master-user \
-      --connection "$CONNECTION_STRING" \
-      --email "$MASTER_MAIL" \
-      --password-hash "$MASTER_PWHASH"
+    # 2) Oder erste .dll greifen
+    DLL="${APP_DLL:-}"
+    [ -z "${DLL}" ] && DLL="$(ls /app/*.dll 2>/dev/null | head -n1 || true)"
 
-    echo "[seed] done."
+    if [ -n "${BIN}" ]; then
+      echo "[seed] running binary: ${BIN}"
+      exec "${BIN}" seed-master-user
+    elif [ -n "${DLL}" ]; then
+      echo "[seed] running dotnet: ${DLL}"
+      exec dotnet "${DLL}" seed-master-user
+    else
+      echo "[seed] ERROR: kein ausführbares Binary oder DLL in /app gefunden"
+      ls -lah /app || true
+      exit 1
+    fi
