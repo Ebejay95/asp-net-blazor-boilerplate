@@ -151,26 +151,45 @@ jobs:
           fi
           kubectl -n cmc-prod rollout status deploy/cmc-app --timeout=600s
 
-      - name: "Seed master user (Job)"
+      - name: "Seed master user (Job) — with debug even on failure"
         shell: bash
         run: |
           set -euo pipefail
-          kubectl apply -f k8s/prod/seed-master-user-configmap.yaml
-          kubectl -n cmc-prod delete job seed-master-user --ignore-not-found
-          kubectl apply -f k8s/prod/seed-master-user.yaml
-          kubectl -n cmc-prod wait --for=condition=complete job/seed-master-user --timeout=480s
+          NS=cmc-prod
+
+          # Explizit im Namespace arbeiten (robuster)
+          kubectl -n "$NS" apply -f k8s/prod/seed-master-user-configmap.yaml
+          kubectl -n "$NS" delete job seed-master-user --ignore-not-found
+          kubectl -n "$NS" apply -f k8s/prod/seed-master-user.yaml
+
+          # Auf Completion warten, aber bei Fehler NICHT sofort abbrechen -> Diagnose ausgeben
+          set +e
+          kubectl -n "$NS" wait --for=condition=complete job/seed-master-user --timeout=600s
+          STATUS=$?
 
           echo "=== Job ==="
-          kubectl -n cmc-prod describe job seed-master-user || true
+          kubectl -n "$NS" describe job seed-master-user || true
+
           echo "=== Pods ==="
-          kubectl -n cmc-prod get pods -l job-name=seed-master-user -o wide || true
-          POD=$(kubectl -n cmc-prod get pods -l job-name=seed-master-user -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+          kubectl -n "$NS" get pods -l job-name=seed-master-user -o wide || true
+
+          POD=$(kubectl -n "$NS" get pods -l job-name=seed-master-user \
+                 -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+
           if [ -n "${POD:-}" ]; then
             echo "=== Pod describe ==="
-            kubectl -n cmc-prod describe pod "$POD" || true
-            echo "=== Pod logs ==="
-            kubectl -n cmc-prod logs "$POD" --all-containers=true --tail=500 || true
+            kubectl -n "$NS" describe pod "$POD" || true
+
+            echo "=== Pod events ==="
+            kubectl -n "$NS" get events --field-selector involvedObject.name="$POD" \
+              --sort-by=.lastTimestamp || true
+
+            echo "=== Pod logs (all containers) ==="
+            kubectl -n "$NS" logs "$POD" --all-containers=true --tail=1000 || true
           fi
+
+          exit $STATUS
+
 
       - name: "Post-check: Service/Endpoints/Ingress + Smoke"
         shell: bash
