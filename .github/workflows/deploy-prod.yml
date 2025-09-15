@@ -93,9 +93,9 @@ jobs:
         run: |
           set -euo pipefail
           test -n "${MASTER_PW:-}" || { echo "MASTER_PW missing"; exit 1; }
-          npm -g i bcryptjs >/dev/null 2>&1
+          npm install bcryptjs --no-save
           HASH=$(node -e "const b=require('bcryptjs');console.log(b.hashSync(process.env.MASTER_PW, 12));")
-          echo "HASH=$HASH" >> $GITHUB_OUTPUT
+          echo "HASH=$HASH" >> "$GITHUB_OUTPUT"
 
       - name: Create/Update master-user secret (email+bcrypt hash)
         shell: bash
