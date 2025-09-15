@@ -21,7 +21,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with: { submodules: false }
+        with:
+          submodules: false
 
       - name: Normalize image name (lowercase)
         run: echo "IMAGE_NAME_LOWER=$(echo '${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
@@ -45,11 +46,13 @@ jobs:
 
       - name: Setup kubectl
         uses: azure/setup-kubectl@v4
-        with: { version: 'latest' }
+        with:
+          version: latest
 
       - name: Write kubeconfig from KUBECONFIG_B64
         shell: bash
-        env: { KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }} }
+        env:
+          KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
         run: |
           set -euo pipefail
           test -n "${KUBECONFIG_B64:-}" || { echo "Missing KUBECONFIG_B64"; exit 1; }
@@ -69,7 +72,8 @@ jobs:
 
       - name: Create/update DB + APP secrets
         shell: bash
-        env: { DB_PASSWORD: ${{ secrets.DB_PW }} }
+        env:
+          DB_PASSWORD: ${{ secrets.DB_PW }}
         run: |
           set -euo pipefail
           kubectl -n cmc-prod create secret generic postgres-secret \
@@ -84,7 +88,8 @@ jobs:
       # bcrypt-Hash aus MASTER_PW erzeugen und als Secret bereitstellen
       - name: Setup Node for bcrypt
         uses: actions/setup-node@v4
-        with: { node-version: '20' }
+        with:
+          node-version: '20'
 
       - name: Generate bcrypt hash for MASTER_PW
         id: bcrypt
@@ -132,7 +137,7 @@ jobs:
           set -euo pipefail
           # alles in k8s/prod anwenden, aber seed-* auslassen
           find k8s/prod -maxdepth 1 -type f ! -name 'seed-master-user*' -print0 \
-            | xargs -0 -I {} kubectl apply -f {}
+            | xargs -0 -r -I {} kubectl apply -f {}
 
       - name: Set deployment image to current SHA (force rollout)
         run: |
