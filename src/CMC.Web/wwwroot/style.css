@@ -2621,8 +2621,8 @@
     background-color: transparent;
     padding: calc(var(--spacing) * 5);
     box-shadow: 4px 4px 4px rgba(0, 0, 0, 0.1),	0px 0px 4px 4px white,	inset -2px -2px 2px rgba(0, 0, 0, 0.1),	inset 2px 2px 2px white;
-    -webkit-box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.1), 0px 0px 4px 4px white,	inset -2px -2px 2px rgba(0, 0, 0, 0.1),	inset 2px 2px 2px white;
-    -moz-box-shadow: 4px 4px 4px rgba(0, 0, 0, 0.1),	0px 0px 4px 4px white,	inset -2px -2px 2px rgba(0, 0, 0, 0.1),	inset 2px 2px 2px white;
+    -webkit-box-shadow: 4px 4px 4px rgba(0, 0, 0, 0.1),	0px 0px 4px 4px white,	inset -2px -2px 2px rgba(0, 0, 0, 0.1),	inset 2px 2px 2px white;
+    -moz-box-shadow: 4px 4px 4px rgba(0, 0, 0, 0.1),	0px 0px 4px 4px white, inset -2px -2px 2px rgba(0, 0, 0, 0.1),	inset 2px 2px 2px white;
   }
   .box {
     border-style: var(--tw-border-style);
