@@ -2,9 +2,11 @@ name: Deploy CMC Test
 
 on:
   push:
-    branches: [test]
+    branches:
+      - test
   pull_request:
-    branches: [test]
+    branches:
+      - test
 
 permissions:
   contents: read
@@ -28,14 +30,23 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-        ports: [ "5432:5432" ]
+        ports:
+          - "5432:5432"
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
-        with: { dotnet-version: '8.0.x' }
-      - run: dotnet restore
-      - run: dotnet build --no-restore -c Release
-      # (Tests optional)
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Restore
+        run: dotnet restore
+      - name: Build
+        run: dotnet build --no-restore -c Release
+      # - name: Test
+      #   run: dotnet test --no-build -c Release --verbosity normal
+      #   env:
+      #     ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=cmc_test;Username=postgres;Password=postgres;Pooling=true;SslMode=Disable;"
 
   build-and-deploy:
     needs: test
@@ -46,7 +57,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with: { submodules: false }
+        with:
+          submodules: false
 
       - name: Normalize image name (lowercase)
         run: echo "IMAGE_NAME_LOWER=$(echo '${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
@@ -70,11 +82,13 @@ jobs:
 
       - name: Setup kubectl
         uses: azure/setup-kubectl@v4
-        with: { version: 'latest' }
+        with:
+          version: latest
 
-      - name: Write kubeconfig from
+      - name: Write kubeconfig from KUBECONFIG_B64
         shell: bash
-        env: { KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }} }
+        env:
+          KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
         run: |
           set -euo pipefail
           test -n "${KUBECONFIG_B64:-}" || { echo "Missing KUBECONFIG_B64"; exit 1; }
@@ -100,7 +114,7 @@ jobs:
               --docker-username="${GHCR_USER_FALLBACK}" \
               --docker-password="${GHCR_PAT}"
           else
-            echo "No GHCR_PAT provided; skipping imagePullSecret."
+            echo "No GHCR_PAT provided; skipping imagePullSecret (images must be public)."
           fi
 
       - name: Create/update DB + APP secrets (test)
@@ -122,21 +136,22 @@ jobs:
             --from-literal=connection="${CONNECTION_STRING}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
-      # === NEW: bcrypt Hash erzeugen ===
       - name: Setup Node for bcrypt
         uses: actions/setup-node@v4
-        with: { node-version: '20' }
+        with:
+          node-version: 20
 
       - name: Generate bcrypt hash for MASTER_PW
         id: bcrypt
         shell: bash
-        env: { MASTER_PW: ${{ secrets.MASTER_PW }} }
+        env:
+          MASTER_PW: ${{ secrets.MASTER_PW }}
         run: |
           set -euo pipefail
           test -n "${MASTER_PW:-}" || { echo "MASTER_PW missing"; exit 1; }
           npm -g i bcryptjs >/dev/null 2>&1
           HASH=$(node -e "const b=require('bcryptjs');console.log(b.hashSync(process.env.MASTER_PW, 12));")
-          echo "HASH=$HASH" >> $GITHUB_OUTPUT
+          echo "HASH=$HASH" >> "$GITHUB_OUTPUT"
 
       - name: Create/Update master-user secret (email+bcrypt hash)
         shell: bash
@@ -151,24 +166,6 @@ jobs:
             --from-literal=passwordHash="${MASTER_PWHASH}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: Create/Update TLS secret for Ingress (test)
-        shell: bash
-        env:
-          TLS_CRT_B64: ${{ secrets.TLS_CRT_B64 }}
-          TLS_KEY_B64: ${{ secrets.TLS_KEY_B64 }}
-        run: |
-          set -euo pipefail
-          if [ -n "${TLS_CRT_B64:-}" ] && [ -n "${TLS_KEY_B64:-}" ]; then
-            echo "$TLS_CRT_B64" | base64 -d > crt.pem
-            echo "$TLS_KEY_B64" | base64 -d > key.pem
-            kubectl -n cmc-test create secret tls cmc-app-tls \
-              --cert=crt.pem --key=key.pem \
-              --dry-run=client -o yaml | kubectl apply -f -
-            rm -f crt.pem key.pem
-          else
-            echo "TLS secrets not set; skipping TLS secret creation."
-          fi
-
       - name: Replace image name in test manifests
         run: |
           sed -i "s|ghcr.io/USERNAME/REPOSITORY|${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}|g" k8s/test/cmc-app.yaml
@@ -181,7 +178,8 @@ jobs:
 
       - name: Ensure imagePullSecrets on cmc-app (if private images)
         shell: bash
-        env: { GHCR_PAT: ${{ secrets.GHCR_PAT }} }
+        env:
+          GHCR_PAT: ${{ secrets.GHCR_PAT }}
         run: |
           set -euo pipefail
           if [ -n "${GHCR_PAT:-}" ]; then
