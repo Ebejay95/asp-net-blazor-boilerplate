@@ -151,14 +151,13 @@ jobs:
           fi
           kubectl -n cmc-prod rollout status deploy/cmc-app --timeout=600s
 
-      - name: Seed master user (Job)
+      - name: "Seed master user (Job)"
         shell: bash
         run: |
           set -euo pipefail
           kubectl apply -f k8s/prod/seed-master-user-configmap.yaml
           kubectl -n cmc-prod delete job seed-master-user --ignore-not-found
           kubectl apply -f k8s/prod/seed-master-user.yaml
-
           kubectl -n cmc-prod wait --for=condition=complete job/seed-master-user --timeout=480s
 
           echo "=== Job ==="
@@ -173,7 +172,7 @@ jobs:
             kubectl -n cmc-prod logs "$POD" --all-containers=true --tail=500 || true
           fi
 
-      - name: Post-check: Service/Endpoints/Ingress + Smoke
+      - name: "Post-check: Service/Endpoints/Ingress + Smoke"
         shell: bash
         run: |
           set -e
