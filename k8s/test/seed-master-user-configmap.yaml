@@ -6,26 +6,42 @@ metadata:
 data:
   seed.sql: |
     DO $$
+    DECLARE
+      t regclass;
+      idx_name text := 'idx_users_email_unique';
+      stmt text;
     BEGIN
-      IF NOT EXISTS (
-        SELECT 1 FROM pg_indexes
-        WHERE schemaname = 'public' AND indexname = 'idx_users_email_unique'
-      ) THEN
-        EXECUTE 'CREATE UNIQUE INDEX idx_users_email_unique ON "Users" ("Email")';
+      -- Versuche "Users" (quoted) und users (lowercase)
+      t := to_regclass('"Users"');
+      IF t IS NULL THEN
+        t := to_regclass('users');
+      END IF;
+      IF t IS NULL THEN
+        RAISE EXCEPTION 'Users table not found. Tried "Users" and users.';
       END IF;
 
-      INSERT INTO "Users"
-      ("Id","Email","PasswordHash","FirstName","LastName","IsEmailConfirmed","CreatedAt","Department","Role")
-      VALUES
-      (:'uid'::uuid, :'email', :'pwdhash', :'first', :'last', TRUE, now(), :'dept', :'role')
-      ON CONFLICT ("Email") DO UPDATE
-      SET "FirstName" = EXCLUDED."FirstName",
-          "LastName"  = EXCLUDED."LastName",
-          "IsEmailConfirmed" = TRUE,
-          "Department" = EXCLUDED."Department",
-          "Role" = EXCLUDED."Role",
-          "PasswordHash" = CASE
-            WHEN COALESCE("Users"."PasswordHash",'') = '' THEN EXCLUDED."PasswordHash"
-            ELSE "Users"."PasswordHash"
-          END;
+      -- Eindeutiger Index auf Email (nur falls nicht vorhanden)
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_indexes WHERE indexname = idx_name
+      ) THEN
+        EXECUTE format('CREATE UNIQUE INDEX %I ON %s ("Email")', idx_name, t);
+      END IF;
+
+      -- Dynamisches INSERT/UPSERT; Werte werden von psql (-v) ersetzt.
+      stmt := format($f$
+        INSERT INTO %s ("Id","Email","PasswordHash","FirstName","LastName","IsEmailConfirmed","CreatedAt","Department","Role")
+        VALUES ( %s::uuid, %s, %s, %s, %s, TRUE, now(), %s, %s )
+        ON CONFLICT ("Email") DO UPDATE
+        SET "FirstName" = EXCLUDED."FirstName",
+            "LastName"  = EXCLUDED."LastName",
+            "IsEmailConfirmed" = TRUE,
+            "Department" = EXCLUDED."Department",
+            "Role" = EXCLUDED."Role",
+            "PasswordHash" = CASE
+              WHEN COALESCE(%s."PasswordHash",'') = '' THEN EXCLUDED."PasswordHash"
+              ELSE %s."PasswordHash"
+            END
+      $f$, t, :'uid', :'email', :'pwdhash', :'first', :'last', :'dept', :'role', t, t);
+
+      EXECUTE stmt;
     END $$;

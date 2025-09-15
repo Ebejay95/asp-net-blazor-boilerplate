@@ -213,23 +213,35 @@ jobs:
       - name: Seed master user (K8s Job - test)
         shell: bash
         run: |
-          set +e
+          set -e
           kubectl apply -f k8s/test/seed-master-user-configmap.yaml
           kubectl -n cmc-test delete job seed-master-user --ignore-not-found
           kubectl apply -f k8s/test/seed-master-user.yaml
 
-          kubectl -n cmc-test wait --for=condition=complete job/seed-master-user --timeout=480s
-          STATUS=$?
+          echo "=== Streaming seed job logs (live) ==="
+          # Logs streamen, beendet wenn Pod endet:
+          ( kubectl -n cmc-test logs -f job/seed-master-user --all-containers || true ) &
 
-          echo "=== Job ==="
+          # Warten auf Abschluss (erfolgreich oder fehlerhaft)
+          kubectl -n cmc-test wait --for=condition=complete job/seed-master-user --timeout=480s || true
+          kubectl -n cmc-test wait --for=condition=failed   job/seed-master-user --timeout=10s  || true
+
+          echo "=== Job describe ==="
           kubectl -n cmc-test describe job seed-master-user || true
           echo "=== Pods ==="
           kubectl -n cmc-test get pods -l job-name=seed-master-user -o wide || true
-          POD=$(kubectl -n cmc-test get pods -l job-name=seed-master-user -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+          POD=$(kubectl -n cmc-test get pods -l job-name=seed-master-user -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
           if [ -n "$POD" ]; then
             echo "=== Pod describe ==="
             kubectl -n cmc-test describe pod "$POD" || true
-            echo "=== Pod logs ==="
-            kubectl -n cmc-test logs "$POD" --all-containers=true --tail=500 || true
+            echo "=== Final Pod logs ==="
+            kubectl -n cmc-test logs "$POD" --all-containers --tail=1000 || true
           fi
-          exit $STATUS
+
+          # Exit status: success wenn Job complete ist
+          if kubectl -n cmc-test get job seed-master-user -o jsonpath='{.status.succeeded}' 2>/dev/null | grep -q '^1$'; then
+            exit 0
+          else
+            echo "❌ Seed job failed"
+            exit 1
+          fi

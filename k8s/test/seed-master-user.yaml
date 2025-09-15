@@ -4,37 +4,54 @@ metadata:
   name: seed-master-user
   namespace: cmc-test
 spec:
-  backoffLimit: 2
+  backoffLimit: 0              # ← Pod bleibt bei Fehler erhalten
   activeDeadlineSeconds: 600
-  ttlSecondsAfterFinished: 3600
   template:
     spec:
-      restartPolicy: OnFailure
+      restartPolicy: Never     # ← keine Pod-Restarts (wichtig für Logs)
       containers:
       - name: seed
         image: postgres:15
         imagePullPolicy: IfNotPresent
         terminationMessagePolicy: FallbackToLogsOnError
         env:
-        - { name: PGHOST,     value: postgres }
-        - { name: PGPORT,     value: "5432" }
-        - { name: PGDATABASE, value: cmc_test }
-        - { name: PGUSER,     value: cmc_user }
+        - name: PGHOST
+          value: postgres
+        - name: PGPORT
+          value: "5432"
+        - name: PGDATABASE
+          value: cmc_test
+        - name: PGUSER
+          value: cmc_user
         - name: PGPASSWORD
-          valueFrom: { secretKeyRef: { name: postgres-secret, key: password } }
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: password
 
         - name: MASTER_EMAIL
-          valueFrom: { secretKeyRef: { name: master-user, key: email } }
+          valueFrom:
+            secretKeyRef:
+              name: master-user
+              key: email
         - name: MASTER_PWHASH
-          valueFrom: { secretKeyRef: { name: master-user, key: passwordHash } }
+          valueFrom:
+            secretKeyRef:
+              name: master-user
+              key: passwordHash
 
-        - { name: MASTER_FIRST, value: "MASTER" }
-        - { name: MASTER_LAST,  value: "USER" }
-        - { name: MASTER_ROLE,  value: "super-admin" }
-        - { name: MASTER_DEPT,  value: "Admin" }
+        - name: MASTER_FIRST
+          value: "MASTER"
+        - name: MASTER_LAST
+          value: "USER"
+        - name: MASTER_ROLE
+          value: "super-admin"
+        - name: MASTER_DEPT
+          value: "Admin"
 
         volumeMounts:
-        - { name: seed-sql, mountPath: /seed }
+        - name: seed-sql
+          mountPath: /seed
 
         command: ["/bin/bash","-lc"]
         args:
@@ -47,9 +64,11 @@ spec:
             fi
             echo "… still waiting ($i/120)"; sleep 2
           done
+
           UID=$(cat /proc/sys/kernel/random/uuid)
-          echo "▶️  Seeding master user $MASTER_EMAIL with fixed hash"
-          psql -q -v ON_ERROR_STOP=1 \
+          echo "▶️  Seeding master user $MASTER_EMAIL"
+          set -x
+          psql -a -v ON_ERROR_STOP=1 \
             -v uid="$UID" \
             -v email="$MASTER_EMAIL" \
             -v pwdhash="$MASTER_PWHASH" \
@@ -62,4 +81,6 @@ spec:
       - name: seed-sql
         configMap:
           name: cmc-master-seed
-          items: [{ key: seed.sql, path: seed.sql }]
+          items:
+          - key: seed.sql
+            path: seed.sql
