@@ -118,6 +118,61 @@ builder.Services.AddScoped<DbContext>(sp => sp.GetRequiredService<AppDbContext>(
 
 var app = builder.Build();
 
+// --- Seed-only Modus: führt Seeding aus und beendet den Prozess ---
+if (args.Any(a => string.Equals(a, "seed-master-user", StringComparison.OrdinalIgnoreCase)))
+{
+    Console.WriteLine("[seed] Running master-user seeder…");
+
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+    // DB sicher auf dem aktuellen Stand
+    await db.Database.MigrateAsync();
+
+    var email = Environment.GetEnvironmentVariable("MASTER_MAIL");
+    var hash  = Environment.GetEnvironmentVariable("MASTER_PWHASH");
+    var first = Environment.GetEnvironmentVariable("MASTER_FIRST") ?? "MASTER";
+    var last  = Environment.GetEnvironmentVariable("MASTER_LAST")  ?? "USER";
+    var role  = Environment.GetEnvironmentVariable("MASTER_ROLE")  ?? "super-admin";
+    var dept  = Environment.GetEnvironmentVariable("MASTER_DEPT")  ?? "Admin";
+
+    if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(hash))
+    {
+        Console.Error.WriteLine("[seed] Missing env MASTER_MAIL or MASTER_PWHASH");
+        Environment.Exit(2);
+    }
+
+    Console.WriteLine($"[seed] email={email}");
+
+    var id = Guid.NewGuid();
+
+    // 1) Update, falls User existiert
+    var updated = await db.Database.ExecuteSqlRawAsync(@"
+        UPDATE ""Users""
+           SET ""FirstName"" = {1},
+               ""LastName""  = {2},
+               ""Department""= {3},
+               ""Role""      = {4},
+               ""IsEmailConfirmed"" = TRUE
+         WHERE ""Email"" = {0};
+    ", email, first, last, dept, role);
+
+    // 2) Insert, falls nicht vorhanden
+    if (updated == 0)
+    {
+        await db.Database.ExecuteSqlRawAsync(@"
+            INSERT INTO ""Users""
+              (""Id"",""Email"",""PasswordHash"",""FirstName"",""LastName"",
+               ""IsEmailConfirmed"",""CreatedAt"",""Department"",""Role"")
+            VALUES
+              ({0}, {1}, {2}, {3}, {4}, TRUE, now(), {5}, {6});
+        ", id, email, hash, first, last, dept, role);
+    }
+
+    Console.WriteLine("[seed] Done.");
+    return; // WICHTIG: keinen Webserver starten
+}
+
 // Forwarded Headers (Ingress)
 var fwd = new ForwardedHeadersOptions
 {
@@ -150,7 +205,7 @@ app.MapBlazorHub();
 app.MapRazorPages();
 app.MapFallbackToPage("/_Host");
 
-// DB-Migration beim Start
+// DB-Migration beim regulären Start
 using (var scope = app.Services.CreateScope())
 {
     try
@@ -167,7 +222,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 Console.WriteLine("🚀 Starting CMC application...");
-Console.WriteLine("   📡 Prod/Test-URLs kommen aus Kestrel-Endpunkten oder ASPNETCORE_URLS.");
+Console.WriteLine("   📡 URLs kommen aus Kestrel-Endpunkten (Production: http://0.0.0.0:8080) oder ASPNETCORE_URLS.");
 
 app.Run();
 
