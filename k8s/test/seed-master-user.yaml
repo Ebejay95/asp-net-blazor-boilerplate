@@ -1,14 +1,15 @@
+# k8s/test/seed-master-user.yaml
 apiVersion: batch/v1
 kind: Job
 metadata:
   name: seed-master-user
   namespace: cmc-test
 spec:
-  backoffLimit: 0              # ← Pod bleibt bei Fehler erhalten
+  backoffLimit: 0
   activeDeadlineSeconds: 600
   template:
     spec:
-      restartPolicy: Never     # ← keine Pod-Restarts (wichtig für Logs)
+      restartPolicy: Never
       containers:
       - name: seed
         image: postgres:15
@@ -28,7 +29,6 @@ spec:
             secretKeyRef:
               name: postgres-secret
               key: password
-
         - name: MASTER_EMAIL
           valueFrom:
             secretKeyRef:
@@ -39,7 +39,6 @@ spec:
             secretKeyRef:
               name: master-user
               key: passwordHash
-
         - name: MASTER_FIRST
           value: "MASTER"
         - name: MASTER_LAST
@@ -48,11 +47,9 @@ spec:
           value: "super-admin"
         - name: MASTER_DEPT
           value: "Admin"
-
         volumeMounts:
         - name: seed-sql
           mountPath: /seed
-
         command: ["/bin/bash","-lc"]
         args:
         - |
@@ -65,11 +62,11 @@ spec:
             echo "… still waiting ($i/120)"; sleep 2
           done
 
-          UID=$(cat /proc/sys/kernel/random/uuid)
+          UUID=$(cat /proc/sys/kernel/random/uuid)
           echo "▶️  Seeding master user $MASTER_EMAIL"
           set -x
           psql -a -v ON_ERROR_STOP=1 \
-            -v uid="$UID" \
+            -v uid="$UUID" \
             -v email="$MASTER_EMAIL" \
             -v pwdhash="$MASTER_PWHASH" \
             -v first="$MASTER_FIRST" \
