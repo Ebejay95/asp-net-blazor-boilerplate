@@ -85,11 +85,24 @@ jobs:
             --from-literal=connection="${CONNECTION_STRING}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
+      - name: Create/Update master-user secret (email+password)
+        shell: bash
+        env:
+          MASTER_MAIL: ${{ secrets.MASTER_MAIL }}
+          MASTER_PW:   ${{ secrets.MASTER_PW }}
+        run: |
+          set -euo pipefail
+          test -n "${MASTER_MAIL:-}" -a -n "${MASTER_PW:-}" || { echo "MASTER_* secrets missing"; exit 1; }
+          kubectl -n cmc-prod create secret generic master-user \
+            --from-literal=email="${MASTER_MAIL}" \
+            --from-literal=password="${MASTER_PW}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Create/Update TLS secret for Ingress
         shell: bash
         env:
-          TLS_CRT_B64: ${{ secrets.TLS_CRT_B64 }}   # base64(fullchain.pem)
-          TLS_KEY_B64: ${{ secrets.TLS_KEY_B64 }}   # base64(privkey.pem)
+          TLS_CRT_B64: ${{ secrets.TLS_CRT_B64 }}
+          TLS_KEY_B64: ${{ secrets.TLS_KEY_B64 }}
         run: |
           set -euo pipefail
           test -n "${TLS_CRT_B64:-}" -a -n "${TLS_KEY_B64:-}" || { echo "TLS secrets missing"; exit 1; }
@@ -114,6 +127,14 @@ jobs:
             kubectl -n cmc-prod rollout status statefulset/postgres --timeout=600s
           fi
           kubectl -n cmc-prod rollout status deploy/cmc-app --timeout=600s
+
+      - name: Seed master user (K8s Job)
+        run: |
+          kubectl apply -f k8s/prod/seed-master-user-configmap.yaml
+          kubectl -n cmc-prod delete job seed-master-user --ignore-not-found
+          kubectl apply -f k8s/prod/seed-master-user.yaml
+          kubectl -n cmc-prod wait --for=condition=complete job/seed-master-user --timeout=180s
+          kubectl -n cmc-prod logs job/seed-master-user --tail=200 || true
 
       - name: "Post-check: Service/Endpoints/Ingress + Smoke"
         shell: bash

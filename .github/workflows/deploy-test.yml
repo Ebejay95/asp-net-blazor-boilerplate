@@ -132,6 +132,19 @@ jobs:
             --from-literal=connection="${CONNECTION_STRING}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
+      - name: Create/Update master-user secret (email+password)
+        shell: bash
+        env:
+          MASTER_MAIL: ${{ secrets.MASTER_MAIL }}
+          MASTER_PW:   ${{ secrets.MASTER_PW }}
+        run: |
+          set -euo pipefail
+          test -n "${MASTER_MAIL:-}" -a -n "${MASTER_PW:-}" || { echo "MASTER_* secrets missing"; exit 1; }
+          kubectl -n cmc-test create secret generic master-user \
+            --from-literal=email="${MASTER_MAIL}" \
+            --from-literal=password="${MASTER_PW}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Create/Update TLS secret for Ingress (test)
         shell: bash
         env:
@@ -183,14 +196,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Postgres (Deployment ODER StatefulSet) warten:
           if kubectl -n cmc-test get deploy postgres >/dev/null 2>&1; then
             kubectl -n cmc-test rollout status deploy/postgres --timeout=600s || POSTGRES_ROLLOUT_FAILED=1
           elif kubectl -n cmc-test get statefulset postgres >/dev/null 2>&1; then
             kubectl -n cmc-test rollout status statefulset/postgres --timeout=600s || POSTGRES_ROLLOUT_FAILED=1
           fi
 
-          # App warten:
           kubectl -n cmc-test rollout status deploy/cmc-app --timeout=600s || APP_ROLLOUT_FAILED=1
 
           if [ "${POSTGRES_ROLLOUT_FAILED:-0}" = "1" ] || [ "${APP_ROLLOUT_FAILED:-0}" = "1" ]; then
@@ -215,3 +226,11 @@ jobs:
             kubectl -n cmc-test logs deploy/cmc-app --all-containers=true --tail=200 || true
             exit 1
           fi
+
+      - name: Seed master user (K8s Job - test)
+        run: |
+          kubectl apply -f k8s/test/seed-master-user-configmap.yaml
+          kubectl -n cmc-test delete job seed-master-user --ignore-not-found
+          kubectl apply -f k8s/test/seed-master-user.yaml
+          kubectl -n cmc-test wait --for=condition=complete job/seed-master-user --timeout=180s
+          kubectl -n cmc-test logs job/seed-master-user --tail=200 || true

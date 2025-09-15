@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cmc-master-seed
+  namespace: cmc-prod
+data:
+  seed.sql: |
+    DO $$
+    BEGIN
+      -- BCrypt in PG aktivieren
+      CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+      -- Eindeutige E-Mail, damit ON CONFLICT greift
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_indexes
+        WHERE schemaname = 'public' AND indexname = 'idx_users_email_unique'
+      ) THEN
+        EXECUTE 'CREATE UNIQUE INDEX idx_users_email_unique ON "Users" ("Email")';
+      END IF;
+
+      -- User idempotent anlegen/aktualisieren
+      INSERT INTO "Users"
+      ("Id","Email","PasswordHash","FirstName","LastName","IsEmailConfirmed","CreatedAt","Department","Role")
+      VALUES
+      (
+        gen_random_uuid(),
+        :'email',
+        crypt(:'pwd', gen_salt('bf', 12)),  -- BCrypt-Hash
+        :'first',
+        :'last',
+        TRUE,
+        now(),
+        :'dept',
+        :'role'
+      )
+      ON CONFLICT ("Email") DO UPDATE
+      SET
+        "FirstName" = EXCLUDED."FirstName",
+        "LastName"  = EXCLUDED."LastName",
+        "IsEmailConfirmed" = TRUE,
+        "Department" = EXCLUDED."Department",
+        "Role" = EXCLUDED."Role",
+        -- Passwort nur setzen, wenn noch keins existiert (kein Zwangs-Reset)
+        "PasswordHash" = CASE
+          WHEN COALESCE("Users"."PasswordHash",'') = '' THEN EXCLUDED."PasswordHash"
+          ELSE "Users"."PasswordHash"
+        END;
+    END $$;

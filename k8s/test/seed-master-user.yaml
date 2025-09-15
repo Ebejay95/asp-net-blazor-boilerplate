@@ -1,0 +1,67 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: seed-master-user
+  namespace: cmc-test
+spec:
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: seed
+        image: postgres:15
+        env:
+        - name: PGHOST
+          value: postgres
+        - name: PGPORT
+          value: "5432"
+        - name: PGDATABASE
+          value: cmc_test
+        - name: PGUSER
+          value: cmc_user
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: password
+        - name: MASTER_EMAIL
+          valueFrom:
+            secretKeyRef:
+              name: master-user
+              key: email
+        - name: MASTER_PW
+          valueFrom:
+            secretKeyRef:
+              name: master-user
+              key: password
+        - name: MASTER_FIRST
+          value: "MASTER"
+        - name: MASTER_LAST
+          value: "USER"
+        - name: MASTER_ROLE
+          value: "super-admin"
+        - name: MASTER_DEPT
+          value: "Admin"
+        volumeMounts:
+        - name: seed-sql
+          mountPath: /seed
+        command: ["/bin/bash","-lc"]
+        args:
+        - |
+          set -euo pipefail
+          psql -q -v ON_ERROR_STOP=1 \
+            -v email="$MASTER_EMAIL" \
+            -v pwd="$MASTER_PW" \
+            -v first="$MASTER_FIRST" \
+            -v last="$MASTER_LAST" \
+            -v role="$MASTER_ROLE" \
+            -v dept="$MASTER_DEPT" \
+            -f /seed/seed.sql
+      volumes:
+      - name: seed-sql
+        configMap:
+          name: cmc-master-seed
+          items:
+          - key: seed.sql
+            path: seed.sql
