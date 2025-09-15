@@ -1,28 +1,34 @@
--- k8s/test/seed-master-user-configmap.yaml  (data.seed.sql)
-DO $$
-BEGIN
-  -- Eindeutiger Index auf Email (nur anlegen, wenn nicht vorhanden)
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_indexes
-    WHERE schemaname = 'public' AND indexname = 'idx_users_email_unique'
-  ) THEN
-    EXECUTE 'CREATE UNIQUE INDEX idx_users_email_unique ON "Users" ("Email")';
-  END IF;
-END $$;
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cmc-master-seed
+  namespace: cmc-test
+data:
+  seed.sql: |
+    DO $$
+    BEGIN
+      -- Eindeutiger Index auf Email nur anlegen, wenn nicht vorhanden
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_indexes
+        WHERE schemaname = 'public' AND indexname = 'idx_users_email_unique'
+      ) THEN
+        EXECUTE 'CREATE UNIQUE INDEX idx_users_email_unique ON "Users" ("Email")';
+      END IF;
+    END $$;
 
--- Idempotentes UPSERT des Master-Users
-INSERT INTO "Users"
-  ("Id","Email","PasswordHash","FirstName","LastName","IsEmailConfirmed","CreatedAt","Department","Role")
-VALUES
-  ( :'uid'::uuid, :'email', :'pwdhash', :'first', :'last', TRUE, now(), :'dept', :'role')
-ON CONFLICT ("Email") DO UPDATE
-SET
-  "FirstName" = EXCLUDED."FirstName",
-  "LastName"  = EXCLUDED."LastName",
-  "IsEmailConfirmed" = TRUE,
-  "Department" = EXCLUDED."Department",
-  "Role" = EXCLUDED."Role",
-  "PasswordHash" = CASE
-    WHEN COALESCE("Users"."PasswordHash",'') = '' THEN EXCLUDED."PasswordHash"
-    ELSE "Users"."PasswordHash"
-  END;
+    -- Idempotentes UPSERT des Master-Users (psql-Variablen werden hier sicher ersetzt)
+    INSERT INTO "Users"
+      ("Id","Email","PasswordHash","FirstName","LastName","IsEmailConfirmed","CreatedAt","Department","Role")
+    VALUES
+      ( :'uid'::uuid, :'email', :'pwdhash', :'first', :'last', TRUE, now(), :'dept', :'role')
+    ON CONFLICT ("Email") DO UPDATE
+    SET
+      "FirstName" = EXCLUDED."FirstName",
+      "LastName"  = EXCLUDED."LastName",
+      "IsEmailConfirmed" = TRUE,
+      "Department" = EXCLUDED."Department",
+      "Role" = EXCLUDED."Role",
+      "PasswordHash" = CASE
+        WHEN COALESCE("Users"."PasswordHash",'') = '' THEN EXCLUDED."PasswordHash"
+        ELSE "Users"."PasswordHash"
+      END;
