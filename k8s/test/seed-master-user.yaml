@@ -4,6 +4,8 @@ metadata:
   name: seed-master-user
   namespace: cmc-test
 spec:
+  backoffLimit: 2
+  activeDeadlineSeconds: 600
   ttlSecondsAfterFinished: 3600
   template:
     spec:
@@ -11,45 +13,41 @@ spec:
       containers:
       - name: seed
         image: postgres:15
+        imagePullPolicy: IfNotPresent
+        terminationMessagePolicy: FallbackToLogsOnError
         env:
-        - name: PGHOST
-          value: postgres
-        - name: PGPORT
-          value: "5432"
-        - name: PGDATABASE
-          value: cmc_test
-        - name: PGUSER
-          value: cmc_user
+        - { name: PGHOST,     value: postgres }
+        - { name: PGPORT,     value: "5432" }
+        - { name: PGDATABASE, value: cmc_test }
+        - { name: PGUSER,     value: cmc_user }
         - name: PGPASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: postgres-secret
-              key: password
+          valueFrom: { secretKeyRef: { name: postgres-secret, key: password } }
+
         - name: MASTER_EMAIL
-          valueFrom:
-            secretKeyRef:
-              name: master-user
-              key: email
+          valueFrom: { secretKeyRef: { name: master-user, key: email } }
         - name: MASTER_PW
-          valueFrom:
-            secretKeyRef:
-              name: master-user
-              key: password
-        - name: MASTER_FIRST
-          value: "MASTER"
-        - name: MASTER_LAST
-          value: "USER"
-        - name: MASTER_ROLE
-          value: "super-admin"
-        - name: MASTER_DEPT
-          value: "Admin"
+          valueFrom: { secretKeyRef: { name: master-user, key: password } }
+        - { name: MASTER_FIRST, value: "MASTER" }
+        - { name: MASTER_LAST,  value: "USER" }
+        - { name: MASTER_ROLE,  value: "super-admin" }
+        - { name: MASTER_DEPT,  value: "Admin" }
+
         volumeMounts:
-        - name: seed-sql
-          mountPath: /seed
+        - { name: seed-sql, mountPath: /seed }
+
         command: ["/bin/bash","-lc"]
         args:
         - |
           set -euo pipefail
+          echo "⏳ Waiting for Postgres readiness..."
+          for i in $(seq 1 120); do
+            if PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -c 'select 1' >/dev/null 2>&1; then
+              echo "✅ DB is ready"; break
+            fi
+            echo "… still waiting ($i/120)"; sleep 2
+          done
+
+          echo "▶️  Running seed.sql"
           psql -q -v ON_ERROR_STOP=1 \
             -v email="$MASTER_EMAIL" \
             -v pwd="$MASTER_PW" \
@@ -62,6 +60,4 @@ spec:
       - name: seed-sql
         configMap:
           name: cmc-master-seed
-          items:
-          - key: seed.sql
-            path: seed.sql
+          items: [{ key: seed.sql, path: seed.sql }]

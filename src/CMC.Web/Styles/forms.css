@@ -25,7 +25,22 @@
 	.form-control,
 	select.form-control,
 	textarea.form-control {
-		@apply w-full rounded-sm px-2 py-1 text-base transition border border-slate-200 outline-none;
+		@apply w-full bg-slate-100 rounded-sm px-2 py-1 text-base transition outline-none;
+		box-shadow:
+			1px 1px 1px white,
+			0px 0px 1px 1px rgba(0, 0, 0, 0.1),
+			inset -1px -1px 1px white,
+			inset 1px 1px 1px rgba(0, 0, 0, 0.1);
+
+		-webkit-box-shadow: 1px 1px 1px white,
+			0px 0px 1px 1px rgba(0, 0, 0, 0.1),
+			inset -1px -1px 1px white,
+			inset 1px 1px 1px rgba(0, 0, 0, 0.1);
+
+		-moz-box-shadow: 1px 1px 1px white,
+			0px 0px 1px 1px rgba(0, 0, 0, 0.1),
+			inset -1px -1px 1px white,
+			inset 1px 1px 1px rgba(0, 0, 0, 0.1);
 		color: var(--audicius-text);
 	}
 

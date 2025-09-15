@@ -228,9 +228,25 @@ jobs:
           fi
 
       - name: Seed master user (K8s Job - test)
+        shell: bash
         run: |
+          set +e
           kubectl apply -f k8s/test/seed-master-user-configmap.yaml
           kubectl -n cmc-test delete job seed-master-user --ignore-not-found
           kubectl apply -f k8s/test/seed-master-user.yaml
-          kubectl -n cmc-test wait --for=condition=complete job/seed-master-user --timeout=180s
-          kubectl -n cmc-test logs job/seed-master-user --tail=200 || true
+
+          kubectl -n cmc-test wait --for=condition=complete job/seed-master-user --timeout=480s
+          STATUS=$?
+
+          echo "=== Job ==="
+          kubectl -n cmc-test describe job seed-master-user || true
+          echo "=== Pods ==="
+          kubectl -n cmc-test get pods -l job-name=seed-master-user -o wide || true
+          POD=$(kubectl -n cmc-test get pods -l job-name=seed-master-user -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+          if [ -n "$POD" ]; then
+            echo "=== Pod describe ==="
+            kubectl -n cmc-test describe pod "$POD" || true
+            echo "=== Pod logs ==="
+            kubectl -n cmc-test logs "$POD" --all-containers=true --tail=500 || true
+          fi
+          exit $STATUS

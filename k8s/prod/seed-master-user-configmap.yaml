@@ -1,48 +1,63 @@
-apiVersion: v1
-kind: ConfigMap
+apiVersion: batch/v1
+kind: Job
 metadata:
-  name: cmc-master-seed
+  name: seed-master-user
   namespace: cmc-prod
-data:
-  seed.sql: |
-    DO $$
-    BEGIN
-      -- BCrypt in PG aktivieren
-      CREATE EXTENSION IF NOT EXISTS pgcrypto;
+spec:
+  backoffLimit: 2
+  activeDeadlineSeconds: 600
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: seed
+        image: postgres:15
+        imagePullPolicy: IfNotPresent
+        terminationMessagePolicy: FallbackToLogsOnError
+        env:
+        - { name: PGHOST,     value: postgres }
+        - { name: PGPORT,     value: "5432" }
+        - { name: PGDATABASE, value: cmc_production }
+        - { name: PGUSER,     value: cmc_user }
+        - name: PGPASSWORD
+          valueFrom: { secretKeyRef: { name: postgres-secret, key: password } }
 
-      -- Eindeutige E-Mail, damit ON CONFLICT greift
-      IF NOT EXISTS (
-        SELECT 1 FROM pg_indexes
-        WHERE schemaname = 'public' AND indexname = 'idx_users_email_unique'
-      ) THEN
-        EXECUTE 'CREATE UNIQUE INDEX idx_users_email_unique ON "Users" ("Email")';
-      END IF;
+        - name: MASTER_EMAIL
+          valueFrom: { secretKeyRef: { name: master-user, key: email } }
+        - name: MASTER_PW
+          valueFrom: { secretKeyRef: { name: master-user, key: password } }
+        - { name: MASTER_FIRST, value: "MASTER" }
+        - { name: MASTER_LAST,  value: "USER" }
+        - { name: MASTER_ROLE,  value: "super-admin" }
+        - { name: MASTER_DEPT,  value: "Admin" }
 
-      -- User idempotent anlegen/aktualisieren
-      INSERT INTO "Users"
-      ("Id","Email","PasswordHash","FirstName","LastName","IsEmailConfirmed","CreatedAt","Department","Role")
-      VALUES
-      (
-        gen_random_uuid(),
-        :'email',
-        crypt(:'pwd', gen_salt('bf', 12)),  -- BCrypt-Hash
-        :'first',
-        :'last',
-        TRUE,
-        now(),
-        :'dept',
-        :'role'
-      )
-      ON CONFLICT ("Email") DO UPDATE
-      SET
-        "FirstName" = EXCLUDED."FirstName",
-        "LastName"  = EXCLUDED."LastName",
-        "IsEmailConfirmed" = TRUE,
-        "Department" = EXCLUDED."Department",
-        "Role" = EXCLUDED."Role",
-        -- Passwort nur setzen, wenn noch keins existiert (kein Zwangs-Reset)
-        "PasswordHash" = CASE
-          WHEN COALESCE("Users"."PasswordHash",'') = '' THEN EXCLUDED."PasswordHash"
-          ELSE "Users"."PasswordHash"
-        END;
-    END $$;
+        volumeMounts:
+        - { name: seed-sql, mountPath: /seed }
+
+        command: ["/bin/bash","-lc"]
+        args:
+        - |
+          set -euo pipefail
+          echo "⏳ Waiting for Postgres readiness..."
+          for i in $(seq 1 120); do
+            if PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -c 'select 1' >/dev/null 2>&1; then
+              echo "✅ DB is ready"; break
+            fi
+            echo "… still waiting ($i/120)"; sleep 2
+          done
+
+          echo "▶️  Running seed.sql"
+          psql -q -v ON_ERROR_STOP=1 \
+            -v email="$MASTER_EMAIL" \
+            -v pwd="$MASTER_PW" \
+            -v first="$MASTER_FIRST" \
+            -v last="$MASTER_LAST" \
+            -v role="$MASTER_ROLE" \
+            -v dept="$MASTER_DEPT" \
+            -f /seed/seed.sql
+      volumes:
+      - name: seed-sql
+        configMap:
+          name: cmc-master-seed
+          items: [{ key: seed.sql, path: seed.sql }]
