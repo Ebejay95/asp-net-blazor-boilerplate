@@ -1,4 +1,3 @@
-# k8s/prod/seed-master-user.yaml
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -6,44 +5,79 @@ metadata:
   namespace: cmc-prod
 spec:
   backoffLimit: 0
-  ttlSecondsAfterFinished: 3600
+  activeDeadlineSeconds: 600
   template:
     spec:
       restartPolicy: Never
       containers:
-        - name: seeder
-          # bleibt absichtlich auf :latest, der Workflow pusht latest direkt vorher
-          image: ghcr.io/USERNAME/REPOSITORY:latest
-          imagePullPolicy: IfNotPresent
-          command: ["/bin/sh", "/opt/seed/seed.sh"]
-          env:
-            # wichtig: gleicher Name wie im Deployment
-            - name: ConnectionStrings__DefaultConnection
-              valueFrom:
-                secretKeyRef:
-                  name: cmc-app-secret
-                  key: connection
-            - name: MASTER_MAIL
-              valueFrom:
-                secretKeyRef:
-                  name: master-user
-                  key: email
-            - name: MASTER_PWHASH
-              valueFrom:
-                secretKeyRef:
-                  name: master-user
-                  key: passwordHash
-            # explizit welche DLL gestartet werden soll
-            - name: APP_DLL
-              value: "/app/CMC.Web.dll"
-          volumeMounts:
-            - name: seed-script
-              mountPath: /opt/seed
-              readOnly: true
+      - name: seed
+        image: postgres:15
+        imagePullPolicy: IfNotPresent
+        terminationMessagePolicy: FallbackToLogsOnError
+        env:
+        - name: PGHOST
+          value: postgres
+        - name: PGPORT
+          value: "5432"
+        - name: PGDATABASE
+          value: cmc_production
+        - name: PGUSER
+          value: cmc_user
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: password
+        - name: MASTER_EMAIL
+          valueFrom:
+            secretKeyRef:
+              name: master-user
+              key: email
+        - name: MASTER_PWHASH
+          valueFrom:
+            secretKeyRef:
+              name: master-user
+              key: passwordHash
+        - name: MASTER_FIRST
+          value: "MASTER"
+        - name: MASTER_LAST
+          value: "USER"
+        - name: MASTER_ROLE
+          value: "super-admin"
+        - name: MASTER_DEPT
+          value: "Admin"
+        volumeMounts:
+        - name: seed-sql
+          mountPath: /seed
+        command: ["/bin/bash","-lc"]
+        args:
+        - |
+          set -euo pipefail
+          echo "⏳ Waiting for Postgres readiness..."
+          for i in $(seq 1 120); do
+            if PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -c 'select 1' >/dev/null 2>&1; then
+              echo "✅ DB is ready"; break
+            fi
+            echo "… still waiting ($i/120)"; sleep 2
+          done
+
+          UUID=$(cat /proc/sys/kernel/random/uuid)
+          echo "▶️  Seeding master user $MASTER_EMAIL"
+
+          set -x
+          psql -a -v ON_ERROR_STOP=1 \
+            -v uid="$UUID" \
+            -v email="$MASTER_EMAIL" \
+            -v pwdhash="$MASTER_PWHASH" \
+            -v first="$MASTER_FIRST" \
+            -v last="$MASTER_LAST" \
+            -v role="$MASTER_ROLE" \
+            -v dept="$MASTER_DEPT" \
+            -f /seed/seed.sql
       volumes:
-        - name: seed-script
-          configMap:
-            name: seed-master-user-script
-            items:
-              - key: seed.sh
-                path: seed.sh
+      - name: seed-sql
+        configMap:
+          name: cmc-master-seed
+          items:
+          - key: seed.sql
+            path: seed.sql
