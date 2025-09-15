@@ -1968,8 +1968,6 @@
     font-weight: var(--font-weight-semibold);
     color: var(--audicius-text);
     text-decoration-line: none;
-    --tw-shadow: var(--audicius-shadow);
-    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
     transition-property: all;
     transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
     transition-duration: var(--tw-duration, var(--default-transition-duration));
@@ -1983,20 +1981,9 @@
     &:active {
       scale: 0.96;
     }
-    &:active {
-      --tw-shadow: 0 0 #0000;
-      box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
-    }
-    &:disabled {
-      cursor: not-allowed;
-    }
-    &:disabled {
-      opacity: 60%;
-    }
-    &:disabled {
-      --tw-shadow: 0 0 #0000;
-      box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
-    }
+    box-shadow: 2px 2px 2px rgba(0, 0, 0, 0.1),	0px 0px 2px 2px white,	inset -2px -2px 2px rgba(0, 0, 0, 0.1),	inset 2px 2px 2px white;
+    -webkit-box-shadow: 2px 2px 2px rgba(0, 0, 0, 0.1),	0px 0px 2px 2px white,	inset -2px -2px 2px rgba(0, 0, 0, 0.1),	inset 2px 2px 2px white;
+    -moz-box-shadow: 2px 2px 2px rgba(0, 0, 0, 0.1),	0px 0px 2px 2px white, inset -2px -2px 2px rgba(0, 0, 0, 0.1),	inset 2px 2px 2px white;
   }
   .btn svg {
     height: calc(var(--spacing) * 4);
@@ -2017,59 +2004,6 @@
   }
   .btn:focus {
     outline: none;
-  }
-  .btn.primary {
-    position: relative;
-    isolation: isolate;
-    overflow: hidden;
-    color: var(--color-white);
-    &::before {
-      content: var(--tw-content);
-      opacity: 100%;
-    }
-    &::after {
-      content: var(--tw-content);
-      opacity: 0%;
-    }
-    &:hover {
-      @media (hover: hover) {
-        &::before {
-          content: var(--tw-content);
-          opacity: 0%;
-        }
-      }
-    }
-    &:hover {
-      @media (hover: hover) {
-        &::after {
-          content: var(--tw-content);
-          opacity: 100%;
-        }
-      }
-    }
-    background: transparent;
-  }
-  .btn.primary::before,	.btn.primary::after {
-    pointer-events: none;
-    position: absolute;
-    inset: calc(var(--spacing) * 0);
-    z-index: -1;
-    border-radius: inherit;
-    transition-property: opacity;
-    transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
-    transition-duration: var(--tw-duration, var(--default-transition-duration));
-    --tw-duration: 0.2s;
-    transition-duration: 0.2s;
-    --tw-ease: ease-in-out;
-    transition-timing-function: ease-in-out;
-    --tw-content: "";
-    content: var(--tw-content);
-  }
-  .btn.primary::before {
-    background: var(--audicius-flare);
-  }
-  .btn.primary::after {
-    background: var(--audicius-flare-mod);
   }
   .btn.flat {
     box-shadow: none;
@@ -3223,11 +3157,6 @@ body {
   syntax: "*";
   inherits: false;
 }
-@property --tw-content {
-  syntax: "*";
-  initial-value: "";
-  inherits: false;
-}
 @property --tw-ordinal {
   syntax: "*";
   inherits: false;
@@ -3316,7 +3245,6 @@ body {
       --tw-outline-style: solid;
       --tw-duration: initial;
       --tw-ease: initial;
-      --tw-content: "";
       --tw-ordinal: initial;
       --tw-slashed-zero: initial;
       --tw-numeric-figure: initial;
