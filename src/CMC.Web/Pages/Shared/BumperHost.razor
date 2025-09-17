@@ -1,0 +1,38 @@
+@using CMC.Web.Services
+@inject IBumperBus Bus
+@implements IDisposable
+
+<div class="fixed right-4 top-4 z-50 space-y-2">
+    @foreach (var b in _items)
+    {
+        <div class="rounded border px-3 py-2 shadow bg-white">
+            <strong>@b.Title</strong>
+            <div>@b.Message</div>
+            <small class="opacity-60">(@b.Severity)</small>
+        </div>
+    }
+</div>
+
+@code {
+    private readonly List<Bump> _items = new();
+
+    protected override void OnInitialized()
+    {
+        Bus.Pushed += OnPush;
+    }
+
+    private void OnPush(Bump b)
+    {
+        _items.Add(b);
+        StateHasChanged();
+
+        var delay = (int)Math.Max(0, (b.Until - DateTimeOffset.UtcNow).TotalMilliseconds);
+        _ = Task.Delay(delay + 50).ContinueWith(_ =>
+        {
+            _items.Remove(b);
+            InvokeAsync(StateHasChanged);
+        });
+    }
+
+    public void Dispose() => Bus.Pushed -= OnPush;
+}

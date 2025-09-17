@@ -1,8 +1,10 @@
 @page "/login"
-@using CMC.Contracts.Users
+@using System.ComponentModel.DataAnnotations
+@using CMC.Web.Services
 @inject NavigationManager Navigation
 @inject ILogger<Login> Logger
 @inject IJSRuntime JSRuntime
+@inject IBumperBus Bumper
 
 <PageTitle>Login</PageTitle>
 
@@ -10,34 +12,17 @@
     <div class="card">
         <h2>Login</h2>
 
-        @if (!string.IsNullOrEmpty(errorMessage))
-        {
-            <div class="alert alert-danger">@errorMessage</div>
-        }
+        <FormRenderer
+            Model="@_vm"
+            Request="@_req"
+            ExtraFields="new()"
+            ValueOverrides="@_overrides"
+            ValidationErrors="@_errors"
+            OnFieldChanged="OnFieldChanged" />
 
-        @if (!string.IsNullOrEmpty(successMessage))
-        {
-            <div class="alert alert-success">@successMessage</div>
-        }
-
-        <EditForm Model="@loginRequest" OnValidSubmit="@HandleLogin">
-            <DataAnnotationsValidator />
-            <ValidationSummary />
-
-            <div class="form-group">
-                <label for="email">Email:</label>
-                <InputText id="email" class="form-control" @bind-Value="loginRequest.Email" />
-                <ValidationMessage For="@(() => loginRequest.Email)" />
-            </div>
-
-            <div class="form-group">
-                <label for="password">Password:</label>
-                <InputText id="password" type="password" class="form-control" @bind-Value="loginRequest.Password" />
-                <ValidationMessage For="@(() => loginRequest.Password)" />
-            </div>
-
-            <button type="submit" class="btn primary" disabled="@isLoading">
-                @if (isLoading)
+        <div class="mt-4">
+            <button type="button" class="btn primary" @onclick="HandleLogin" disabled="@_isLoading">
+                @if (_isLoading)
                 {
                     <span class="spinner-border spinner-border-sm" role="status"></span>
                     <span> Logging in...</span>
@@ -47,65 +32,101 @@
                     <span>Login</span>
                 }
             </button>
-        </EditForm>
+        </div>
 
-        <p>
+        <p class="mt-4">
             Don't have an account? <a href="/register">Register here</a>
         </p>
         <p>
             <a href="/forgot-password">Forgot Password?</a>
         </p>
-
     </div>
 </section>
+
 @code {
-    private LoginRequest loginRequest = new()
+    // rein "manuelles" ViewModel – kein CRUD/EFEdit
+    private sealed class LoginVm
     {
-        Email = string.Empty,
-        Password = string.Empty
+        [Required, EmailAddress, Display(Name="Email")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required, Display(Name="Password")]
+        public string Password { get; set; } = string.Empty;
+    }
+
+    private readonly LoginVm _vm = new();
+    private readonly Dictionary<string, object?> _overrides = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string[]> _errors    = new(StringComparer.OrdinalIgnoreCase);
+    private bool _isLoading;
+
+    // Minimaler Request für FormRenderer (wir verwenden ihn NICHT für Save)
+    private EFEditRequest _req => new EFEditRequest
+    {
+        Title = "Login",
+        Model = _vm,
+        ContractsAssembly = typeof(Login).Assembly, // irrelevant hier
+        IsCreate = true
     };
-    private string errorMessage = string.Empty;
-    private string successMessage = string.Empty;
-    private bool isLoading = false;
+
+    private void OnFieldChanged((string Name, object? Value) change)
+    {
+        var prop = typeof(LoginVm).GetProperty(change.Name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+        prop?.SetValue(_vm, change.Value?.ToString() ?? string.Empty);
+    }
 
     private async Task HandleLogin()
     {
         try
         {
-            isLoading = true;
-            errorMessage = string.Empty;
-            successMessage = string.Empty;
+            _isLoading = true;
+            _errors.Clear();
 
-            Logger.LogInformation("🔐 Login attempt for: {Email}", loginRequest.Email);
+            // DataAnnotations lokal prüfen (damit FormRenderer Fehler anzeigen kann)
+            var ctx = new ValidationContext(_vm);
+            var results = new List<ValidationResult>();
+            var ok = Validator.TryValidateObject(_vm, ctx, results, validateAllProperties: true);
 
-            // Sende Login-Request an API Controller
-            var response = await JSRuntime.InvokeAsync<bool>("submitLoginForm", loginRequest);
-
-            if (response)
+            if (!ok)
             {
-                Logger.LogInformation("✅ Login successful for: {Email}", loginRequest.Email);
-                successMessage = "Login successful! Redirecting...";
-                StateHasChanged();
+                foreach (var r in results)
+                {
+                    var key = (r.MemberNames?.FirstOrDefault()) ?? "__global";
+                    if (!_errors.TryGetValue(key, out var list))
+                        _errors[key] = new[] { r.ErrorMessage ?? "Invalid value." };
+                    else
+                        _errors[key] = list.Append(r.ErrorMessage ?? "Invalid value.").ToArray();
+                }
+                Bumper.Publish("Validation", "Please check your inputs.", "error");
+                return;
+            }
 
-                // Warte kurz und lade die Seite neu für Auth-State Update
-                await Task.Delay(1000);
+            Logger.LogInformation("🔐 Login attempt for: {Email}", _vm.Email);
+
+            // Cookie-Login über vorhandene JS-Interop (spricht deinen API-Controller)
+            var payload = new { Email = _vm.Email, Password = _vm.Password };
+            var success = await JSRuntime.InvokeAsync<bool>("submitLoginForm", payload);
+
+            if (success)
+            {
+                Logger.LogInformation("✅ Login successful for: {Email}", _vm.Email);
+                Bumper.Publish("Login", "Login successful! Redirecting…", "success", 1500);
+                await Task.Delay(800);
                 Navigation.NavigateTo("/", forceLoad: true);
             }
             else
             {
-                Logger.LogWarning("❌ Login failed for: {Email}", loginRequest.Email);
-                errorMessage = "Invalid email or password";
+                Logger.LogWarning("❌ Login failed for: {Email}", _vm.Email);
+                Bumper.Publish("Login failed", "Invalid email or password.", "error");
             }
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Login error for: {Email}", loginRequest.Email);
-            errorMessage = "An unexpected error occurred.";
+            Logger.LogError(ex, "Login error for: {Email}", _vm.Email);
+            Bumper.Publish("Error", "An unexpected error occurred.", "error");
         }
         finally
         {
-            isLoading = false;
+            _isLoading = false;
         }
     }
-
 }

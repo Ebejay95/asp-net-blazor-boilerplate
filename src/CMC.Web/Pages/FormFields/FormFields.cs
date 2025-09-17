@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Components;
 
-namespace CMC.Web.FormFields;
+namespace CMC.Web.Pages.FormFields;
 
 public interface IFormField
 {

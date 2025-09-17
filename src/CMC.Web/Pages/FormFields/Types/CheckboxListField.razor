@@ -1,22 +1,18 @@
-@using CMC.Web.FormFields
+@using CMC.Web.Pages.FormFields
 @using CMC.Web.Services
 @inherits FormFieldBase
 @inject IRelationshipManager Rels
 
-<div class="form-row">
+<div class="form-row @(Errors?.Length > 0 ? "is-invalid" : null)">
     <label class="form-label">@Label</label>
 
     @if (_isLoading)
     {
-        <div class="form-control" style="padding: 8px;">
-            <span>Lade Optionen...</span>
-        </div>
+        <div class="form-control" style="padding: 8px;"><span>Lade Optionen...</span></div>
     }
     else if (_options.Count == 0)
     {
-        <div class="form-control" style="padding: 8px;">
-            <span class="text-muted">Keine Optionen verfügbar</span>
-        </div>
+        <div class="form-control" style="padding: 8px;"><span class="text-muted">Keine Optionen verfügbar</span></div>
     }
     else
     {
@@ -29,7 +25,7 @@
                            checked="@isChecked"
                            disabled="@ReadOnly"
                            @onchange="@(e => HandleCheckboxChange(option.Value, e))" />
-	                <span class="switch-track"></span>
+                    <span class="switch-track"></span>
                     @option.Key
                 </label>
             }
@@ -37,8 +33,12 @@
     }
 
     @if (!string.IsNullOrWhiteSpace(Hint))
+    { <div class="form-hint">@Hint</div> }
+    @if (Errors?.Length > 0)
     {
-        <div class="form-hint">@Hint</div>
+        <div class="field-error">
+            @foreach (var e in Errors) { <div>@e</div> }
+        </div>
     }
 </div>
 
@@ -59,79 +59,42 @@
     private async Task LoadOptionsAsync()
     {
         _options.Clear();
-
-        if (ParentType is null || string.IsNullOrWhiteSpace(RelationName))
-        {
-            _isLoading = false;
-            return;
-        }
+        if (ParentType is null || string.IsNullOrWhiteSpace(RelationName)) { _isLoading = false; return; }
 
         try
         {
             _isLoading = true;
-
-            // robust: erst direkte Nav, dann Alias (ParentType.Name + RelationName)
-            var descriptor = TryGetDescriptor(RelationName)
-                          ?? TryGetDescriptor(ParentType.Name + RelationName);
-
-            if (descriptor is null || descriptor.Kind != RelationKind.ManyToMany)
-            {
-                _isLoading = false;
-                return;
-            }
+            var descriptor = TryGetDescriptor(RelationName) ?? TryGetDescriptor(ParentType.Name + RelationName);
+            if (descriptor is null || descriptor.Kind != RelationKind.ManyToMany) { _isLoading = false; return; }
 
             var relationOptions = await descriptor.LoadOptions();
             _options = relationOptions.Select(o => new KeyValuePair<string, string>(o.Label, o.Value)).ToList();
-
-            Console.WriteLine($"[CheckboxList] Parent={ParentType?.Name}, Rel={RelationName}, Found=True, Kind={descriptor.Kind}");
-            Console.WriteLine($"[CheckboxList] Options count = {_options.Count}");
         }
-        catch
-        {
-            _options = new();
-        }
-        finally
-        {
-            _isLoading = false;
-        }
+        catch { _options = new(); }
+        finally { _isLoading = false; }
     }
 
     private RelationDescriptor? TryGetDescriptor(string rel)
-    {
-        try { return Rels.GetDescriptor(ParentType!, rel); }
-        catch { return null; }
-    }
+    { try { return Rels.GetDescriptor(ParentType!, rel); } catch { return null; } }
 
     private void UpdateSelectedFromValue()
     {
         _selectedKeys.Clear();
-
         if (Value is IEnumerable<string> strings)
         {
-            foreach (var key in strings)
-                if (!string.IsNullOrWhiteSpace(key))
-                    _selectedKeys.Add(key);
+            foreach (var key in strings) if (!string.IsNullOrWhiteSpace(key)) _selectedKeys.Add(key);
             return;
         }
-
         if (Value is System.Collections.IEnumerable seq && Value is not string)
         {
-            foreach (var item in seq)
-            {
-                var s = item?.ToString();
-                if (!string.IsNullOrWhiteSpace(s))
-                    _selectedKeys.Add(s);
-            }
+            foreach (var item in seq) { var s = item?.ToString(); if (!string.IsNullOrWhiteSpace(s)) _selectedKeys.Add(s); }
         }
     }
 
     private async Task HandleCheckboxChange(string optionValue, ChangeEventArgs e)
     {
         var isChecked = e.Value?.ToString() == "on" || (e.Value is bool b && b);
-
-        if (isChecked) _selectedKeys.Add(optionValue);
-        else _selectedKeys.Remove(optionValue);
-
+        if (isChecked) _selectedKeys.Add(optionValue); else _selectedKeys.Remove(optionValue);
         await OnChanged(_selectedKeys.ToList());
     }
 }
