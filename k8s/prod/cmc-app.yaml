@@ -29,6 +29,10 @@ spec:
         ports:
         - name: http
           containerPort: 8080
+        # 👇 Mail-Settings aus Secret laden
+        envFrom:
+          - secretRef:
+              name: cmc-mail
         env:
         - name: ASPNETCORE_ENVIRONMENT
           valueFrom:
