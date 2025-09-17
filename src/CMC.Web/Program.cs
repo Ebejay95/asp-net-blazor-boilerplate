@@ -5,6 +5,8 @@ using Microsoft.EntityFrameworkCore;
 using CMC.Application.Services;
 using CMC.Web.Services;
 using CMC.Web.Auth;
+using CMC.Web.Hubs;
+using CMC.Application.Ports;
 using CMC.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -66,6 +68,7 @@ builder.Services.AddScoped<EFEditService>();
 
 // Bridge für @inject DbContext Db
 builder.Services.AddScoped<IRelationshipManager, RelationshipManager<AppDbContext>>();
+builder.Services.AddScoped<IBumperBus, BumperBus>();
 
 // Revisions-/Papierkorb
 builder.Services.AddScoped<IRevisionKeyResolver, DefaultRevisionKeyResolver>();
@@ -86,6 +89,9 @@ builder.Services.AddScoped<ToDoService>();
 builder.Services.AddScoped<EvidenceService>();
 builder.Services.AddScoped<TagService>();
 builder.Services.AddScoped<IndustryService>();
+builder.Services.AddScoped<NotificationService>();
+builder.Services.AddScoped<INotificationPush, SignalRNotificationPush>();
+
 
 // Auth
 builder.Services.AddScoped<CookieEvents>();
@@ -202,6 +208,7 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapBlazorHub();
+app.MapHub<NotificationHub>("/hubs/notifications");
 app.MapRazorPages();
 app.MapFallbackToPage("/_Host");
 

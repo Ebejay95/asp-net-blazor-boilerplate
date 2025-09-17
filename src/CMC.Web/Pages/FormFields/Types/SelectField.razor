@@ -1,10 +1,10 @@
-@* FormFields/SelectField.razor *@
-@using CMC.Web.FormFields
+@using CMC.Web.Pages.FormFields
 @inherits FormFieldBase
 
-<div class="form-row">
+<div class="form-row @(Errors?.Length > 0 ? "is-invalid" : null)">
     <label class="form-label" for="@Name">@Label</label>
-    <select class="form-control"
+
+    <select class="@ControlCss()"
             id="@Name"
             disabled="@ReadOnly"
             required="@Required"
@@ -15,7 +15,6 @@
         {
             <option value="">@EmptyOptionText</option>
         }
-
         @if (Options != null)
         {
             @foreach (var option in Options)
@@ -27,8 +26,12 @@
     </select>
 
     @if (!string.IsNullOrWhiteSpace(Hint))
+    { <div class="form-hint">@Hint</div> }
+    @if (Errors?.Length > 0)
     {
-        <div class="form-hint">@Hint</div>
+        <div class="field-error">
+            @foreach (var e in Errors) { <div>@e</div> }
+        </div>
     }
 </div>
 
@@ -38,7 +41,5 @@
     [Parameter] public string EmptyOptionText { get; set; } = "-- bitte wählen --";
 
     private async Task HandleChange(ChangeEventArgs e)
-    {
-        await OnChanged(e.Value?.ToString());
-    }
+        => await OnChanged(e.Value?.ToString());
 }

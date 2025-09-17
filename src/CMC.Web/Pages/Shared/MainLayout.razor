@@ -1,9 +1,17 @@
+
+@using CMC.Web.Pages.Shared
 @inherits LayoutComponentBase
 
 <NavMenu />
 <main>
     @Body
+    <AuthorizeView>
+        <Authorized>
+            <NotificationHost />
+        </Authorized>
+    </AuthorizeView>
     <EditHost />
     <DialogHost />
+    <BumperHost />
 </main>
 <MainFooter />

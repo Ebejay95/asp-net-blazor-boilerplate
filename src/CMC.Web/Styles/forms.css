@@ -87,12 +87,28 @@
 	}
 
 	/* Validierung: Container-Klasse oder :invalid */
-	.form-control.is-invalid,
+	form.was-validated .form-control:invalid,
+	form.was-validated .form-control[aria-invalid="true"],
+	form.was-validated .form-control.is-invalid,
 	.form-group.is-invalid .form-control,
-	.form-control:invalid {
-		border-color: var(--audicius-danger);
-		--tw-ring-color: color-mix(in srgb, var(--audicius-danger) 75%, transparent);
-		box-shadow: 0 0 0 2px color-mix(in srgb, var(--audicius-danger) 25%, transparent), var(--audicius-shadow);
+	.form-row.is-invalid .form-control {
+		background-color: rgba(255, 0, 0, 0.2);
+		box-shadow:
+			1px 1px 1px white,
+			0px 0px 1px 1px rgba(255, 0, 0, 0.4),
+			inset -1px -1px 1px white,
+			inset 1px 1px 1px rgba(255, 0, 0, 0.4);
+
+		-webkit-box-shadow: 1px 1px 1px white,
+			0px 0px 1px 1px rgba(255, 0, 0, 0.4),
+			inset -1px -1px 1px white,
+			inset 1px 1px 1px rgba(255, 0, 0, 0.4);
+
+		-moz-box-shadow: 1px 1px 1px white,
+			0px 0px 1px 1px rgba(255, 0, 0, 0.4),
+			inset -1px -1px 1px white,
+			inset 1px 1px 1px rgba(255, 0, 0, 0.4);
+		outline: none;
 	}
 
 	.form-control.is-valid,
@@ -157,6 +173,11 @@
 		@apply absolute top-0.5 left-0.5 w-5 h-5 rounded-full transition;
 		background: #fff;
 		box-shadow: 0 1px 2px #0001;
+	}
+
+	.form-row.is-invalid .switch-track {
+		outline: 2px solid var(--audicius-danger);
+		outline-offset: 2px;
 	}
 
 	/* Checked-State */

@@ -39,6 +39,7 @@ public static class DependencyInjection
         services.AddScoped<IIndustryRepository, IndustryRepository>();
         services.AddScoped<ITagRepository, TagRepository>();
         services.AddScoped<IRiskAcceptanceRepository, RiskAcceptanceRepository>();
+        services.AddScoped<INotificationRepository, NotificationRepository>();
 
         // Infrastructure Services (Technical Services only)
         services.AddScoped<IEmailService, EmailService>();
