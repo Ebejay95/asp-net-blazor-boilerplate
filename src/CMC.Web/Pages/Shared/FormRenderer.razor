@@ -4,8 +4,8 @@
 @using Microsoft.AspNetCore.Components
 @using CMC.Web.Services
 @using CMC.Web.Util
-@using CMC.Web.FormFields
-@using CMC.Web.FormFields.Types
+@using CMC.Web.Pages.FormFields
+@using CMC.Web.Pages.FormFields.Types
 @using CMC.Contracts.Common
 
 <div class="form-grid">
@@ -21,6 +21,9 @@
     [Parameter] public EventCallback<(string Name, object? Value)> OnFieldChanged { get; set; }
     [Parameter] public EFEditRequest Request { get; set; } = default!;
     [Parameter] public IDictionary<string, object?>? ValueOverrides { get; set; }
+
+    // optional: Validierungsfehler (vom EFEdit übergeben)
+    [Parameter] public IReadOnlyDictionary<string, string[]>? ValidationErrors { get; set; }
 
     private List<FormFieldDescriptor> GetFormFields()
     {
@@ -45,8 +48,8 @@
         var current = ResolveCurrentValue(prop.Name, prop.GetValue(Model!));
         var hint    = GetHint(prop);
 
-        // Im Editor „read-only“ markieren, wenn ausdrücklich EditorHidden – (wir blenden sie über GetVisibleProps ohnehin aus)
         var readOnly = prop.GetCustomAttribute<EditorHiddenAttribute>() != null;
+        var required = IsRequired(prop);
 
         // --- 1) Attribut-basierte Relation ---
         var relAttr = prop.GetCustomAttribute<RelationFromAttribute>();
@@ -64,12 +67,13 @@
                 FieldType: relAttr.IsMany ? typeof(CheckboxListField) : typeof(RelationSelectField),
                 ValueType: prop.PropertyType,
                 ReadOnly: readOnly,
+                Required: required,
                 Hint: hint,
                 Value: current,
                 Parameters: new()
                 {
                     ["RelationName"] = relationName,
-                    ["ParentType"]   = Request.EfParentType
+                    ["ParentType"]   = Request.EfParentType!
                 }
             );
         }
@@ -89,12 +93,13 @@
                 FieldType: typeof(CheckboxListField),
                 ValueType: prop.PropertyType,
                 ReadOnly: readOnly,
+                Required: required,
                 Hint: hint,
                 Value: current,
                 Parameters: new()
                 {
                     ["RelationName"] = relationName,
-                    ["ParentType"]   = Request.EfParentType
+                    ["ParentType"]   = Request.EfParentType!
                 }
             );
         }
@@ -105,7 +110,7 @@
             prop.Name.EndsWith("Id", StringComparison.Ordinal) &&
             !prop.Name.EndsWith("Ids", StringComparison.Ordinal))
         {
-            var relationName = DeriveRelationName(prop.Name, isMany: false); // z.B. CustomerId -> "Customer"
+            var relationName = DeriveRelationName(prop.Name, isMany: false);
 
             return new FormFieldDescriptor(
                 Name: prop.Name,
@@ -113,12 +118,13 @@
                 FieldType: typeof(RelationSelectField),
                 ValueType: prop.PropertyType,
                 ReadOnly: readOnly,
+                Required: required,
                 Hint: hint,
                 Value: current,
                 Parameters: new()
                 {
                     ["RelationName"] = relationName,
-                    ["ParentType"]   = Request.EfParentType
+                    ["ParentType"]   = Request.EfParentType!
                 }
             );
         }
@@ -133,6 +139,7 @@
             FieldType: fieldType,
             ValueType: prop.PropertyType,
             ReadOnly: readOnly,
+            Required: required,
             Hint: hint,
             Value: current,
             Parameters: parameters
@@ -146,10 +153,11 @@
 
         return new FormFieldDescriptor(
             Name:  extra.Name,
-            Label: string.IsNullOrWhiteSpace(extra.Label) ? extra.Name : extra.Label,
+            Label: string.IsNullOrWhiteSpace(extra.Label) ? extra.Name : extra.Label!,
             FieldType: fieldType,
             ValueType: extra.Type,
             ReadOnly: extra.ReadOnly,
+            Required: extra.Required,
             Hint: extra.Hint,
             Value: ResolveCurrentValue(extra.Name, extra.Value),
             Parameters: parameters
@@ -206,31 +214,31 @@
         switch (typeCode)
         {
             case TypeCode.DateTime:
-                parameters["InputType"] = "datetime-local";
+                // KEIN "InputType" setzen – DateTimeField hat festen Typ
                 break;
 
             case TypeCode.Decimal or TypeCode.Double or TypeCode.Single:
-                parameters["InputType"] = "number";
-                parameters["Step"]      = "any";
+                // KEIN "InputType" setzen – NumberField kennt kein InputType
+                parameters["Step"] = "any";
                 break;
 
             case TypeCode.Int16 or TypeCode.Int32 or TypeCode.Int64 or
                  TypeCode.UInt16 or TypeCode.UInt32 or TypeCode.UInt64:
-                parameters["InputType"] = "number";
-                parameters["Step"]      = "1";
+                // KEIN "InputType" setzen – NumberField kennt kein InputType
+                parameters["Step"] = "1";
                 break;
 
             case TypeCode.String:
                 if (prop.Name.Contains("Password", StringComparison.OrdinalIgnoreCase))
                 {
-                    parameters["InputType"]    = "password";
+                    parameters["InputType"]    = "password";      // TextField versteht das
                     parameters["Autocomplete"] = "new-password";
                 }
                 break;
         }
 
         if (propType == typeof(Guid) || propType == typeof(Guid?))
-            parameters["ReadOnly"] = false; // Guid im Editor NICHT readonly, falls als Textfeld gerendert würde
+            parameters["ReadOnly"] = false;
 
         return parameters;
     }
@@ -259,12 +267,11 @@
 
         if (string.Equals(extra.DataType, "relation-auto", StringComparison.OrdinalIgnoreCase))
         {
-            var relationName = DeriveRelationName(extra.Name,
-                isMany: extra.Type.IsGenericType && extra.Type.GetGenericTypeDefinition() == typeof(IEnumerable<>));
-
+            var isMany = extra.Type.IsGenericType && extra.Type.GetGenericTypeDefinition() == typeof(IEnumerable<>);
+            var relationName = DeriveRelationName(extra.Name, isMany: isMany);
             parameters["RelationName"] = relationName;
             if (Request.EfParentType != null)
-                parameters["ParentType"] = Request.EfParentType;
+                parameters["ParentType"] = Request.EfParentType!;
         }
         else if (string.Equals(extra.DataType, "password", StringComparison.OrdinalIgnoreCase))
         {
@@ -273,12 +280,14 @@
         }
         else if (extra.Options?.Any() == true)
         {
-            parameters["Options"] = extra.Options;
+            parameters["Options"] = extra.Options!;
         }
 
         return parameters;
     }
 
+    private string[]? ResolveErrors(string name)
+        => ValidationErrors != null && ValidationErrors.TryGetValue(name, out var arr) ? arr : null;
     private RenderFragment RenderFormField(FormFieldDescriptor descriptor) => builder =>
     {
         int seq = 0;
@@ -288,9 +297,11 @@
         builder.AddAttribute(seq++, nameof(FormFieldBase.Value), descriptor.Value);
         builder.AddAttribute(seq++, nameof(FormFieldBase.ReadOnly),  descriptor.ReadOnly);
         builder.AddAttribute(seq++, nameof(FormFieldBase.Required),  descriptor.Required);
-
         if (!string.IsNullOrWhiteSpace(descriptor.Hint))
             builder.AddAttribute(seq++, nameof(FormFieldBase.Hint), descriptor.Hint);
+
+        // NEU: Errors aus optionaler ValidationErrors-Map reinreichen
+        builder.AddAttribute(seq++, nameof(FormFieldBase.Errors), ResolveErrors(descriptor.Name));
 
         builder.AddAttribute(seq++, nameof(FormFieldBase.OnValueChanged),
             EventCallback.Factory.Create<object?>(this, value => OnFieldChanged.InvokeAsync((descriptor.Name, value))));
@@ -302,44 +313,41 @@
     };
 
     private IEnumerable<PropertyInfo> GetVisibleProps()
-{
-    if (Model is null) yield break;
-
-    var type = Model.GetType();
-    var allProps = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                       .Where(p => p.CanRead)
-                       .ToList();
-
-    foreach (var p in allProps)
     {
-        // Primärschlüssel nie anzeigen
-        if (string.Equals(p.Name, "Id", StringComparison.Ordinal)) continue;
+        if (Model is null) yield break;
 
-        var effective = EffectiveType(p.PropertyType);
+        var type = Model.GetType();
+        var allProps = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                           .Where(p => p.CanRead)
+                           .ToList();
 
-        var isRelationCandidate =
-            p.GetCustomAttribute<RelationFromAttribute>() != null ||
-            (p.Name.EndsWith("Ids", StringComparison.Ordinal) &&
-             typeof(System.Collections.IEnumerable).IsAssignableFrom(effective) &&
-             effective != typeof(string)) ||
-            // Exakt "Id" nicht als Relation behandeln:
-            (p.Name.EndsWith("Id", StringComparison.Ordinal) &&
-             !string.Equals(p.Name, "Id", StringComparison.Ordinal) &&
-             (effective == typeof(Guid) || effective == typeof(Guid?) || effective == typeof(string)));
+        foreach (var p in allProps)
+        {
+            if (string.Equals(p.Name, "Id", StringComparison.Ordinal)) continue;
 
-        var scaffold = p.GetCustomAttribute<ScaffoldColumnAttribute>();
-        if (scaffold is { Scaffold: false } && !isRelationCandidate) continue;
+            var effective = EffectiveType(p.PropertyType);
 
-        var disp = p.GetCustomAttribute<DisplayAttribute>();
-        if (disp?.GetAutoGenerateField() == false && !isRelationCandidate) continue;
+            var isRelationCandidate =
+                p.GetCustomAttribute<RelationFromAttribute>() != null ||
+                (p.Name.EndsWith("Ids", StringComparison.Ordinal) &&
+                 typeof(System.Collections.IEnumerable).IsAssignableFrom(effective) &&
+                 effective != typeof(string)) ||
+                (p.Name.EndsWith("Id", StringComparison.Ordinal) &&
+                 !string.Equals(p.Name, "Id", StringComparison.Ordinal) &&
+                 (effective == typeof(Guid) || effective == typeof(Guid?) || effective == typeof(string)));
 
-        if (p.GetCustomAttribute<EditorHiddenAttribute>() is not null && !isRelationCandidate) continue;
+            var scaffold = p.GetCustomAttribute<ScaffoldColumnAttribute>();
+            if (scaffold is { Scaffold: false } && !isRelationCandidate) continue;
 
-        yield return p;
+            var disp = p.GetCustomAttribute<DisplayAttribute>();
+            if (disp?.GetAutoGenerateField() == false && !isRelationCandidate) continue;
+
+            if (p.GetCustomAttribute<EditorHiddenAttribute>() is not null && !isRelationCandidate) continue;
+
+            yield return p;
+        }
     }
-}
 
-    // --- Namensableitung für Relationen (mit einfacher Pluralisierung) ---
     private static string DeriveRelationName(string fieldName, bool isMany)
     {
         var baseName =
@@ -364,4 +372,17 @@
 
     private static TypeCode TypeCodeOf(Type t)
         => Type.GetTypeCode(EffectiveType(t));
+
+    private static bool IsRequired(PropertyInfo prop)
+    {
+        if (prop.GetCustomAttribute<RequiredAttribute>() != null) return true;
+
+        var t = EffectiveType(prop.PropertyType);
+        var isNonNullableValueType = t.IsValueType && Nullable.GetUnderlyingType(prop.PropertyType) == null;
+
+        // Guid nicht pauschal erzwingen
+        if (t == typeof(Guid)) return false;
+
+        return isNonNullableValueType;
+    }
 }

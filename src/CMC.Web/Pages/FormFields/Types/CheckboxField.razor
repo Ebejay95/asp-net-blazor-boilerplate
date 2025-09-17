@@ -1,20 +1,24 @@
-@using CMC.Web.FormFields
+@using CMC.Web.Pages.FormFields
 @inherits FormFieldBase
 
-<div class="form-row">
+<div class="form-row @(Errors?.Length > 0 ? "is-invalid" : null)">
     <label class="form-label">
         <input type="checkbox"
                checked="@IsChecked"
                disabled="@ReadOnly"
                @onchange="HandleChange"
                @attributes="AdditionalAttributes" />
-	    <span class="switch-track"></span>
+        <span class="switch-track"></span>
         @Label
     </label>
 
     @if (!string.IsNullOrWhiteSpace(Hint))
+    { <div class="form-hint">@Hint</div> }
+    @if (Errors?.Length > 0)
     {
-        <div class="form-hint">@Hint</div>
+        <div class="field-error">
+            @foreach (var e in Errors) { <div>@e</div> }
+        </div>
     }
 </div>
 
@@ -24,13 +28,9 @@
     private async Task HandleChange(ChangeEventArgs e)
     {
         bool? newValue = null;
-
-        if (e.Value is bool boolValue)
-            newValue = boolValue;
-        else if (e.Value?.ToString() == "on")
-            newValue = true;
-        else if (bool.TryParse(e.Value?.ToString(), out var parsedBool))
-            newValue = parsedBool;
+        if (e.Value is bool b) newValue = b;
+        else if (e.Value?.ToString() == "on") newValue = true;
+        else if (bool.TryParse(e.Value?.ToString(), out var parsed)) newValue = parsed;
 
         await OnChanged(newValue);
     }

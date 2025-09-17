@@ -1,10 +1,10 @@
-@using CMC.Web.FormFields
+@using CMC.Web.Pages.FormFields
 @inherits FormFieldBase
 
-<div class="form-row">
+<div class="form-row @(Errors?.Length > 0 ? "is-invalid" : null)">
     <label class="form-label" for="@Name">@Label</label>
     <input
-        class="form-control"
+        class="@ControlCss()"
         id="@Name"
         type="@InputType"
         value="@(Value?.ToString() ?? string.Empty)"
@@ -18,6 +18,12 @@
     {
         <div class="form-hint">@Hint</div>
     }
+    @if (Errors?.Length > 0)
+    {
+        <div class="field-error">
+            @foreach (var e in Errors) { <div>@e</div> }
+        </div>
+    }
 </div>
 
 @code {
@@ -25,7 +31,5 @@
     [Parameter] public string? Autocomplete { get; set; }
 
     private async Task HandleInput(ChangeEventArgs e)
-    {
-        await OnChanged(e.Value?.ToString());
-    }
+        => await OnChanged(e.Value?.ToString());
 }

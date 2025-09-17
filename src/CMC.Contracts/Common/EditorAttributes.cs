@@ -18,4 +18,25 @@ namespace CMC.Contracts.Common
         public EditorHideIfExistsAttribute(string otherProperty)
             => OtherProperty = otherProperty ?? string.Empty;
     }
+
+    /// <summary>
+    /// Layoutvorgaben für Editor-Form: Spaltenbreite je Breakpoint und Reihenfolge.
+    /// Werte sind Tailwind-Grid-Spalten (1..12); null = Default.
+    /// </summary>
+    [System.AttributeUsage(System.AttributeTargets.Property, Inherited = true, AllowMultiple = false)]
+    public sealed class EditorLayoutAttribute : System.Attribute
+    {
+        public int? ColXs { get; init; } = 12;
+        public int? ColSm { get; init; }
+        public int? ColMd { get; init; }
+        public int? ColLg { get; init; }
+        public int? Order { get; init; }
+
+        public EditorLayoutAttribute() { }
+
+        public EditorLayoutAttribute(int colXs, int? colSm = null, int? colMd = null, int? colLg = null, int? order = null)
+        {
+            ColXs = colXs; ColSm = colSm; ColMd = colMd; ColLg = colLg; Order = order;
+        }
+    }
 }

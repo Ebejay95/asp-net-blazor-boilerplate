@@ -15,6 +15,7 @@ public class AppDbContext : DbContext
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Framework> Frameworks => Set<Framework>();
     public DbSet<Revision> Revisions => Set<Revision>();
+    public DbSet<Notification> Notifications => Set<Notification>();
 
     // Library & taxonomy
     public DbSet<LibraryControl> LibraryControls => Set<LibraryControl>();

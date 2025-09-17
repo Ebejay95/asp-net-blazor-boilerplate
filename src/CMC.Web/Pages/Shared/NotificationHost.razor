@@ -1,0 +1,83 @@
+@using Microsoft.AspNetCore.SignalR.Client
+@using Microsoft.AspNetCore.Components.Authorization
+@using CMC.Web.Services
+@inject NavigationManager Nav
+@inject ILogger<NotificationHost> Log
+@inject AuthenticationStateProvider Auth
+@inject IBumperBus Bumper
+@implements IAsyncDisposable
+
+@* kein UI – only side effects *@
+
+@code {
+    private HubConnection? _conn;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Auth.AuthenticationStateChanged += OnAuthChanged;
+        var state = await Auth.GetAuthenticationStateAsync();
+        if (state.User.Identity?.IsAuthenticated == true)
+            await StartAsync();
+    }
+
+    private async Task StartAsync()
+    {
+        if (_conn is not null) return;
+
+        _conn = new HubConnectionBuilder()
+            .WithUrl(Nav.ToAbsoluteUri("/hubs/notifications"))
+            .WithAutomaticReconnect()
+            .Build();
+
+        _conn.On<object>("notificationCreated", payload =>
+        {
+            try
+            {
+                var t = payload?.GetType();
+                var title   = t?.GetProperty("Title")?.GetValue(payload)?.ToString() ?? "Notification";
+                var message = t?.GetProperty("Message")?.GetValue(payload)?.ToString() ?? "";
+                var sev     = t?.GetProperty("Severity")?.GetValue(payload)?.ToString() ?? "notice";
+                Bumper.Publish(title, message, sev);
+            }
+            catch { /* best-effort */ }
+        });
+
+        _conn.On<object>("notificationRead", _ => { /* optional UI refresh */ });
+
+        try
+        {
+            await _conn.StartAsync();
+        }
+        catch (Exception ex)
+        {
+            Log.LogInformation(ex, "Notification hub not available (likely anonymous). Deferring until login.");
+            await StopAsync();
+        }
+    }
+
+    private async Task StopAsync()
+    {
+        if (_conn is null) return;
+        try { await _conn.DisposeAsync(); } catch { /* ignore */ }
+        _conn = null;
+    }
+
+    private async void OnAuthChanged(Task<AuthenticationState> stateTask)
+    {
+        try
+        {
+            var state = await stateTask;
+            if (state.User.Identity?.IsAuthenticated == true)
+                await StartAsync();
+            else
+                await StopAsync();
+        }
+        catch { /* ignore */ }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Auth.AuthenticationStateChanged -= OnAuthChanged;
+        await StopAsync();
+    }
+}

@@ -1,0 +1,60 @@
+@using CMC.Web.Pages.FormFields
+@inherits FormFieldBase
+@using System.Globalization
+
+<div class="form-row @(Errors?.Length > 0 ? "is-invalid" : null)">
+    <label class="form-label" for="@Name">@Label</label>
+    <input
+        class="@ControlCss()"
+        id="@Name"
+        type="number"
+        step="@Step"
+        min="@Min"
+        max="@Max"
+        value="@FormatNumeric(Value)"
+        disabled="@ReadOnly"
+        required="@Required"
+        @oninput="HandleInput"
+        @attributes="AdditionalAttributes" />
+
+    @if (!string.IsNullOrWhiteSpace(Hint))
+    { <div class="form-hint">@Hint</div> }
+    @if (Errors?.Length > 0)
+    {
+        <div class="field-error">
+            @foreach (var e in Errors) { <div>@e</div> }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Step { get; set; } = "any";
+    [Parameter] public string? Min { get; set; }
+    [Parameter] public string? Max { get; set; }
+
+    private static string FormatNumeric(object? v) => v switch
+    {
+        null => string.Empty,
+        decimal d => d.ToString(CultureInfo.InvariantCulture),
+        double  d => d.ToString(CultureInfo.InvariantCulture),
+        float   f => f.ToString(CultureInfo.InvariantCulture),
+        IFormattable f => f.ToString(null, CultureInfo.InvariantCulture),
+        _ => v.ToString() ?? string.Empty
+    };
+
+    private async Task HandleInput(ChangeEventArgs e)
+    {
+        var s = e.Value?.ToString();
+        object? newValue = null;
+
+        if (!string.IsNullOrWhiteSpace(s))
+        {
+            if (decimal.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out var dec)) newValue = dec;
+            else if (decimal.TryParse(s, NumberStyles.Any, CultureInfo.CurrentCulture, out var decLoc)) newValue = decLoc;
+            else if (double.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out var dbl)) newValue = dbl;
+            else if (long.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out var lng)) newValue = lng;
+        }
+
+        await OnChanged(newValue);
+    }
+}

@@ -1,11 +1,11 @@
-@using CMC.Web.FormFields
+@using CMC.Web.Pages.FormFields
 @inherits FormFieldBase
 @using System.Globalization
 
-<div class="form-row">
+<div class="form-row @(Errors?.Length > 0 ? "is-invalid" : null)">
     <label class="form-label" for="@Name">@Label</label>
     <input
-        class="form-control"
+        class="@ControlCss()"
         id="@Name"
         type="datetime-local"
         value="@FormattedValue"
@@ -15,8 +15,12 @@
         @attributes="AdditionalAttributes" />
 
     @if (!string.IsNullOrWhiteSpace(Hint))
+    { <div class="form-hint">@Hint</div> }
+    @if (Errors?.Length > 0)
     {
-        <div class="form-hint">@Hint</div>
+        <div class="field-error">
+            @foreach (var e in Errors) { <div>@e</div> }
+        </div>
     }
 </div>
 
@@ -30,10 +34,7 @@
                 var local = dt.Kind == DateTimeKind.Utc ? dt.ToLocalTime() : dt;
                 return local.ToString("yyyy-MM-ddTHH:mm");
             }
-            if (Value is DateTimeOffset dto)
-            {
-                return dto.ToLocalTime().ToString("yyyy-MM-ddTHH:mm");
-            }
+            if (Value is DateTimeOffset dto) return dto.ToLocalTime().ToString("yyyy-MM-ddTHH:mm");
             return string.Empty;
         }
     }
@@ -44,8 +45,8 @@
         object? newValue = null;
 
         if (!string.IsNullOrWhiteSpace(input) &&
-             DateTime.TryParseExact(input, "yyyy-MM-ddTHH:mm",
-                 CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var parsed))
+            DateTime.TryParseExact(input, "yyyy-MM-ddTHH:mm",
+                CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var parsed))
         {
             newValue = DateTime.SpecifyKind(parsed, DateTimeKind.Local);
         }
