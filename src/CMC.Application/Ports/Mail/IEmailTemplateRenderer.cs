@@ -8,8 +8,9 @@ public interface IEmailTemplateRenderer
     /// <summary>
     /// Rendert Templates und liefert (Subject, HtmlBody, TextBody).
     /// </summary>
-    Task<(string Subject, string Html, string? Text)> RenderAsync(
-        string templateName,
-        object model,
-        CancellationToken ct = default);
+    Task<(string Subject, string Html, string? Text)> RenderEmailAsync(
+        string subject,
+        string text,
+        object links
+    );
 }
