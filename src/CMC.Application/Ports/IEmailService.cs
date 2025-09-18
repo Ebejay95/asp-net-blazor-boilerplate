@@ -5,5 +5,5 @@ namespace CMC.Application.Ports;
 
 public interface IEmailService
 {
-    Task SendPasswordResetEmailAsync(string email, string resetToken, CancellationToken cancellationToken = default);
+    Task SendEmailAsync(string email, string subject, string text, string links);
 }

@@ -221,11 +221,11 @@ public class UserService
         if (user == null) return;
 
         var token  = GenerateSecureToken();
-        var expiry = DateTimeOffset.UtcNow.AddHours(1);   // ✅ DateTimeOffset
+        var expiry = DateTimeOffset.UtcNow.AddHours(1);
 
         user.SetPasswordResetToken(token, expiry);
         await _userRepository.UpdateAsync(user, cancellationToken);
-        await _emailService.SendPasswordResetEmailAsync(email, token, cancellationToken);
+        await _emailService.SendEmailAsync(email, "Passwort zurücksetzen", "Das ist der Text inhalt", "Links");
     }
 
 public async Task<bool> ResetPasswordAsync(ResetPasswordRequest request, CancellationToken cancellationToken = default)

@@ -38,28 +38,27 @@ public sealed class GraphEmailService : IEmailService
         _graph = new GraphServiceClient(credential, new[] { "https://graph.microsoft.com/.default" });
     }
 
-    public async Task SendPasswordResetEmailAsync(string email, string resetToken, CancellationToken cancellationToken = default)
+    public async Task SendEmailAsync(string email, string subject, string text, string links)
     {
-        var baseUrl = (_options.PublicBaseUrl ?? "").TrimEnd('/');
-        var link = string.IsNullOrWhiteSpace(baseUrl)
-            ? $"/reset-password?token={Uri.EscapeDataString(resetToken)}"
-            : $"{baseUrl}/reset-password?token={Uri.EscapeDataString(resetToken)}";
+            //var baseUrl = (_options.PublicBaseUrl ?? "").TrimEnd('/');
+            //var link = string.IsNullOrWhiteSpace(baseUrl)
+            //    ? $"/reset-password?token={Uri.EscapeDataString(resetToken)}"
+            //    : $"{baseUrl}/reset-password?token={Uri.EscapeDataString(resetToken)}";
 
-        var (subject, html, text) =
-            await _renderer.RenderAsync("PasswordReset", new { Email = email, Token = resetToken, Link = link }, cancellationToken);
+        // liefert (Subject, Html, Text)
+        var (renderedSubject, renderedHtml, renderedText) = await _renderer.RenderEmailAsync(subject, text, links);
 
-        await SendAsync(email, subject, html, text, cancellationToken);
+        // Verwende gerenderte Werte; fallback auf Input falls null
+        await SendAsync(
+            email,
+            renderedSubject ?? subject,
+            renderedHtml ?? string.Empty,
+            renderedText ?? text
+        );
     }
 
-    public async Task SendWelcomeEmailAsync(string email, string firstName, CancellationToken cancellationToken = default)
-    {
-        var (subject, html, text) =
-            await _renderer.RenderAsync("Welcome", new { Email = email, FirstName = firstName }, cancellationToken);
 
-        await SendAsync(email, subject, html, text, cancellationToken);
-    }
-
-    private async Task SendAsync(string to, string subject, string htmlBody, string? textBody, CancellationToken ct)
+    private async Task SendAsync(string to, string subject, string htmlBody, string? textBody)
     {
         // Graph unterstützt eine Body-Variante pro Nachricht (HTML **oder** Text).
         // Wir senden HTML. (Wenn du Plaintext brauchst, setze ContentType=Text
@@ -104,8 +103,7 @@ public sealed class GraphEmailService : IEmailService
                 SaveToSentItems = true
             };
 
-            // Senden im Kontext des Absender-Postfachs (Application Permission)
-            await _graph.Users[_options.FromUser].SendMail.PostAsync(body, cancellationToken: ct);
+            await _graph.Users[_options.FromUser].SendMail.PostAsync(body);
 
             _logger.LogInformation("📧 Mail via Graph an {To} gesendet (FromUser {FromUser})", to, _options.FromUser);
         }
