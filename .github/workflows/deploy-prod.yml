@@ -85,7 +85,6 @@ jobs:
             --from-literal=connection="${CONNECTION_STRING}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
-      # bcrypt-Hash aus MASTER_PW erzeugen und als Secret bereitstellen
       - name: Setup Node for bcrypt
         uses: actions/setup-node@v4
         with:
@@ -116,6 +115,29 @@ jobs:
             --from-literal=passwordHash="${MASTER_PWHASH}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
+      # >>> NEW: Mail-Secret als 'cmc-mail' anlegen/aktualisieren <<<
+      - name: Create/Update mail settings secret (cmc-mail)
+        shell: bash
+        env:
+          MAIL_FROM:        ${{ secrets.MAIL_FROM }}
+          MAIL_FROM_NAME:   ${{ secrets.MAIL_FROM_NAME }}
+          SMTP_HOST:        ${{ secrets.SMTP_HOST }}
+          SMTP_PORT:        ${{ secrets.SMTP_PORT }}
+          SMTP_USERNAME:    ${{ secrets.SMTP_USERNAME }}   # i.d.R. volle Adresse, z.B. cmc@audicius.de
+          SMTP_PASSWORD:    ${{ secrets.SMTP_PASSWORD }}
+          SMTP_STARTTLS:    ${{ secrets.SMTP_STARTTLS }}   # "true"/"false"
+        run: |
+          set -euo pipefail
+          kubectl -n cmc-prod create secret generic cmc-mail \
+            --from-literal=MAIL_FROM="${MAIL_FROM}" \
+            --from-literal=MAIL_FROM_NAME="${MAIL_FROM_NAME}" \
+            --from-literal=SMTP_HOST="${SMTP_HOST}" \
+            --from-literal=SMTP_PORT="${SMTP_PORT}" \
+            --from-literal=SMTP_USERNAME="${SMTP_USERNAME}" \
+            --from-literal=SMTP_PASSWORD="${SMTP_PASSWORD}" \
+            --from-literal=SMTP_STARTTLS="${SMTP_STARTTLS}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Create/Update TLS secret for Ingress
         shell: bash
         env:
@@ -135,7 +157,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # alles in k8s/prod anwenden, aber seed-* auslassen
           find k8s/prod -maxdepth 1 -type f ! -name 'seed-master-user*' -print0 \
             | xargs -0 -r -I {} kubectl apply -f {}
 
@@ -156,13 +177,10 @@ jobs:
         run: |
           set -euo pipefail
           NS=cmc-prod
-
-          # Explizit im Namespace arbeiten (robuster)
           kubectl -n "$NS" apply -f k8s/prod/seed-master-user-configmap.yaml
           kubectl -n "$NS" delete job seed-master-user --ignore-not-found
           kubectl -n "$NS" apply -f k8s/prod/seed-master-user.yaml
 
-          # Auf Completion warten, aber bei Fehler NICHT sofort abbrechen -> Diagnose ausgeben
           set +e
           kubectl -n "$NS" wait --for=condition=complete job/seed-master-user --timeout=600s
           STATUS=$?
@@ -189,7 +207,6 @@ jobs:
           fi
 
           exit $STATUS
-
 
       - name: "Post-check: Service/Endpoints/Ingress + Smoke"
         shell: bash

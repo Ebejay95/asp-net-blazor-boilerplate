@@ -1,11 +1,14 @@
 @page "/profile"
 @attribute [Authorize]
-@using Microsoft.AspNetCore.Components.Forms
+@using System.ComponentModel.DataAnnotations
+@using System.Reflection
+@using CMC.Web.Services
 @using CMC.Application.Services
 @using CMC.Contracts.Users
-@using CMC.Web.Services
 @inherits RoleBasedComponentBase
 @inject UserService Users
+@inject ILogger<Profile> Logger
+@inject IBumperBus Bumper
 
 <section class="slim">
   <div class="card">
@@ -23,35 +26,30 @@
     }
     else
     {
-      <EditForm Model="_form" OnValidSubmit="SaveAsync">
-        <DataAnnotationsValidator />
+      <FormRenderer
+          Model="@_vm"
+          Request="@_req"
+          ExtraFields="new()"
+          ValueOverrides="@_overrides"
+          ValidationErrors="@_errors"
+          OnFieldChanged="OnFieldChanged" />
 
-        <div class="grid">
-          <div class="col">
-            <label>Vorname</label>
-            <InputText class="form-control" @bind-Value="_form.FirstName" />
-          </div>
-          <div class="col">
-            <label>Nachname</label>
-            <InputText class="form-control" @bind-Value="_form.LastName" />
-          </div>
-        </div>
-
-        <div class="grid">
-          <div class="col">
-            <label>Rolle</label>
-            <InputText class="form-control" @bind-Value="_form.Role" />
-          </div>
-          <div class="col">
-            <label>Abteilung</label>
-            <InputText class="form-control" @bind-Value="_form.Department" />
-          </div>
-        </div>
-
-        <button class="btn primary mt-2" type="submit">Speichern</button>
-      </EditForm>
+      <div class="mt-4">
+        <button type="button" class="btn primary" @onclick="HandleSave" disabled="@_isSaving">
+          @if (_isSaving)
+          {
+            <span class="spinner-border spinner-border-sm" role="status"></span>
+            <span> Speichere…</span>
+          }
+          else
+          {
+            <span>Speichern</span>
+          }
+        </button>
+      </div>
     }
   </div>
+
   <div class="card">
     <h3>Logout</h3>
     <NavLink href="logout" class="btn primary">Logout</NavLink>
@@ -60,69 +58,177 @@
 
 @code {
   private bool _loading = true;
+  private bool _isSaving;
+
   private UserDto? _me;
 
-  // ---- MUTABLE ViewModel fürs Binding (statt record/init-only) ----
-  private sealed class UserProfileForm
+  // ---- ViewModel für den zentralen FormRenderer ----
+  private sealed class ProfileVm
   {
+    [ScaffoldColumn(false)]
     public Guid Id { get; set; }
+
+    [Required, Display(Name = "Vorname")]
     public string FirstName { get; set; } = "";
+
+    [Required, Display(Name = "Nachname")]
     public string LastName { get; set; } = "";
+
+    [Display(Name = "Rolle")]
     public string? Role { get; set; }
+
+    [Display(Name = "Abteilung")]
     public string? Department { get; set; }
-    public Guid? CustomerId { get; set; } // wichtig, um Relation nicht zu verlieren
+
+    // wichtig, um Relation nicht zu verlieren – im FormRenderer versteckt
+    [ScaffoldColumn(false)]
+    public Guid? CustomerId { get; set; }
   }
 
-  private UserProfileForm _form = new();
+  private readonly ProfileVm _vm = new();
+
+  private readonly Dictionary<string, object?> _overrides = new(StringComparer.OrdinalIgnoreCase);
+  private readonly Dictionary<string, string[]> _errors    = new(StringComparer.OrdinalIgnoreCase);
+
+  // Minimaler Request für FormRenderer (wir nutzen ihn NICHT für Save)
+  private EFEditRequest _req => new EFEditRequest
+  {
+    Title = "Profil",
+    Model = _vm,
+    ContractsAssembly = typeof(Profile).Assembly, // hier egal, wie beim Login
+    IsCreate = false
+  };
 
   protected override async Task OnInitializedAsync()
   {
     await base.OnInitializedAsync();
 
-    var id = Guid.Parse(GetUserId());
-    _me = await Users.GetByIdAsync(id);
-
-    if (_me is not null)
+    try
     {
-      _form = new UserProfileForm
-      {
-        Id = _me.Id,
-        FirstName = _me.FirstName,
-        LastName = _me.LastName,
-        Role = _me.Role,
-        Department = _me.Department,
-        CustomerId = _me.CustomerId
-      };
-    }
+      var id = Guid.Parse(GetUserId());
+      _me = await Users.GetByIdAsync(id);
 
-    _loading = false;
+      if (_me is not null)
+      {
+        // VM befüllen
+        _vm.Id         = _me.Id;
+        _vm.FirstName  = _me.FirstName ?? "";
+        _vm.LastName   = _me.LastName  ?? "";
+        _vm.Role       = _me.Role;
+        _vm.Department = _me.Department;
+        _vm.CustomerId = _me.CustomerId;
+
+        // ValueOverrides: zeigt die initialen Werte im zentralen Formular an
+        _overrides["FirstName"]  = _vm.FirstName;
+        _overrides["LastName"]   = _vm.LastName;
+        _overrides["Role"]       = _vm.Role;
+        _overrides["Department"] = _vm.Department;
+      }
+    }
+    finally
+    {
+      _loading = false;
+    }
   }
 
-  private async Task SaveAsync()
+  // vom FormRenderer gerufen, wenn sich ein Feld ändert
+  private void OnFieldChanged((string Name, object? Value) change)
   {
-    if (_me is null) return;
+    var prop = typeof(ProfileVm).GetProperty(change.Name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+    if (prop is null) return;
 
-    // Beim Speichern: in den record mappen (einmalig, kein Binding darauf)
-    var req = new UpdateUserRequest(
-      Id: _form.Id,
-      FirstName: _form.FirstName,
-      LastName: _form.LastName,
-      Role: _form.Role,
-      Department: _form.Department,
-      IsEmailConfirmed: null,
-      CustomerId: _form.CustomerId // Relation NICHT versehentlich nullen
-    );
+    // einfache Umwandlung (FormRenderer liefert meist string)
+    var targetType = Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType;
+    object? value = change.Value;
 
-    var updated = await Users.UpdateAsync(req);
-    if (updated is not null)
+    if (value is not null && targetType != typeof(string))
     {
-      _me = updated;
-      // optional: _form mit evtl. normalisierten Werten refreshen
-      _form.FirstName = _me.FirstName;
-      _form.LastName  = _me.LastName;
-      _form.Role      = _me.Role;
-      _form.Department = _me.Department;
-      _form.CustomerId = _me.CustomerId;
+      try
+      {
+        value = Convert.ChangeType(value, targetType);
+      }
+      catch
+      {
+        // nichts – Validierung fängt es später ab
+      }
+    }
+
+    prop.SetValue(_vm, value ?? (targetType == typeof(string) ? "" : null));
+  }
+
+  private async Task HandleSave()
+  {
+    try
+    {
+      _isSaving = true;
+      _errors.Clear();
+
+      // lokale DataAnnotations-Validierung (damit FormRenderer Fehler anzeigen kann)
+      var ctx = new ValidationContext(_vm);
+      var results = new List<ValidationResult>();
+      var ok = Validator.TryValidateObject(_vm, ctx, results, validateAllProperties: true);
+
+      if (!ok)
+      {
+        foreach (var r in results)
+        {
+          var key = (r.MemberNames?.FirstOrDefault()) ?? "__global";
+          if (!_errors.TryGetValue(key, out var list))
+            _errors[key] = new[] { r.ErrorMessage ?? "Invalid value." };
+          else
+            _errors[key] = list.Append(r.ErrorMessage ?? "Invalid value.").ToArray();
+        }
+        Bumper.Publish("Validation", "Bitte Eingaben prüfen.", "error");
+        return;
+      }
+
+      Logger.LogInformation("👤 Profil-Update für: {Id} ({First} {Last})", _vm.Id, _vm.FirstName, _vm.LastName);
+
+      var req = new UpdateUserRequest(
+        Id: _vm.Id,
+        FirstName: _vm.FirstName,
+        LastName: _vm.LastName,
+        Role: _vm.Role,
+        Department: _vm.Department,
+        IsEmailConfirmed: null,
+        CustomerId: _vm.CustomerId // Relation NICHT versehentlich nullen
+      );
+
+      var updated = await Users.UpdateAsync(req);
+
+      if (updated is not null)
+      {
+        _me = updated;
+
+        // Erfolgsfeedback + evtl. Normalisierung ins UI zurückspiegeln
+        _overrides["FirstName"]  = _me.FirstName;
+        _overrides["LastName"]   = _me.LastName;
+        _overrides["Role"]       = _me.Role;
+        _overrides["Department"] = _me.Department;
+
+        _vm.FirstName  = _me.FirstName ?? "";
+        _vm.LastName   = _me.LastName  ?? "";
+        _vm.Role       = _me.Role;
+        _vm.Department = _me.Department;
+        _vm.CustomerId = _me.CustomerId;
+
+        Bumper.Publish("Profil", "Profil gespeichert.", "success", 1500);
+        Logger.LogInformation("✅ Profil-Update erfolgreich für: {Id}", _vm.Id);
+      }
+      else
+      {
+        Bumper.Publish("Profil", "Konnte nicht gespeichert werden.", "error");
+        Logger.LogWarning("❌ Profil-Update fehlgeschlagen für: {Id}", _vm.Id);
+      }
+    }
+    catch (Exception ex)
+    {
+      Logger.LogError(ex, "Fehler beim Profil-Update: {Id}", _vm.Id);
+      Bumper.Publish("Fehler", "Es ist ein unerwarteter Fehler aufgetreten.", "error");
+    }
+    finally
+    {
+      _isSaving = false;
     }
   }
 }
