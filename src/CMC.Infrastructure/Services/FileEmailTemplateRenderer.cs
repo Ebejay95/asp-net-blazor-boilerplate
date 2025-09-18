@@ -5,6 +5,7 @@ using System.Text.RegularExpressions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using CMC.Application.Ports;
+using CMC.Application.Ports.Mail;
 
 namespace CMC.Infrastructure.Services;
 
@@ -21,7 +22,7 @@ namespace CMC.Infrastructure.Services;
 /// ---
 /// subject: Dein Betreff
 /// ---
-public sealed class FileEmailTemplateRenderer : IEmailTemplateRenderer
+public sealed class FileEmailTemplateRenderer
 {
     private readonly ILogger<FileEmailTemplateRenderer> _log;
     private readonly string? _customRoot;

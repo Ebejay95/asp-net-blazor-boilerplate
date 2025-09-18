@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Configuration;
 using CMC.Infrastructure.Startup;
+using CMC.Infrastructure.Diagnostics;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -123,7 +124,6 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddRevisionsSupport();
 builder.Services.AddScoped<DbContext>(sp => sp.GetRequiredService<AppDbContext>());
 builder.Services.AddMailServices(builder.Configuration);
-builder.Services.AddHostedService<CMC.Infrastructure.Diagnostics.SmtpConnectivityProbe>();
 
 var app = builder.Build();
 
@@ -233,7 +233,10 @@ using (var scope = app.Services.CreateScope())
 
 Console.WriteLine("🚀 Starting CMC application...");
 Console.WriteLine("   📡 URLs kommen aus Kestrel-Endpunkten (Production: http://0.0.0.0:8080) oder ASPNETCORE_URLS.");
-
+app.Lifetime.ApplicationStarted.Register(() =>
+{
+    _ = SmtpConnectivityProbe.RunAsync(app.Configuration, app.Logger);
+});
 app.Run();
 
 public partial class Program { }
