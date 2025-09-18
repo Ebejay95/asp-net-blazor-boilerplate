@@ -229,7 +229,7 @@ public class UserService
         await _emailService.SendEmailAsync(
             user.Email,
             "Passwort zurücksetzen",
-            "Klicke auf den Button …",
+            "Sie haben das Zurücksetzen Ihres Passworts angefragt. Mit diesem Link könenn Sie dies vornehmen:",
             new[]
             {
                 new EmailButton("Zurücksetzen", $"/reset?token={token}")
