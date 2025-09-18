@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using CMC.Application.Ports;
 using CMC.Contracts.Users;
+using CMC.Application.Ports.Mail;
 using CMC.Domain.Common;
 using CMC.Domain.Entities;
 using CMC.Domain.ValueObjects;
@@ -225,7 +226,15 @@ public class UserService
 
         user.SetPasswordResetToken(token, expiry);
         await _userRepository.UpdateAsync(user, cancellationToken);
-        await _emailService.SendEmailAsync(email, "Passwort zurücksetzen", "Das ist der Text inhalt", "Links");
+        await _emailService.SendEmailAsync(
+            user.Email,
+            "Passwort zurücksetzen",
+            "Klicke auf den Button …",
+            new[]
+            {
+                new EmailButton("Zurücksetzen", $"/reset?token={token}")
+            }
+        );
     }
 
 public async Task<bool> ResetPasswordAsync(ResetPasswordRequest request, CancellationToken cancellationToken = default)
