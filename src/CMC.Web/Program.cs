@@ -2,23 +2,24 @@
 using CMC.Infrastructure;
 using CMC.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using CMC.Application.Ports;
 using CMC.Application.Services;
 using CMC.Web.Services;
 using CMC.Web.Auth;
 using CMC.Web.Hubs;
-using CMC.Application.Ports;
-using CMC.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using CMC.Infrastructure.Extensions;
+using CMC.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // --- DEV: Kestrel:Endpoints aus der Konfiguration neutralisieren + Ports fest auf 5000/5001 ---
 if (builder.Environment.IsDevelopment())
 {
-    // Alle Kestrel-Endpunkte “überschreiben”, damit der Konfig-Loader später nichts auf 8080 bindet
     var killKestrel = new Dictionary<string, string?>
     {
         ["Kestrel:Endpoints:Http:Url"] = null,
@@ -92,6 +93,8 @@ builder.Services.AddScoped<IndustryService>();
 builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<INotificationPush, SignalRNotificationPush>();
 
+// ✅ Mail: aus Env/K8s-Secrets + SMTP Service registrieren (einziger Aufruf)
+builder.Services.AddGraphMailServices(builder.Configuration);
 
 // Auth
 builder.Services.AddScoped<CookieEvents>();
@@ -101,7 +104,7 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.Cookie.Name = "CMC_Auth";
         options.Cookie.HttpOnly = true;
         options.Cookie.SameSite = SameSiteMode.Lax;
-        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest; // hinter Ingress ok
+        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
         options.ExpireTimeSpan = TimeSpan.FromDays(30);
         options.SlidingExpiration = true;
         options.Cookie.MaxAge = TimeSpan.FromDays(30);
@@ -132,7 +135,6 @@ if (args.Any(a => string.Equals(a, "seed-master-user", StringComparison.OrdinalI
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-    // DB sicher auf dem aktuellen Stand
     await db.Database.MigrateAsync();
 
     var email = Environment.GetEnvironmentVariable("MASTER_MAIL");
@@ -152,7 +154,6 @@ if (args.Any(a => string.Equals(a, "seed-master-user", StringComparison.OrdinalI
 
     var id = Guid.NewGuid();
 
-    // 1) Update, falls User existiert
     var updated = await db.Database.ExecuteSqlRawAsync(@"
         UPDATE ""Users""
            SET ""FirstName"" = {1},
@@ -163,7 +164,6 @@ if (args.Any(a => string.Equals(a, "seed-master-user", StringComparison.OrdinalI
          WHERE ""Email"" = {0};
     ", email, first, last, dept, role);
 
-    // 2) Insert, falls nicht vorhanden
     if (updated == 0)
     {
         await db.Database.ExecuteSqlRawAsync(@"
@@ -176,7 +176,7 @@ if (args.Any(a => string.Equals(a, "seed-master-user", StringComparison.OrdinalI
     }
 
     Console.WriteLine("[seed] Done.");
-    return; // WICHTIG: keinen Webserver starten
+    return;
 }
 
 // Forwarded Headers (Ingress)

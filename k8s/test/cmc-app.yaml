@@ -15,12 +15,17 @@ spec:
     spec:
       containers:
         - name: cmc-app
-          # Platzhalter – der Test-Workflow ersetzt das automatisch (test-latest / test-SHA)
           image: ghcr.io/USERNAME/REPOSITORY:test-latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
               containerPort: 8080
+
+          envFrom:
+            - secretRef:
+                name: cmc-mail
+                optional: true
+
           env:
             - name: ASPNETCORE_URLS
               value: http://+:8080
@@ -29,17 +34,14 @@ spec:
                 secretKeyRef:
                   name: cmc-app-secret
                   key: connection
+
           readinessProbe:
-            httpGet:
-              path: /
-              port: http
+            httpGet: { path: /health, port: http }
             initialDelaySeconds: 10
             periodSeconds: 10
             failureThreshold: 6
           livenessProbe:
-            httpGet:
-              path: /
-              port: http
+            httpGet: { path: /health, port: http }
             initialDelaySeconds: 30
             periodSeconds: 20
             failureThreshold: 6

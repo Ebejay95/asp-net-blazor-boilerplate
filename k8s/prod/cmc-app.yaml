@@ -29,6 +29,13 @@ spec:
         ports:
         - name: http
           containerPort: 8080
+
+        # Mail-Settings aus Secret – optional, damit der Pod auch ohne startet
+        envFrom:
+          - secretRef:
+              name: cmc-mail
+              optional: true
+
         env:
         - name: ASPNETCORE_ENVIRONMENT
           valueFrom:
@@ -54,15 +61,17 @@ spec:
           mountPath: /app/appsettings.Production.json
           subPath: appsettings.Production.json
 
-        livenessProbe:
-          tcpSocket: { port: http }
-          initialDelaySeconds: 60
-          periodSeconds: 30
-          failureThreshold: 3
+        # HTTP Probes auf /health
         readinessProbe:
-          tcpSocket: { port: http }
+          httpGet: { path: /health, port: http }
           initialDelaySeconds: 10
-          periodSeconds: 5
+          periodSeconds: 10
+          failureThreshold: 6
+        livenessProbe:
+          httpGet: { path: /health, port: http }
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          failureThreshold: 6
 
         resources:
           requests:
