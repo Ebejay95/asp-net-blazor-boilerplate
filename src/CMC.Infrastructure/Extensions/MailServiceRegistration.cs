@@ -18,7 +18,7 @@ public static class MailServiceRegistration
     {
         services.AddMailOptionsFromEnvironment(configuration, allowConfigFallback);
         services.AddSingleton<IEmailTemplateRenderer, BasicEmailTemplateRenderer>();
-        services.AddSingleton<IEmailService, SmtpEmailService>();
+        services.AddSingleton<IEmailService, GraphEmailService>();
         return services;
     }
 }
