@@ -115,28 +115,28 @@ jobs:
             --from-literal=passwordHash="${MASTER_PWHASH}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
-      # >>> NEW: Mail-Secret als 'cmc-mail' anlegen/aktualisieren <<<
-      - name: Create/Update mail settings secret (cmc-mail)
+      - name: Create/Update mail settings secret (cmc-mail, Graph)
         shell: bash
         env:
-          MAIL_FROM:        ${{ secrets.MAIL_FROM }}
-          MAIL_FROM_NAME:   ${{ secrets.MAIL_FROM_NAME }}
-          SMTP_HOST:        ${{ secrets.SMTP_HOST }}
-          SMTP_PORT:        ${{ secrets.SMTP_PORT }}
-          SMTP_USERNAME:    ${{ secrets.SMTP_USERNAME }}   # i.d.R. volle Adresse, z.B. cmc@audicius.de
-          SMTP_PASSWORD:    ${{ secrets.SMTP_PASSWORD }}
-          SMTP_STARTTLS:    ${{ secrets.SMTP_STARTTLS }}   # "true"/"false"
+          GRAPH_TENANT_ID:     ${{ secrets.GRAPH_TENANT_ID }}
+          GRAPH_CLIENT_ID:     ${{ secrets.GRAPH_CLIENT_ID }}
+          GRAPH_CLIENT_SECRET: ${{ secrets.GRAPH_CLIENT_SECRET }}   # entfällt bei Managed Identity
+          GRAPH_FROM_USER:     ${{ secrets.GRAPH_FROM_USER }}       # z.B. no-reply@deinefirma.com
+          MAIL_FROM:           ${{ secrets.MAIL_FROM }}             # optional: Anzeigename/Adresse für Templates
+          MAIL_FROM_NAME:      ${{ secrets.MAIL_FROM_NAME }}        # optional
+          PUBLIC_BASE_URL:     ${{ secrets.PUBLIC_BASE_URL }}       # unverändert für Links
         run: |
           set -euo pipefail
           kubectl -n cmc-prod create secret generic cmc-mail \
-            --from-literal=MAIL_FROM="${MAIL_FROM}" \
-            --from-literal=MAIL_FROM_NAME="${MAIL_FROM_NAME}" \
-            --from-literal=SMTP_HOST="${SMTP_HOST}" \
-            --from-literal=SMTP_PORT="${SMTP_PORT}" \
-            --from-literal=SMTP_USERNAME="${SMTP_USERNAME}" \
-            --from-literal=SMTP_PASSWORD="${SMTP_PASSWORD}" \
-            --from-literal=SMTP_STARTTLS="${SMTP_STARTTLS}" \
+            --from-literal=GRAPH_TENANT_ID="${GRAPH_TENANT_ID}" \
+            --from-literal=GRAPH_CLIENT_ID="${GRAPH_CLIENT_ID}" \
+            --from-literal=GRAPH_CLIENT_SECRET="${GRAPH_CLIENT_SECRET:-}" \
+            --from-literal=GRAPH_FROM_USER="${GRAPH_FROM_USER}" \
+            --from-literal=MAIL_FROM="${MAIL_FROM:-}" \
+            --from-literal=MAIL_FROM_NAME="${MAIL_FROM_NAME:-}" \
+            --from-literal=PUBLIC_BASE_URL="${PUBLIC_BASE_URL:-}" \
             --dry-run=client -o yaml | kubectl apply -f -
+
 
       - name: Create/Update TLS secret for Ingress
         shell: bash
