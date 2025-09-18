@@ -74,7 +74,7 @@ public sealed class BasicEmailTemplateRenderer : IEmailTemplateRenderer
             .Append("<table role=\"presentation\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\" class=\"main\" style=\"border-collapse: separate; mso-table-lspace: 0pt; mso-table-rspace: 0pt; background: #ffffff; border: 1px solid #eaebed; border-radius: 16px; width: 100%;\" width=\"100%\"><tr>")
             .Append("<td class=\"wrapper\" style=\"font-family: Helvetica, sans-serif; font-size: 16px; vertical-align: top; box-sizing: border-box; padding: 24px;\" valign=\"top\">")
             .Append("<p style=\"font-family: Helvetica, sans-serif; font-size: 20px; font-weight: bold; margin: 0; margin-bottom: 16px;\">" + WebUtility.HtmlEncode(subject) + "</p>")
-            .Append("<p style=\"font-family: Helvetica, sans-serif; font-size: 16px; font-weight: normal; margin: 0; margin-bottom: 16px;\">" + WebUtility.HtmlEncode(text) + "</p>")
+            .Append("<p style=\"font-family: Helvetica, sans-serif; font-size: 16px; font-weight: normal; margin: 0; margin-bottom: 16px;\">" + WebUtility.HtmlEncode(text) + "Baseurl ist "+baseUrl  + "</p>")
             .Append("<table role=\"presentation\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\" class=\"btn btn-primary\" style=\"border-collapse: separate; mso-table-lspace: 0pt; mso-table-rspace: 0pt; box-sizing: border-box; width: 100%; min-width: 100%;\" width=\"100%\"><tbody><tr>")
             .Append("<td align=\"left\" style=\"font-family: Helvetica, sans-serif; font-size: 16px; vertical-align: top; padding-bottom: 16px;\" valign=\"top\">")
             .Append(buttonsInner.ToString())
