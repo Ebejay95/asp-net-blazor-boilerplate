@@ -70,9 +70,9 @@ public sealed class GraphEmailService : IEmailService
             Body = new ItemBody
             {
                 ContentType = BodyType.Html,
-                Content = htmlBody
+                Content = htmlBody ?? string.Empty
             },
-            ToRecipients =
+            ToRecipients = new List<Recipient>
             {
                 new Recipient
                 {
@@ -80,6 +80,7 @@ public sealed class GraphEmailService : IEmailService
                 }
             }
         };
+
 
         // Optional: Anzeigename/ReplyTo „simulieren“ – wirkt je nach Tenant-Policy/Client
         if (!string.IsNullOrWhiteSpace(_options.FromEmail))
