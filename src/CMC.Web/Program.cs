@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Configuration;
+using CMC.Infrastructure.Startup;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -121,6 +122,8 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddRevisionsSupport();
 builder.Services.AddScoped<DbContext>(sp => sp.GetRequiredService<AppDbContext>());
+builder.Services.AddMailServices(builder.Configuration);
+builder.Services.AddHostedService<CMC.Infrastructure.Diagnostics.SmtpConnectivityProbe>();
 
 var app = builder.Build();
 
