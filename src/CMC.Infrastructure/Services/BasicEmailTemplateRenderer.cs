@@ -1,10 +1,11 @@
 using System.Text;
 using System.Web;
 using CMC.Application.Ports;
+using CMC.Application.Ports.Mail;
 
 namespace CMC.Infrastructure.Services;
 
-public sealed class BasicEmailTemplateRenderer : IEmailTemplateRenderer
+public sealed class BasicEmailTemplateRenderer
 {
     public Task<(string Subject, string Html, string? Text)> RenderAsync<T>(string templateKey, T model, string? culture = null, CancellationToken ct = default)
     {
