@@ -85,12 +85,12 @@ public sealed class GraphEmailService : IEmailService
         // Optional: Anzeigename/ReplyTo „simulieren“ – wirkt je nach Tenant-Policy/Client
         if (!string.IsNullOrWhiteSpace(_options.FromEmail))
         {
-            message.From = new Recipient
-            {
-                EmailAddress = new EmailAddress
-                {
-                    Address = _options.FromEmail,
-                    Name = _options.FromName
+            message.ReplyTo = new List<Recipient> {
+                new Recipient {
+                    EmailAddress = new EmailAddress {
+                        Address = _options.FromUser, // oder gewünschte Reply-Adresse
+                        Name    = _options.FromName
+                    }
                 }
             };
             message.Sender = message.From;
