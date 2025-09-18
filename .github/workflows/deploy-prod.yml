@@ -120,11 +120,11 @@ jobs:
         env:
           GRAPH_TENANT_ID:     ${{ secrets.GRAPH_TENANT_ID }}
           GRAPH_CLIENT_ID:     ${{ secrets.GRAPH_CLIENT_ID }}
-          GRAPH_CLIENT_SECRET: ${{ secrets.GRAPH_CLIENT_SECRET }}   # entfällt bei Managed Identity
-          GRAPH_FROM_USER:     ${{ secrets.GRAPH_FROM_USER }}       # z.B. no-reply@deinefirma.com
-          MAIL_FROM:           ${{ secrets.MAIL_FROM }}             # optional: Anzeigename/Adresse für Templates
-          MAIL_FROM_NAME:      ${{ secrets.MAIL_FROM_NAME }}        # optional
-          PUBLIC_BASE_URL:     ${{ secrets.PUBLIC_BASE_URL }}       # unverändert für Links
+          GRAPH_CLIENT_SECRET: ${{ secrets.GRAPH_CLIENT_SECRET }}
+          GRAPH_FROM_USER:     ${{ secrets.GRAPH_FROM_USER }}
+          MAIL_FROM:           ${{ secrets.MAIL_FROM }}
+          MAIL_FROM_NAME:      ${{ secrets.MAIL_FROM_NAME }}
+          PUBLIC_BASE_URL:     ${{ secrets.PUBLIC_BASE_URL }}
         run: |
           set -euo pipefail
           kubectl -n cmc-prod create secret generic cmc-mail \
