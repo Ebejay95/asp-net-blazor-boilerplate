@@ -42,7 +42,7 @@ public static class DependencyInjection
         services.AddScoped<INotificationRepository, NotificationRepository>();
 
         // Infrastructure Services (Technical Services only)
-        services.AddScoped<IEmailService, EmailService>();
+        services.AddScoped<SmtpEmailService, SmtpEmailService>();
         services.AddScoped<RevisionService>();
         services.AddScoped<RecycleBinService>();
         services.AddScoped<LibraryProvisioningService>();

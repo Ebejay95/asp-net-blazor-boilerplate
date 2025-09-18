@@ -28,6 +28,7 @@ public sealed class SmtpEmailService : IEmailService
 
     public async Task SendPasswordResetEmailAsync(string email, string resetToken, CancellationToken cancellationToken = default)
     {
+        Console.WriteLine("XXXXXXXXX >>>>>>> SendPasswordResetEmailAsync in SmtpEmailService");
         var baseUrl = (_options.PublicBaseUrl ?? "").TrimEnd('/');
         var link = string.IsNullOrWhiteSpace(baseUrl)
             ? $"/reset-password?token={Uri.EscapeDataString(resetToken)}"
