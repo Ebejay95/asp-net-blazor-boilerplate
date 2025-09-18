@@ -62,7 +62,6 @@ public class UserService
             user.AssignToCustomer(customer);
 
         await _userRepository.AddAsync(user, cancellationToken);
-        await _emailService.SendWelcomeEmailAsync(user.Email, user.FirstName, cancellationToken);
 
         return await MapToReadDtoAsync(user, cancellationToken);
     }
