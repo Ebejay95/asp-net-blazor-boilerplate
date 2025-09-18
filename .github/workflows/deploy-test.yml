@@ -166,7 +166,6 @@ jobs:
             --from-literal=passwordHash="${MASTER_PWHASH}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
-      # >>> NEW: Mail-Secret als 'cmc-mail' anlegen/aktualisieren (test) <<<
       - name: Create/Update mail settings secret (cmc-mail, Graph - test)
         shell: bash
         env:
@@ -180,15 +179,14 @@ jobs:
         run: |
           set -euo pipefail
           kubectl -n cmc-test create secret generic cmc-mail \
-            --from-literal=GRAPH_TENANT_ID="${GRAPH_TENANT_ID}" \
-            --from-literal=GRAPH_CLIENT_ID="${GRAPH_CLIENT_ID}" \
-            --from-literal=GRAPH_CLIENT_SECRET="${GRAPH_CLIENT_SECRET:-}" \
-            --from-literal=GRAPH_FROM_USER="${GRAPH_FROM_USER}" \
-            --from-literal=MAIL_FROM="${MAIL_FROM:-}" \
-            --from-literal=MAIL_FROM_NAME="${MAIL_FROM_NAME:-}" \
-            --from-literal=PUBLIC_BASE_URL="${PUBLIC_BASE_URL:-}" \
+            --from-literal=GraphMail__TenantId="${GRAPH_TENANT_ID}" \
+            --from-literal=GraphMail__ClientId="${GRAPH_CLIENT_ID}" \
+            --from-literal=GraphMail__ClientSecret="${GRAPH_CLIENT_SECRET:-}" \
+            --from-literal=GraphMail__FromUser="${GRAPH_FROM_USER}" \
+            --from-literal=GraphMail__FromEmail="${MAIL_FROM:-}" \
+            --from-literal=GraphMail__FromName="${MAIL_FROM_NAME:-}" \
+            --from-literal=GraphMail__PublicBaseUrl="${PUBLIC_BASE_URL:-}" \
             --dry-run=client -o yaml | kubectl apply -f -
-
 
       - name: Replace image name in test manifests
         run: |
