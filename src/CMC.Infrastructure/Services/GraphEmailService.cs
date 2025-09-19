@@ -45,12 +45,13 @@ public sealed class GraphEmailService : IEmailService
         IReadOnlyList<EmailButton> buttons,
         string? baseUrl = null)
     {
+        var baseUri = new Uri(Nav.BaseUri).GetLeftPart(UriPartial.Authority);
         var (renderedSubject, renderedHtml, renderedText) =
             await _renderer.RenderEmailAsync(
                 subject,
                 text,
                 buttons,
-                baseUrl ?? _options.PublicBaseUrl
+                baseUrl ?? baseUri
             );
 
         await SendAsync(
