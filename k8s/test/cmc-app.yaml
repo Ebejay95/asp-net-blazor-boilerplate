@@ -34,6 +34,8 @@ spec:
                 secretKeyRef:
                   name: cmc-app-secret
                   key: connection
+        - name: APP_PUBLIC_BASE_URL
+          value: "https://test.audicius.de"
 
           readinessProbe:
             httpGet: { path: /health, port: http }

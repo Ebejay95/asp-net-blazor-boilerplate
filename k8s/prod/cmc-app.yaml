@@ -52,6 +52,8 @@ spec:
             secretKeyRef:
               name: cmc-app-secret
               key: connection
+        - name: APP_PUBLIC_BASE_URL
+          value: "https://cmc.audicius.de"
 
         volumeMounts:
         - name: appsettings

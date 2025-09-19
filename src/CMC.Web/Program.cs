@@ -1,4 +1,3 @@
-// src/CMC.Web/Program.cs
 using CMC.Infrastructure;
 using CMC.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -16,6 +15,18 @@ using CMC.Infrastructure.Extensions;
 using CMC.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// --- ⬇️ NEW: Public Base URL aus Env in Konfig schreiben (überschreibt appsettings) ---
+var publicBaseUrl = Environment.GetEnvironmentVariable("APP_PUBLIC_BASE_URL");
+if (!string.IsNullOrWhiteSpace(publicBaseUrl))
+{
+    builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+    {
+        ["GraphMail:PublicBaseUrl"] = publicBaseUrl
+    });
+    Console.WriteLine($"🌐 Mail PublicBaseUrl set from env: {publicBaseUrl}");
+}
+// --- ⬆️ NEW ---
 
 // --- DEV: Kestrel:Endpoints aus der Konfiguration neutralisieren + Ports fest auf 5000/5001 ---
 if (builder.Environment.IsDevelopment())
@@ -93,7 +104,7 @@ builder.Services.AddScoped<IndustryService>();
 builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<INotificationPush, SignalRNotificationPush>();
 
-// ✅ Mail: aus Env/K8s-Secrets + SMTP Service registrieren (einziger Aufruf)
+// ✅ Mail: aus Env/K8s-Secrets + Graph/Simple Template registrieren
 builder.Services.AddGraphMailServices(builder.Configuration);
 
 // Auth
