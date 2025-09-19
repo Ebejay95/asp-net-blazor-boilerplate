@@ -49,7 +49,7 @@ public sealed class BasicEmailTemplateRenderer : IEmailTemplateRenderer
                     .Append("<table role=\"presentation\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\" style=\"border-collapse: separate; mso-table-lspace: 0pt; mso-table-rspace: 0pt; width: auto;\">")
                     .Append("<tbody><tr>")
                     .Append("<td style=\"font-family: Helvetica, sans-serif; font-size: 16px; vertical-align: top; border-radius: 4px; text-align: center; background-color: #00609c;\" valign=\"top\" align=\"center\" bgcolor=\"#00609c\">")
-                    .Append($"{baseUrl} |{href} | {HtmlEncode(href)} | <a href=\"{HtmlEncode(href)}\" target=\"_blank\" style=\"border: solid 2px #00609c; border-radius: 4px; box-sizing: border-box; cursor: pointer; display: inline-block; font-size: 16px; font-weight: bold; margin: 0; padding: 12px 24px; text-decoration: none; text-transform: capitalize; background-color: #00609c; border-color: #00609c; color: #ffffff;\">{HtmlEncode(label)}</a> ")
+                    .Append($"<a href=\"{HtmlEncode(href)}\" target=\"_blank\" style=\"border: solid 2px #00609c; border-radius: 4px; box-sizing: border-box; cursor: pointer; display: inline-block; font-size: 16px; font-weight: bold; margin: 0; padding: 12px 24px; text-decoration: none; text-transform: capitalize; background-color: #00609c; border-color: #00609c; color: #ffffff;\">{HtmlEncode(label)}</a> ")
                     .Append("</td>")
                     .Append("</tr></tbody></table>");
             }
@@ -70,7 +70,7 @@ public sealed class BasicEmailTemplateRenderer : IEmailTemplateRenderer
             .Append("<span class=\"preheader\" style=\"color: transparent; display: none; height: 0; max-height: 0; max-width: 0; opacity: 0; overflow: hidden; mso-hide: all; visibility: hidden; width: 0;\">This is preheader text. Some clients will show this text as a preview.</span>")
             .Append("<table role=\"presentation\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\" class=\"main\" style=\"border-collapse: separate; mso-table-lspace: 0pt; mso-table-rspace: 0pt; background: #ffffff; border: 1px solid #eaebed; border-radius: 16px; width: 100%;\" width=\"100%\"><tr>")
             .Append("<td class=\"wrapper\" style=\"font-family: Helvetica, sans-serif; font-size: 16px; vertical-align: top; box-sizing: border-box; padding: 24px;\" valign=\"top\">")
-            .Append("<span style=\"font-family: Helvetica, sans-serif; font-size: 20px; font-weight: bold; margin: 0; margin-bottom: 16px;\"><img src=\"https://audicius.de/hubfs/Logo_250px.png\"/></span>")
+            .Append("<span style=\"font-family: Helvetica, sans-serif; font-size: 20px; font-weight: bold; margin: 0; margin-bottom: 16px;\"><img width=\"100px\" src=\"https://audicius.de/hubfs/Logo_250px.png\"/></span>")
             .Append("<p style=\"font-family: Helvetica, sans-serif; font-size: 20px; font-weight: bold; margin: 0; margin-bottom: 16px;\">" + WebUtility.HtmlEncode(subject) + "</p>")
             .Append("<p style=\"font-family: Helvetica, sans-serif; font-size: 16px; font-weight: normal; margin: 0; margin-bottom: 16px;\">" + WebUtility.HtmlEncode(text) + "</p>")
             .Append("<table role=\"presentation\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\" class=\"btn btn-primary\" style=\"border-collapse: separate; mso-table-lspace: 0pt; mso-table-rspace: 0pt; box-sizing: border-box; width: 100%; min-width: 100%;\" width=\"100%\"><tbody><tr>")
