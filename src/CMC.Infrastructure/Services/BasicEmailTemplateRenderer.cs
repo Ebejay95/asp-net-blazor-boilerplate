@@ -27,14 +27,12 @@ public sealed class BasicEmailTemplateRenderer : IEmailTemplateRenderer
         static bool IsAbsolute(string? href) =>
             !string.IsNullOrWhiteSpace(href) && Uri.TryCreate(href, UriKind.Absolute, out _);
 
-        var effectiveBaseUrl = string.IsNullOrWhiteSpace(baseUrl) ? _baseUrl : baseUrl;
-
         string PrefixBaseUrl(string? href)
         {
             if (string.IsNullOrWhiteSpace(href)) return string.Empty;
             if (IsAbsolute(href)) return href!;
-            if (string.IsNullOrWhiteSpace(effectiveBaseUrl)) return href!;
-            return $"{effectiveBaseUrl!.TrimEnd('/')}/{href!.TrimStart('/')}";
+            if (string.IsNullOrWhiteSpace(baseUrl)) return href!;
+            return $"{baseUrl!.TrimEnd('/')}/{href!.TrimStart('/')}";
         }
 
         string HtmlEncode(string s) => WebUtility.HtmlEncode(s ?? string.Empty);
