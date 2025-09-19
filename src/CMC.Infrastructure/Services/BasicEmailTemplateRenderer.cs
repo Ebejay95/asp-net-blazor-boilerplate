@@ -52,7 +52,7 @@ public sealed class BasicEmailTemplateRenderer : IEmailTemplateRenderer
                     .Append("<table role=\"presentation\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\" style=\"border-collapse: separate; mso-table-lspace: 0pt; mso-table-rspace: 0pt; width: auto;\">")
                     .Append("<tbody><tr>")
                     .Append("<td style=\"font-family: Helvetica, sans-serif; font-size: 16px; vertical-align: top; border-radius: 4px; text-align: center; background-color: #00609c;\" valign=\"top\" align=\"center\" bgcolor=\"#00609c\">")
-                    .Append($"{href} | {HtmlEncode(href)} | <a href=\"{HtmlEncode(href)}\" target=\"_blank\" style=\"border: solid 2px #00609c; border-radius: 4px; box-sizing: border-box; cursor: pointer; display: inline-block; font-size: 16px; font-weight: bold; margin: 0; padding: 12px 24px; text-decoration: none; text-transform: capitalize; background-color: #00609c; border-color: #00609c; color: #ffffff;\">{HtmlEncode(label)}</a> ")
+                    .Append($"{baseUrl} |{href} | {HtmlEncode(href)} | <a href=\"{HtmlEncode(href)}\" target=\"_blank\" style=\"border: solid 2px #00609c; border-radius: 4px; box-sizing: border-box; cursor: pointer; display: inline-block; font-size: 16px; font-weight: bold; margin: 0; padding: 12px 24px; text-decoration: none; text-transform: capitalize; background-color: #00609c; border-color: #00609c; color: #ffffff;\">{HtmlEncode(label)}</a> ")
                     .Append("</td>")
                     .Append("</tr></tbody></table>");
             }
