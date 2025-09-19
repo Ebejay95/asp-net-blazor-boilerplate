@@ -30,7 +30,7 @@ spec:
             - name: http
               containerPort: 8080
 
-          # Mail-Settings aus Secret – optional, damit der Pod auch ohne startet
+          # optionale Mail-Settings aus Secret (Pod startet auch ohne)
           envFrom:
             - secretRef:
                 name: cmc-mail
@@ -55,14 +55,7 @@ spec:
             - name: APP_PUBLIC_BASE_URL
               value: "https://cmc.audicius.de"
 
-          volumeMounts:
-            - name: appsettings
-              mountPath: /app/appsettings.json
-              subPath: appsettings.json
-            - name: appsettings
-              mountPath: /app/appsettings.Production.json
-              subPath: appsettings.Production.json
-
+          # Probes gegen /health auf Port "http"
           readinessProbe:
             httpGet:
               path: /health
@@ -78,6 +71,7 @@ spec:
             periodSeconds: 20
             failureThreshold: 6
 
+          # Ressourcen (optional anpassen)
           resources:
             requests:
               memory: "512Mi"
@@ -85,6 +79,15 @@ spec:
             limits:
               memory: "1Gi"
               cpu: "1000m"
+
+          # Appsettings aus ConfigMap mounten (falls genutzt)
+          volumeMounts:
+            - name: appsettings
+              mountPath: /app/appsettings.json
+              subPath: appsettings.json
+            - name: appsettings
+              mountPath: /app/appsettings.Production.json
+              subPath: appsettings.Production.json
 
       volumes:
         - name: appsettings

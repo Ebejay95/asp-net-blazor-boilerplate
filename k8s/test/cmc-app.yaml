@@ -76,5 +76,35 @@ spec:
             limits:
               memory: "1Gi"
               cpu: "1000m"
+
+          volumeMounts:
+            - name: appsettings
+              mountPath: /app/appsettings.json
+              subPath: appsettings.json
+            - name: appsettings
+              mountPath: /app/appsettings.Production.json
+              subPath: appsettings.Production.json
+
+      volumes:
+        - name: appsettings
+          configMap:
+            name: cmc-app-settings
+            items:
+              - key: appsettings.json
+                path: appsettings.json
+              - key: appsettings.Production.json
+                path: appsettings.Production.json
 ---
-apiVersion:
+apiVersion: v1
+kind: Service
+metadata:
+  name: cmc-app
+  namespace: cmc-test
+spec:
+  selector:
+    app: cmc-app
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
