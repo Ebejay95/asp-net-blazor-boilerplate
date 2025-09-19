@@ -23,16 +23,18 @@ public class UserService
     private readonly IUserRepository _userRepository;
     private readonly ICustomerRepository _customerRepository;
     private readonly IEmailService _emailService;
+    private readonly string? _baseUrl;
 
     #endregion
 
     #region Constructor
 
-    public UserService(IUserRepository userRepository, ICustomerRepository customerRepository, IEmailService emailService)
+    public UserService(IUserRepository userRepository, ICustomerRepository customerRepository, IEmailService emailService, IConfiguration configuration)
     {
         _userRepository = userRepository ?? throw new ArgumentNullException(nameof(userRepository));
         _customerRepository = customerRepository ?? throw new ArgumentNullException(nameof(customerRepository));
         _emailService = emailService ?? throw new ArgumentNullException(nameof(emailService));
+        _baseUrl = configuration["PUBLIC_BASE_URL"] ?? configuration["GraphMail:PublicBaseUrl"];
     }
 
     #endregion
@@ -229,11 +231,12 @@ public class UserService
         await _emailService.SendEmailAsync(
             user.Email,
             "Passwort zurücksetzen",
-            "Sie haben das Zurücksetzen Ihres Passworts angefragt. Mit diesem Link könenn Sie dies vornehmen:",
+            "Sie haben das Zurücksetzen Ihres Passworts angefragt. Mit diesem Link können Sie dies vornehmen:",
             new[]
             {
-                new EmailButton("Zurücksetzen", $"/reset?token={token}")
-            }
+                new EmailButton("Zurücksetzen", $"/reset-password?token={token}")
+            },
+            baseUrl: _baseUrl
         );
     }
 
