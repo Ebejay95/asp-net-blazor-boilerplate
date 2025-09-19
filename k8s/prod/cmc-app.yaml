@@ -23,74 +23,78 @@ spec:
         app: cmc-app
     spec:
       containers:
-      - name: cmc-app
-        image: ghcr.io/audicialex/cybersecurity-management-cockpit:latest
-        imagePullPolicy: IfNotPresent
-        ports:
-        - name: http
-          containerPort: 8080
+        - name: cmc-app
+          image: ghcr.io/audicialex/cybersecurity-management-cockpit:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
 
-        # Mail-Settings aus Secret – optional, damit der Pod auch ohne startet
-        envFrom:
-          - secretRef:
-              name: cmc-mail
-              optional: true
+          # Mail-Settings aus Secret – optional, damit der Pod auch ohne startet
+          envFrom:
+            - secretRef:
+                name: cmc-mail
+                optional: true
 
-        env:
-        - name: ASPNETCORE_ENVIRONMENT
-          valueFrom:
-            configMapKeyRef:
-              name: cmc-app-config
-              key: ASPNETCORE_ENVIRONMENT
-        - name: ASPNETCORE_URLS
-          valueFrom:
-            configMapKeyRef:
-              name: cmc-app-config
-              key: ASPNETCORE_URLS
-        - name: ConnectionStrings__DefaultConnection
-          valueFrom:
-            secretKeyRef:
-              name: cmc-app-secret
-              key: connection
-        - name: APP_PUBLIC_BASE_URL
-          value: "https://cmc.audicius.de"
+          env:
+            - name: ASPNETCORE_ENVIRONMENT
+              valueFrom:
+                configMapKeyRef:
+                  name: cmc-app-config
+                  key: ASPNETCORE_ENVIRONMENT
+            - name: ASPNETCORE_URLS
+              valueFrom:
+                configMapKeyRef:
+                  name: cmc-app-config
+                  key: ASPNETCORE_URLS
+            - name: ConnectionStrings__DefaultConnection
+              valueFrom:
+                secretKeyRef:
+                  name: cmc-app-secret
+                  key: connection
+            - name: APP_PUBLIC_BASE_URL
+              value: "https://cmc.audicius.de"
 
-        volumeMounts:
-        - name: appsettings
-          mountPath: /app/appsettings.json
-          subPath: appsettings.json
-        - name: appsettings
-          mountPath: /app/appsettings.Production.json
-          subPath: appsettings.Production.json
+          volumeMounts:
+            - name: appsettings
+              mountPath: /app/appsettings.json
+              subPath: appsettings.json
+            - name: appsettings
+              mountPath: /app/appsettings.Production.json
+              subPath: appsettings.Production.json
 
-        # HTTP Probes auf /health
-        readinessProbe:
-          httpGet: { path: /health, port: http }
-          initialDelaySeconds: 10
-          periodSeconds: 10
-          failureThreshold: 6
-        livenessProbe:
-          httpGet: { path: /health, port: http }
-          initialDelaySeconds: 30
-          periodSeconds: 20
-          failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            failureThreshold: 6
 
-        resources:
-          requests:
-            memory: "512Mi"
-            cpu: "200m"
-          limits:
-            memory: "1Gi"
-            cpu: "1000m"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "200m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+
       volumes:
-      - name: appsettings
-        configMap:
-          name: cmc-app-settings
-          items:
-          - key: appsettings.json
-            path: appsettings.json
-          - key: appsettings.Production.json
-            path: appsettings.Production.json
+        - name: appsettings
+          configMap:
+            name: cmc-app-settings
+            items:
+              - key: appsettings.json
+                path: appsettings.json
+              - key: appsettings.Production.json
+                path: appsettings.Production.json
 ---
 apiVersion: v1
 kind: Service
@@ -102,6 +106,6 @@ spec:
     app: cmc-app
   type: ClusterIP
   ports:
-  - name: http
-    port: 80
-    targetPort: http
+    - name: http
+      port: 80
+      targetPort: http
