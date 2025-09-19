@@ -10,10 +10,20 @@ public class NotificationConfiguration : IEntityTypeConfiguration<Notification>
     {
         b.ToTable("Notifications");
         b.HasKey(x => x.Id);
+
         b.Property(x => x.Title).HasMaxLength(200).IsRequired();
         b.Property(x => x.Message).HasMaxLength(2000).IsRequired();
-        b.Property(x => x.Severity).HasConversion<int>();
-        b.Property(x => x.Status).HasConversion<int>();
+
+        // Strings speichern, nicht int
+        b.Property(x => x.Severity).HasMaxLength(16).IsRequired();
+        b.Property(x => x.Status).HasMaxLength(16).IsRequired();
+
+        // Optionale Guardrails
+        b.HasCheckConstraint("CK_Notifications_Severity",
+            "\"Severity\" IN ('notice','success','error')");
+        b.HasCheckConstraint("CK_Notifications_Status",
+            "\"Status\" IN ('unread','read')");
+
         b.HasIndex(x => new { x.UserId, x.Status });
         b.HasIndex(x => x.CreatedAt);
     }

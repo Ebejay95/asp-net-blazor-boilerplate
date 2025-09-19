@@ -267,30 +267,25 @@ public async Task<bool> ResetPasswordAsync(ResetPasswordRequest request, Cancell
             .TrimEnd('=');
     }
 
-    private async Task<UserDto> MapToReadDtoAsync(User user, CancellationToken cancellationToken = default)
+    private static Task<UserDto> MapToReadDtoAsync(User user, CancellationToken cancellationToken = default)
     {
-        string? customerName = null;
-
-        if (user.CustomerId.HasValue)
+        // Keine zweite DB-Operation! Nur Werte vom bereits geladenen User verwenden.
+        // CustomerName nur setzen, wenn die Navigation bereits vorhanden ist.
+        var dto = new UserDto
         {
-            var customer = await _customerRepository.GetByIdAsync(user.CustomerId.Value, cancellationToken);
-            customerName = customer?.Name;
-        }
-
-        return new UserDto
-        {
-            Id = user.Id,
-            Email = user.Email,
-            FirstName = user.FirstName,
-            LastName = user.LastName,
-            Role = user.Role,
-            Department = user.Department,
-            IsEmailConfirmed = user.IsEmailConfirmed,
-            CustomerId = user.CustomerId,
-            CustomerName = customerName,
-            CreatedAt = user.CreatedAt,
-            LastLoginAt = user.LastLoginAt
+            Id              = user.Id,
+            Email           = user.Email,
+            FirstName       = user.FirstName,
+            LastName        = user.LastName,
+            Role            = user.Role,
+            Department      = user.Department,
+            IsEmailConfirmed= user.IsEmailConfirmed,
+            CustomerId      = user.CustomerId,
+            CustomerName    = user.Customer?.Name,  // bleibt null, falls nicht includiert
+            CreatedAt       = user.CreatedAt,
+            LastLoginAt     = user.LastLoginAt
         };
+        return Task.FromResult(dto);
     }
 
     #endregion

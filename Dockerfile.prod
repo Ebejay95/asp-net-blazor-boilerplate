@@ -9,6 +9,10 @@ COPY ["src/CMC.Application/CMC.Application.csproj", "src/CMC.Application/"]
 COPY ["src/CMC.Infrastructure/CMC.Infrastructure.csproj", "src/CMC.Infrastructure/"]
 COPY ["src/CMC.Web/CMC.Web.csproj", "src/CMC.Web/"]
 
+RUN export GRAPH_CLIENT_SECRET=""
+RUN export GRAPH_FROM_USER=""
+RUN export GRAPH_TENANT_ID=""
+RUN export GRAPH_CLIENT_ID=""
 RUN dotnet restore "src/CMC.Web/CMC.Web.csproj"
 
 # 2) Restlicher Quellcode

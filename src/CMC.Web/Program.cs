@@ -16,7 +16,14 @@ using CMC.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// --- ⬇️ NEW: Public Base URL aus Env in Konfig schreiben (überschreibt appsettings) ---
+// ✅ DEV: weniger strikt validieren (verhindert Abbruch beim Build, wenn später auflösbare Services noch fehlen)
+builder.Host.UseDefaultServiceProvider(options =>
+{
+    options.ValidateScopes = true;
+    options.ValidateOnBuild = !builder.Environment.IsDevelopment(); // in DEV aus
+});
+
+// --- Public Base URL aus Env in Konfig schreiben (überschreibt appsettings) ---
 var publicBaseUrl = Environment.GetEnvironmentVariable("APP_PUBLIC_BASE_URL");
 if (!string.IsNullOrWhiteSpace(publicBaseUrl))
 {
@@ -26,9 +33,8 @@ if (!string.IsNullOrWhiteSpace(publicBaseUrl))
     });
     Console.WriteLine($"🌐 Mail PublicBaseUrl set from env: {publicBaseUrl}");
 }
-// --- ⬆️ NEW ---
 
-// --- DEV: Kestrel:Endpoints aus der Konfiguration neutralisieren + Ports fest auf 5000/5001 ---
+// --- DEV: Kestrel:Endpoints neutralisieren + Ports fest auf 5000/5001 ---
 if (builder.Environment.IsDevelopment())
 {
     var killKestrel = new Dictionary<string, string?>
@@ -73,12 +79,43 @@ builder.Services.AddSignalR(o =>
     o.HandshakeTimeout = TimeSpan.FromSeconds(30);
 });
 
-// App-Services (DI)
+// ✅ AUTH
+builder.Services.AddScoped<CookieEvents>();
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.Cookie.Name = "CMC_Auth";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+        options.ExpireTimeSpan = TimeSpan.FromDays(30);
+        options.SlidingExpiration = true;
+        options.Cookie.MaxAge = TimeSpan.FromDays(30);
+        options.Cookie.Path = "/";
+        options.Cookie.IsEssential = true;
+        options.LoginPath = "/login";
+        options.LogoutPath = "/api/auth/logout";
+        options.AccessDeniedPath = "/login";
+        options.EventsType = typeof(CookieEvents);
+    });
+builder.Services.AddAuthorization();
+builder.Services.AddCascadingAuthenticationState();
+builder.Services.AddHttpContextAccessor();
+
+// ⚠️ WICHTIG: Infrastruktur/Repos/DbContext FRÜH registrieren!
+builder.Services.AddInfrastructure(builder.Configuration);
+
+// Falls du an anderer Stelle RevisionsSupport brauchst:
+builder.Services.AddRevisionsSupport();
+
+// Optionaler Bridge-Typ für DbContext
+builder.Services.AddScoped<DbContext>(sp => sp.GetRequiredService<AppDbContext>());
+
+// App-Services (DI) – die hängen von den Repositories ab (daher NACH AddInfrastructure)
 builder.Services.AddScoped<DialogService>();
 builder.Services.AddScoped<RelationDialogService>();
 builder.Services.AddScoped<EFEditService>();
 
-// Bridge für @inject DbContext Db
 builder.Services.AddScoped<IRelationshipManager, RelationshipManager<AppDbContext>>();
 builder.Services.AddScoped<IBumperBus, BumperBus>();
 
@@ -104,37 +141,8 @@ builder.Services.AddScoped<IndustryService>();
 builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<INotificationPush, SignalRNotificationPush>();
 
-// ✅ Mail: aus Env/K8s-Secrets + Graph/Simple Template registrieren
+// Mail (Graph + Templates)
 builder.Services.AddGraphMailServices(builder.Configuration);
-
-// Auth
-builder.Services.AddScoped<CookieEvents>();
-builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-    .AddCookie(options =>
-    {
-        options.Cookie.Name = "CMC_Auth";
-        options.Cookie.HttpOnly = true;
-        options.Cookie.SameSite = SameSiteMode.Lax;
-        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-        options.ExpireTimeSpan = TimeSpan.FromDays(30);
-        options.SlidingExpiration = true;
-        options.Cookie.MaxAge = TimeSpan.FromDays(30);
-        options.Cookie.Path = "/";
-        options.Cookie.IsEssential = true;
-        options.LoginPath = "/login";
-        options.LogoutPath = "/api/auth/logout";
-        options.AccessDeniedPath = "/login";
-        options.EventsType = typeof(CookieEvents);
-    });
-
-builder.Services.AddAuthorization();
-builder.Services.AddCascadingAuthenticationState();
-builder.Services.AddHttpContextAccessor();
-
-// Infrastruktur (DbContext usw.)
-builder.Services.AddInfrastructure(builder.Configuration);
-builder.Services.AddRevisionsSupport();
-builder.Services.AddScoped<DbContext>(sp => sp.GetRequiredService<AppDbContext>());
 
 var app = builder.Build();
 

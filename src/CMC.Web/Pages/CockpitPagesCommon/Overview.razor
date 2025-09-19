@@ -2,6 +2,7 @@
 @page "/cockpit/overview"
 @attribute [Authorize]
 
+@using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Components.Forms
 @using CMC.Application.Services
 @using CMC.Contracts.Customers
@@ -20,6 +21,8 @@
 @inject ControlService Controls
 @inject CMC.Infrastructure.Services.LibraryProvisioningService Provision
 @inject NavigationManager Nav
+@inject ILogger<Overview> Logger
+@inject IBumperBus Bumper
 
 <section class="slim">
     @if (IsSuperAdmin)
@@ -41,40 +44,53 @@
                 <h2>Erstes Setup</h2>
                 <p>Du bist aktuell keinem Unternehmen zugeordnet. Lege jetzt dein Unternehmen an.</p>
 
-                <EditForm Model="@_form" OnValidSubmit="CreateCompanyAsync">
-                    <div class="form-row">
-                        <label class="form-label">Firmenname</label>
-                        <InputText class="form-control" @bind-Value="_form.Name" />
-                    </div>
+                <FormRenderer
+                    Model="@_companyVm"
+                    Request="@_companyReq"
+                    ExtraFields="@_companyExtraFields"
+                    ValueOverrides="@_companyOverrides"
+                    ValidationErrors="@_companyErrors"
+                    OnFieldChanged="OnCompanyFieldChanged" />
 
-                    <div class="form-row">
-                        <label class="form-label">Mitarbeiter</label>
-                        <InputNumber class="form-control" TValue="int" @bind-Value="_form.EmployeeCount" />
+                <!-- Branchen-Auswahl außerhalb des FormRenderer -->
+                <div class="form-row mt-3">
+                    <label class="form-label">Branchen *</label>
+                    <div class="checkbox-list">
+                        @foreach (var opt in _industryOptions)
+                        {
+                            <label class="chk-inline">
+                                <input type="checkbox"
+                                       checked="@_selectedIndustryIds.Contains(opt.Id)"
+                                       @onchange="@(e => OnIndustryChanged(opt.Id, e))" />
+                                <span class="switch-track"></span>
+                                @opt.Name
+                            </label>
+                        }
                     </div>
-
-                    <div class="form-row">
-                        <label class="form-label">Umsatz/Jahr (EUR)</label>
-                        <InputNumber class="form-control" TValue="decimal" @bind-Value="_form.RevenuePerYear" />
-                    </div>
-
-                    <div class="form-row">
-                        <label class="form-label">Branchen</label>
-                        <div class="checkbox-list">
-                            @foreach (var opt in _industryOptions)
+                    @if (_companyErrors.TryGetValue("Industries", out var industryErrors))
+                    {
+                        <div class="text-danger">
+                            @foreach (var error in industryErrors)
                             {
-                                <label class="chk-inline">
-                                    <input type="checkbox"
-                                           checked="@_selectedIndustryIds.Contains(opt.Id)"
-                                           @onchange="@(e => OnIndustryChanged(opt.Id, e))" />
-                                    <span class="switch-track"></span>
-                                    @opt.Name
-                                </label>
+                                <div>@error</div>
                             }
                         </div>
-                    </div>
+                    }
+                </div>
 
-                    <button class="btn primary" type="submit">Anlegen</button>
-                </EditForm>
+                <div class="mt-4">
+                    <button type="button" class="btn primary" @onclick="CreateCompanyAsync" disabled="@_isCreatingCompany">
+                        @if (_isCreatingCompany)
+                        {
+                            <span class="spinner-border spinner-border-sm" role="status"></span>
+                            <span> Erstelle Unternehmen...</span>
+                        }
+                        else
+                        {
+                            <span>Anlegen</span>
+                        }
+                    </button>
+                </div>
             </div>
         }
         else if (!_hasScenarios)
@@ -83,7 +99,18 @@
                 <h2>Library-Szenarien auswählen</h2>
                 <p>Wähle die für dein Unternehmen relevanten Szenarien aus. Sie werden in echte Kundenszenarien konvertiert und passende Controls erzeugt.</p>
 
-                <div>
+                <!-- Minimaler FormRenderer nur für Info-Text -->
+                <FormRenderer
+                    Model="@_scenarioVm"
+                    Request="@_scenarioReq"
+                    ExtraFields="@_scenarioExtraFields"
+                    ValueOverrides="@_scenarioOverrides"
+                    ValidationErrors="@_scenarioErrors"
+                    OnFieldChanged="OnScenarioFieldChanged" />
+
+                <!-- Szenario-Auswahl außerhalb des FormRenderer -->
+                <div class="form-row mt-3">
+                    <label class="form-label">Verfügbare Szenarien</label>
                     <div class="checkbox-list">
                         @if (_scenarioOptions.Count == 0)
                         {
@@ -103,12 +130,21 @@
                             }
                         }
                     </div>
+                </div>
 
-                    <button class="btn primary mt-3"
-                            type="button"
-                            disabled="@(!_selectedScenarioIds.Any())"
+                <div class="mt-4">
+                    <button type="button" class="btn primary"
+                            disabled="@(!_selectedScenarioIds.Any() || _isProvisioning)"
                             @onclick="ProvisionSelectedAsync">
-                        Bereitstellen
+                        @if (_isProvisioning)
+                        {
+                            <span class="spinner-border spinner-border-sm" role="status"></span>
+                            <span> Stelle bereit...</span>
+                        }
+                        else
+                        {
+                            <span>Bereitstellen</span>
+                        }
                     </button>
                 </div>
             </div>
@@ -257,18 +293,39 @@
     private CustomerDto? _myCompany;
     private readonly List<ControlDto> _controls = new();
 
-    // Company-Setup
-    private sealed class UpdateCompanyForm
+    // Company Setup ViewModels und FormRenderer-Support
+    private sealed class CompanySetupVm
     {
-        public string Name { get; set; } = "";
+        [Required, Display(Name="Firmenname")]
+        public string Name { get; set; } = string.Empty;
+
+        [Required, Range(1, int.MaxValue), Display(Name="Mitarbeiter")]
         public int EmployeeCount { get; set; }
+
+        [Required, Range(0, double.MaxValue), Display(Name="Umsatz/Jahr (EUR)")]
         public decimal RevenuePerYear { get; set; }
     }
-    private readonly UpdateCompanyForm _form = new();
+
+    private readonly CompanySetupVm _companyVm = new();
+    private readonly Dictionary<string, object?> _companyOverrides = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string[]> _companyErrors = new(StringComparer.OrdinalIgnoreCase);
+    private bool _isCreatingCompany;
+
     private readonly List<(Guid Id, string Name)> _industryOptions = new();
     private readonly HashSet<Guid> _selectedIndustryIds = new();
 
-    // Stage 3 (Library → Entity)
+    // Scenario Selection ViewModels (minimaler FormRenderer für Konsistenz)
+    private sealed class ScenarioSelectionVm
+    {
+        [Display(Name="Information")]
+        public string Info { get; set; } = "Wähle die relevanten Szenarien für dein Unternehmen aus.";
+    }
+
+    private readonly ScenarioSelectionVm _scenarioVm = new();
+    private readonly Dictionary<string, object?> _scenarioOverrides = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string[]> _scenarioErrors = new(StringComparer.OrdinalIgnoreCase);
+    private bool _isProvisioning;
+
     private readonly List<(Guid Id, string Name)> _scenarioOptions = new();
     private readonly HashSet<Guid> _selectedScenarioIds = new();
 
@@ -276,6 +333,37 @@
     private bool _hasScenarios;
     private int _scenarioCount;
     private int _controlCount;
+
+    // FormRenderer Requests
+    private EFEditRequest _companyReq => new EFEditRequest
+    {
+        Title = "Unternehmen anlegen",
+        Model = _companyVm,
+        ContractsAssembly = typeof(Overview).Assembly,
+        IsCreate = true
+    };
+
+    private EFEditRequest _scenarioReq => new EFEditRequest
+    {
+        Title = "Szenarien auswählen",
+        Model = _scenarioVm,
+        ContractsAssembly = typeof(Overview).Assembly,
+        IsCreate = true
+    };
+
+    // ExtraFields (minimal, da Checkboxes extern gehandhabt werden)
+    private List<ExtraField> _companyExtraFields => new();
+
+    private List<ExtraField> _scenarioExtraFields => new()
+    {
+        new ExtraField(
+            Name: "Info",
+            Label: null,
+            Type: typeof(string),
+            ReadOnly: true,
+            Hint: "Die Auswahl erfolgt über die Checkboxen unten."
+        )
+    };
 
     protected override async Task OnInitializedAsync()
     {
@@ -293,12 +381,12 @@
 
                 if (_myCompany != null)
                 {
-                    // 2) Zahlen zur Übersicht - verwende Repository Count-Methoden
+                    // 2) Zahlen zur Übersicht
                     _scenarioCount = await Scenarios.CountByCustomerAsync(_myCompany.Id);
                     _controlCount = await Controls.CountByCustomerAsync(_myCompany.Id);
                     _hasScenarios = _scenarioCount > 0;
 
-                    // 3) Konkrete Controls laden (vollständige DTOs für Anzeige)
+                    // 3) Konkrete Controls laden
                     if (_hasScenarios)
                     {
                         var controlDtos = await Controls.GetByCustomerAsync(_myCompany.Id);
@@ -324,51 +412,136 @@
         finally { _loading = false; }
     }
 
+    private void OnCompanyFieldChanged((string Name, object? Value) change)
+    {
+        var prop = typeof(CompanySetupVm).GetProperty(change.Name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+        prop?.SetValue(_companyVm, change.Value);
+    }
+
+    private void OnScenarioFieldChanged((string Name, object? Value) change)
+    {
+        // Minimal, da nur Info-Field
+    }
+
     private Task OnIndustryChanged(Guid id, ChangeEventArgs e)
     {
         var on = e?.Value is bool b ? b : string.Equals(e?.Value?.ToString(), "on", StringComparison.OrdinalIgnoreCase);
         if (on) _selectedIndustryIds.Add(id); else _selectedIndustryIds.Remove(id);
+
+        // Fehler für Branchen-Auswahl zurücksetzen, wenn User etwas auswählt
+        if (on && _companyErrors.ContainsKey("Industries"))
+        {
+            _companyErrors.Remove("Industries");
+        }
+
+        StateHasChanged();
         return Task.CompletedTask;
     }
 
     private async Task CreateCompanyAsync()
     {
-        var created = await Customers.CreateAsync(new CreateCustomerRequest(
-            Name: _form.Name,
-            IndustryIds: _selectedIndustryIds.ToArray(),
-            EmployeeCount: _form.EmployeeCount,
-            RevenuePerYear: _form.RevenuePerYear
-        ));
+        try
+        {
+            _isCreatingCompany = true;
+            _companyErrors.Clear();
 
-        await Users.AssignToCustomerAsync(new AssignUserToCustomerRequest(
-            UserId: Guid.Parse(GetUserId()),
-            CustomerId: created.Id
-        ));
+            // Validierung
+            var ctx = new ValidationContext(_companyVm);
+            var results = new List<ValidationResult>();
+            var ok = Validator.TryValidateObject(_companyVm, ctx, results, validateAllProperties: true);
 
-        Nav.NavigateTo("/cockpit/overview", forceLoad: true);
+            // Zusätzlich prüfen, ob Branchen ausgewählt wurden
+            if (_selectedIndustryIds.Count == 0)
+            {
+                _companyErrors["Industries"] = new[] { "Bitte wähle mindestens eine Branche aus." };
+                ok = false;
+            }
+
+            if (!ok)
+            {
+                foreach (var r in results)
+                {
+                    var key = (r.MemberNames?.FirstOrDefault()) ?? "__global";
+                    if (!_companyErrors.TryGetValue(key, out var list))
+                        _companyErrors[key] = new[] { r.ErrorMessage ?? "Invalid value." };
+                    else
+                        _companyErrors[key] = list.Append(r.ErrorMessage ?? "Invalid value.").ToArray();
+                }
+                Bumper.Publish("Validation", "Bitte überprüfe deine Eingaben.", "error");
+                return;
+            }
+
+            Logger.LogInformation("🏢 Creating company: {Name}", _companyVm.Name);
+
+            var created = await Customers.CreateAsync(new CreateCustomerRequest(
+                Name: _companyVm.Name,
+                IndustryIds: _selectedIndustryIds.ToArray(),
+                EmployeeCount: _companyVm.EmployeeCount,
+                RevenuePerYear: _companyVm.RevenuePerYear
+            ));
+
+            await Users.AssignToCustomerAsync(new AssignUserToCustomerRequest(
+                UserId: Guid.Parse(GetUserId()),
+                CustomerId: created.Id
+            ));
+
+            Logger.LogInformation("✅ Company created successfully: {CompanyId}", created.Id);
+            Bumper.Publish("Unternehmen", "Unternehmen erfolgreich erstellt!", "success");
+
+            Nav.NavigateTo("/cockpit/overview", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Company creation error");
+            Bumper.Publish("Error", "Fehler beim Erstellen des Unternehmens.", "error");
+        }
+        finally
+        {
+            _isCreatingCompany = false;
+        }
     }
 
     private Task OnScenarioChanged(Guid id, ChangeEventArgs e)
     {
         var on = e?.Value is bool b ? b : string.Equals(e?.Value?.ToString(), "on", StringComparison.OrdinalIgnoreCase);
         if (on) _selectedScenarioIds.Add(id); else _selectedScenarioIds.Remove(id);
+        StateHasChanged();
         return Task.CompletedTask;
     }
 
     private async Task ProvisionSelectedAsync()
     {
-        if (_myCompany is null || _selectedScenarioIds.Count == 0) return;
+        try
+        {
+            if (_myCompany is null || _selectedScenarioIds.Count == 0) return;
 
-        var libControlIds = await LibControls.GetIdsByLibraryScenarioIdsAsync(_selectedScenarioIds);
+            _isProvisioning = true;
 
-        await Provision.ProvisionAsync(
-            customerId: _myCompany.Id,
-            libraryScenarioIds: _selectedScenarioIds,
-            libraryControlIds: libControlIds,
-            attachStrategy: CMC.Infrastructure.Services.ControlAttachStrategy.ClonePerScenario,
-            createToDos: true
-        );
+            Logger.LogInformation("🔄 Provisioning scenarios for company: {CompanyId}", _myCompany.Id);
 
-        Nav.NavigateTo("/cockpit/overview", forceLoad: true);
+            var libControlIds = await LibControls.GetIdsByLibraryScenarioIdsAsync(_selectedScenarioIds);
+
+            await Provision.ProvisionAsync(
+                customerId: _myCompany.Id,
+                libraryScenarioIds: _selectedScenarioIds,
+                libraryControlIds: libControlIds,
+                attachStrategy: CMC.Infrastructure.Services.ControlAttachStrategy.ClonePerScenario,
+                createToDos: true
+            );
+
+            Logger.LogInformation("✅ Scenarios provisioned successfully for company: {CompanyId}", _myCompany.Id);
+            Bumper.Publish("Bereitstellung", "Szenarien erfolgreich bereitgestellt!", "success");
+
+            Nav.NavigateTo("/cockpit/overview", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Provisioning error");
+            Bumper.Publish("Error", "Fehler bei der Bereitstellung.", "error");
+        }
+        finally
+        {
+            _isProvisioning = false;
+        }
     }
 }

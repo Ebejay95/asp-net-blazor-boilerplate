@@ -1,67 +1,31 @@
 @page "/register"
+@using System.ComponentModel.DataAnnotations
+@using CMC.Web.Services
 @using CMC.Application.Services
 @using CMC.Contracts.Users
 @using CMC.Domain.Common
 @inject UserService UserService
 @inject NavigationManager Navigation
+@inject ILogger<Register> Logger
+@inject IBumperBus Bumper
 
 <PageTitle>Register</PageTitle>
 
 <section class="slim">
     <div class="card">
-        <h1>
-            Register
-        </h1>
+        <h2>Register</h2>
 
-        @if (!string.IsNullOrEmpty(errorMessage))
-        {
-            <div class="alert alert-danger">@errorMessage</div>
-        }
+        <FormRenderer
+            Model="@_vm"
+            Request="@_req"
+            ExtraFields="new()"
+            ValueOverrides="@_overrides"
+            ValidationErrors="@_errors"
+            OnFieldChanged="OnFieldChanged" />
 
-        @if (!string.IsNullOrEmpty(successMessage))
-        {
-            <div class="alert alert-success">@successMessage</div>
-        }
-
-        <EditForm Model="@registerRequest" OnValidSubmit="@HandleRegister">
-            <DataAnnotationsValidator />
-            <ValidationSummary />
-
-            <div class="form-group">
-                <label for="firstName">First Name:</label>
-                <InputText id="firstName" class="form-control" @bind-Value="registerRequest.FirstName" />
-                <ValidationMessage For="@(() => registerRequest.FirstName)" />
-            </div>
-
-            <div class="form-group">
-                <label for="lastName">Last Name:</label>
-                <InputText id="lastName" class="form-control" @bind-Value="registerRequest.LastName" />
-                <ValidationMessage For="@(() => registerRequest.LastName)" />
-            </div>
-
-            <div class="form-group">
-                <label for="email">Email:</label>
-                <InputText id="email" class="form-control" @bind-Value="registerRequest.Email" />
-                <ValidationMessage For="@(() => registerRequest.Email)" />
-            </div>
-
-            <div class="form-group">
-                <label for="password">Password:</label>
-                <InputText id="password" type="password" class="form-control" @bind-Value="registerRequest.Password" />
-                <ValidationMessage For="@(() => registerRequest.Password)" />
-            </div>
-
-            <div class="form-group">
-                <label for="confirmPassword">Confirm Password:</label>
-                <InputText id="confirmPassword" type="password" class="form-control" @bind-Value="confirmPassword" />
-                @if (!string.IsNullOrEmpty(confirmPassword) && registerRequest.Password != confirmPassword)
-                {
-                    <div class="text-danger">Passwords do not match.</div>
-                }
-            </div>
-
-            <button type="submit" class="btn primary" disabled="@isLoading">
-                @if (isLoading)
+        <div class="mt-4">
+            <button type="button" class="btn primary" @onclick="HandleRegister" disabled="@_isLoading">
+                @if (_isLoading)
                 {
                     <span class="spinner-border spinner-border-sm" role="status"></span>
                     <span> Registering...</span>
@@ -71,65 +35,147 @@
                     <span>Register</span>
                 }
             </button>
-        </EditForm>
+        </div>
 
-        <p>
+        <p class="mt-4">
             Already have an account? <a href="/login">Login here</a>
         </p>
     </div>
 </section>
 
 @code {
-    private RegisterUserRequest registerRequest = new()
+    // ViewModel für FormRenderer
+    private sealed class RegisterVm
     {
-        FirstName = string.Empty,
-        LastName = string.Empty,
-        Email = string.Empty,
-        Password = string.Empty
+        [Required, Display(Name="First Name")]
+        public string FirstName { get; set; } = string.Empty;
+
+        [Required, Display(Name="Last Name")]
+        public string LastName { get; set; } = string.Empty;
+
+        [Required, EmailAddress, Display(Name="Email")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required, MinLength(6), Display(Name="Password")]
+        public string Password { get; set; } = string.Empty;
+
+        [Required, Display(Name="Confirm Password")]
+        public string ConfirmPassword { get; set; } = string.Empty;
+    }
+
+    private readonly RegisterVm _vm = new();
+    private readonly Dictionary<string, object?> _overrides = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string[]> _errors = new(StringComparer.OrdinalIgnoreCase);
+    private bool _isLoading;
+
+    // Request für FormRenderer
+    private EFEditRequest _req => new EFEditRequest
+    {
+        Title = "Register",
+        Model = _vm,
+        ContractsAssembly = typeof(Register).Assembly,
+        IsCreate = true
     };
-    private string confirmPassword = string.Empty;
-    private string errorMessage = string.Empty;
-    private string successMessage = string.Empty;
-    private bool isLoading = false;
+
+    private void OnFieldChanged((string Name, object? Value) change)
+    {
+        var prop = typeof(RegisterVm).GetProperty(change.Name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+        prop?.SetValue(_vm, change.Value?.ToString() ?? string.Empty);
+
+        // Zusätzliche Validierung für Passwort-Bestätigung
+        if (change.Name.Equals("ConfirmPassword", StringComparison.OrdinalIgnoreCase) ||
+            change.Name.Equals("Password", StringComparison.OrdinalIgnoreCase))
+        {
+            ValidatePasswordMatch();
+        }
+    }
+
+    private void ValidatePasswordMatch()
+    {
+        const string key = "ConfirmPassword";
+
+        if (!string.IsNullOrEmpty(_vm.Password) && !string.IsNullOrEmpty(_vm.ConfirmPassword))
+        {
+            if (_vm.Password != _vm.ConfirmPassword)
+            {
+                _errors[key] = new[] { "Passwords do not match." };
+            }
+            else
+            {
+                _errors.Remove(key);
+            }
+        }
+        else
+        {
+            _errors.Remove(key);
+        }
+    }
 
     private async Task HandleRegister()
     {
         try
         {
-            isLoading = true;
-            errorMessage = string.Empty;
-            successMessage = string.Empty;
+            _isLoading = true;
+            _errors.Clear();
 
-            if (registerRequest.Password != confirmPassword)
+            // DataAnnotations lokal prüfen
+            var ctx = new ValidationContext(_vm);
+            var results = new List<ValidationResult>();
+            var ok = Validator.TryValidateObject(_vm, ctx, results, validateAllProperties: true);
+
+            // Passwort-Match zusätzlich prüfen
+            ValidatePasswordMatch();
+
+            if (!ok || _errors.Any())
             {
-                errorMessage = "Passwords do not match.";
+                foreach (var r in results)
+                {
+                    var key = (r.MemberNames?.FirstOrDefault()) ?? "__global";
+                    if (!_errors.TryGetValue(key, out var list))
+                        _errors[key] = new[] { r.ErrorMessage ?? "Invalid value." };
+                    else
+                        _errors[key] = list.Append(r.ErrorMessage ?? "Invalid value.").ToArray();
+                }
+                Bumper.Publish("Validation", "Please check your inputs.", "error");
                 return;
             }
 
-            var user = await UserService.RegisterAsync(registerRequest);
-            successMessage = "Registration successful! You can now login.";
+            Logger.LogInformation("👤 Registration attempt for: {Email}", _vm.Email);
 
-            // Clear form
-            registerRequest = new()
+            // RegisterUserRequest aus ViewModel erstellen
+            var registerRequest = new RegisterUserRequest
             {
-                FirstName = string.Empty,
-                LastName = string.Empty,
-                Email = string.Empty,
-                Password = string.Empty
+                FirstName = _vm.FirstName,
+                LastName = _vm.LastName,
+                Email = _vm.Email,
+                Password = _vm.Password
             };
-            confirmPassword = string.Empty;
+
+            var user = await UserService.RegisterAsync(registerRequest);
+
+            Logger.LogInformation("✅ Registration successful for: {Email}", _vm.Email);
+            Bumper.Publish("Registration", "Registration successful! You can now login.", "success");
+
+            // Form nach erfolgreicher Registrierung leeren
+            _vm.FirstName = string.Empty;
+            _vm.LastName = string.Empty;
+            _vm.Email = string.Empty;
+            _vm.Password = string.Empty;
+            _vm.ConfirmPassword = string.Empty;
         }
         catch (DomainException domainEx)
         {
-            errorMessage = domainEx.Message;
+            Logger.LogWarning("❌ Registration failed for {Email}: {Error}", _vm.Email, domainEx.Message);
+            Bumper.Publish("Registration failed", domainEx.Message, "error");
         }
-        catch
+        catch (Exception ex)
         {
-            errorMessage = "An error occurred during registration. Please try again.";
+            Logger.LogError(ex, "Registration error for: {Email}", _vm.Email);
+            Bumper.Publish("Error", "An error occurred during registration. Please try again.", "error");
         }
         finally
         {
-            isLoading = false;
+            _isLoading = false;
         }
     }
 }
