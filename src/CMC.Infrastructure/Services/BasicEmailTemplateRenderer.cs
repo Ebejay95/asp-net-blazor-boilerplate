@@ -30,7 +30,6 @@ public sealed class BasicEmailTemplateRenderer : IEmailTemplateRenderer
         string PrefixBaseUrl(string? href)
         {
             if (string.IsNullOrWhiteSpace(href)) return string.Empty;
-            if (IsAbsolute(href)) return href!;
             if (string.IsNullOrWhiteSpace(baseUrl)) return href!;
             return $"{baseUrl!.TrimEnd('/')}/{href!.TrimStart('/')}";
         }
