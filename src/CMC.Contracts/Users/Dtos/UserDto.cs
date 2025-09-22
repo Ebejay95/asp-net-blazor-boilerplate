@@ -1,6 +1,6 @@
 using System;
 using System.ComponentModel.DataAnnotations;
-using CMC.Contracts.Common; // Editor-Attribute + SelectFrom
+using CMC.Contracts.Common;
 
 namespace CMC.Contracts.Users
 {
@@ -39,14 +39,23 @@ namespace CMC.Contracts.Users
         // 👉 Editor: Relation-Picker (Dropdown). Grid: ausgeblendet.
         [Display(Name = "Firma")]
         [ScaffoldColumn(false)]
-        // Optional: Wenn du die Id-Heuristik im FormRenderer NICHT nutzen willst:
-        // [RelationFrom(IsMany = false, RelationName = "Customer")]
         public Guid? CustomerId { get; set; }
 
         // 👉 Grid: Name anzeigen. Editor: ausblenden.
         [Display(Name = "Firma")]
         [EditorHidden]
         public string? CustomerName { get; set; }
+
+        // 2FA Properties
+        [Display(Name = "2FA Secret")]
+        [EditorHidden] // Wird in speziellen Formularen angezeigt
+        public string? TwoFASecret { get; set; }
+
+        [Display(Name = "2FA aktiviert")]
+        public bool TwoFAEnabled { get; set; }
+
+        [Display(Name = "2FA eingerichtet am"), DisplayFormat(DataFormatString = "{0:dd.MM.yyyy HH:mm}")]
+        public DateTimeOffset? TwoFAEnabledAt { get; set; }
 
         public UserDto() { }
 
@@ -61,7 +70,10 @@ namespace CMC.Contracts.Users
             DateTimeOffset CreatedAt,
             DateTimeOffset? LastLoginAt,
             Guid? CustomerId,
-            string? CustomerName)
+            string? CustomerName,
+            string? TwoFASecret = null,
+            bool TwoFAEnabled = false,
+            DateTimeOffset? TwoFAEnabledAt = null)
         {
             this.Id = Id;
             this.Email = Email;
@@ -74,6 +86,9 @@ namespace CMC.Contracts.Users
             this.LastLoginAt = LastLoginAt;
             this.CustomerId = CustomerId;
             this.CustomerName = CustomerName;
+            this.TwoFASecret = TwoFASecret;
+            this.TwoFAEnabled = TwoFAEnabled;
+            this.TwoFAEnabledAt = TwoFAEnabledAt;
         }
     }
 }

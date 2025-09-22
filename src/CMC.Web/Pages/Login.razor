@@ -1,50 +1,107 @@
 @page "/login"
 @using System.ComponentModel.DataAnnotations
+@using System.Reflection
 @using CMC.Web.Services
+@using CMC.Web.Pages.FormFields
+@using CMC.Application.Services
+@using CMC.Contracts.Common
 @inject NavigationManager Navigation
 @inject ILogger<Login> Logger
-@inject IJSRuntime JSRuntime
 @inject IBumperBus Bumper
+@inject UserService UserService
 
 <PageTitle>Login</PageTitle>
 
 <section class="slim">
     <div class="card">
-        <h2>Login</h2>
+        @if (_currentStep == LoginStep.Credentials)
+        {
+            <h2>Login</h2>
 
-        <FormRenderer
-            Model="@_vm"
-            Request="@_req"
-            ExtraFields="new()"
-            ValueOverrides="@_overrides"
-            ValidationErrors="@_errors"
-            OnFieldChanged="OnFieldChanged" />
+            <FormRenderer
+                Model="@_loginVm"
+                Request="@_loginReq"
+                ExtraFields="new()"
+                ValueOverrides="@_overrides"
+                ValidationErrors="@_errors"
+                OnFieldChanged="OnLoginFieldChanged"
+                EnableFormSubmit="true"
+                OnSubmit="HandleLogin"
+                SubmitButtonText="Anmelden"
+                SubmitButtonClass="primary"
+                IsSubmitDisabled="@_isLoading"
+                LoadingText="Anmeldung läuft..."
+                EnableEnterSubmit="true" />
 
-        <div class="mt-4">
-            <button type="button" class="btn primary" @onclick="HandleLogin" disabled="@_isLoading">
-                @if (_isLoading)
-                {
-                    <span class="spinner-border spinner-border-sm" role="status"></span>
-                    <span> Logging in...</span>
-                }
-                else
-                {
-                    <span>Login</span>
-                }
-            </button>
-        </div>
+            <p class="mt-4">
+                Noch kein Konto? <a href="/register">Hier registrieren</a>
+            </p>
+            <p>
+                <a href="/forgot-password">Passwort vergessen?</a>
+            </p>
+        }
+        else if (_currentStep == LoginStep.Setup2FA)
+        {
+            <h2>Sicherheit einrichten</h2>
+            <p class="mb-4">Für zusätzliche Sicherheit richten Sie bitte die Zwei-Faktor-Authentifizierung ein.</p>
 
-        <p class="mt-4">
-            Don't have an account? <a href="/register">Register here</a>
-        </p>
-        <p>
-            <a href="/forgot-password">Forgot Password?</a>
-        </p>
+            <FormRenderer
+                Model="@_setup2FAVm"
+                Request="@_setup2FAReq"
+                ExtraFields="new()"
+                ValueOverrides="@_overrides"
+                ValidationErrors="@_errors"
+                OnFieldChanged="OnSetup2FAFieldChanged"
+                EnableFormSubmit="true"
+                OnSubmit="HandleSetup2FA"
+                OnCancel="Skip2FASetup"
+                SubmitButtonText="2FA aktivieren"
+                CancelButtonText="Später einrichten"
+                SubmitButtonClass="primary"
+                CancelButtonClass="secondary"
+                ShowCancelButton="true"
+                IsSubmitDisabled="@_isLoading"
+                LoadingText="Einrichten..."
+                EnableEnterSubmit="true" />
+        }
+        else if (_currentStep == LoginStep.Verify2FA)
+        {
+            <h2>Sicherheitscode eingeben</h2>
+            <p class="mb-4">Geben Sie den 6-stelligen Code aus Ihrer Authenticator-App ein.</p>
+
+            <FormRenderer
+                Model="@_verify2FAVm"
+                Request="@_verify2FAReq"
+                ExtraFields="new()"
+                ValueOverrides="@_overrides"
+                ValidationErrors="@_errors"
+                OnFieldChanged="OnVerify2FAFieldChanged"
+                EnableFormSubmit="true"
+                OnSubmit="HandleVerify2FA"
+                SubmitButtonText="Verifizieren"
+                SubmitButtonClass="primary"
+                IsSubmitDisabled="@_isLoading"
+                LoadingText="Verifizieren..."
+                EnableEnterSubmit="true" />
+
+            <p class="mt-3">
+                <button type="button" class="btn-link" @onclick="BackToLogin">
+                    ← Zurück zum Login
+                </button>
+            </p>
+        }
     </div>
 </section>
 
 @code {
-    // rein "manuelles" ViewModel – kein CRUD/EFEdit
+    private enum LoginStep
+    {
+        Credentials,
+        Setup2FA,
+        Verify2FA
+    }
+
+    // Login ViewModel
     private sealed class LoginVm
     {
         [Required, EmailAddress, Display(Name="Email")]
@@ -54,24 +111,88 @@
         public string Password { get; set; } = string.Empty;
     }
 
-    private readonly LoginVm _vm = new();
-    private readonly Dictionary<string, object?> _overrides = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, string[]> _errors    = new(StringComparer.OrdinalIgnoreCase);
-    private bool _isLoading;
+    // 2FA Setup ViewModel
+    private sealed class Setup2FAVm
+    {
+        [Display(Name="2FA Secret", Description="Scannen Sie den QR-Code mit Ihrer Authenticator-App oder geben Sie den Code manuell ein")]
+        [TwoFASecret(Issuer = "CMC App")]
+        public string? TwoFASecret { get; set; }
 
-    // Minimaler Request für FormRenderer (wir verwenden ihn NICHT für Save)
-    private EFEditRequest _req => new EFEditRequest
+        [Display(Name="Bestätigungscode", Description="Geben Sie den 6-stelligen Code aus Ihrer App ein")]
+        [TwoFACode]
+        [Required(ErrorMessage = "Bitte geben Sie den Bestätigungscode ein")]
+        public string? ConfirmationCode { get; set; }
+
+        public string Email { get; set; } = string.Empty;
+    }
+
+    // 2FA Verification ViewModel
+    private sealed class Verify2FAVm
+    {
+        [Display(Name="Authenticator Code", Description="6-stelliger Code aus Ihrer App")]
+        [TwoFACode]
+        [Required(ErrorMessage = "Bitte geben Sie den 6-stelligen Code ein")]
+        public string? TwoFACode { get; set; }
+    }
+
+    private readonly LoginVm _loginVm = new();
+    private readonly Setup2FAVm _setup2FAVm = new();
+    private readonly Verify2FAVm _verify2FAVm = new();
+    private readonly Dictionary<string, object?> _overrides = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string[]> _errors = new(StringComparer.OrdinalIgnoreCase);
+
+    private LoginStep _currentStep = LoginStep.Credentials;
+    private bool _isLoading;
+    private string? _tempUserId;
+    private UserDto? _currentUser;
+
+    // Minimale Requests für FormRenderer
+    private EFEditRequest _loginReq => new EFEditRequest
     {
         Title = "Login",
-        Model = _vm,
-        ContractsAssembly = typeof(Login).Assembly, // irrelevant hier
+        Model = _loginVm,
+        ContractsAssembly = typeof(LoginVm).Assembly,
         IsCreate = true
     };
 
-    private void OnFieldChanged((string Name, object? Value) change)
+    private EFEditRequest _setup2FAReq => new EFEditRequest
+    {
+        Title = "2FA Setup",
+        Model = _setup2FAVm,
+        ContractsAssembly = typeof(Setup2FAVm).Assembly,
+        IsCreate = true
+    };
+
+    private EFEditRequest _verify2FAReq => new EFEditRequest
+    {
+        Title = "2FA Verification",
+        Model = _verify2FAVm,
+        ContractsAssembly = typeof(Verify2FAVm).Assembly,
+        IsCreate = true
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Generiere Secret für 2FA Setup
+        _setup2FAVm.TwoFASecret = UserService.GenerateTwoFASecret();
+    }
+
+    private void OnLoginFieldChanged((string Name, object? Value) change)
     {
         var prop = typeof(LoginVm).GetProperty(change.Name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
-        prop?.SetValue(_vm, change.Value?.ToString() ?? string.Empty);
+        prop?.SetValue(_loginVm, change.Value?.ToString() ?? string.Empty);
+    }
+
+    private void OnSetup2FAFieldChanged((string Name, object? Value) change)
+    {
+        var prop = typeof(Setup2FAVm).GetProperty(change.Name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+        prop?.SetValue(_setup2FAVm, change.Value?.ToString() ?? string.Empty);
+    }
+
+    private void OnVerify2FAFieldChanged((string Name, object? Value) change)
+    {
+        var prop = typeof(Verify2FAVm).GetProperty(change.Name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+        prop?.SetValue(_verify2FAVm, change.Value?.ToString() ?? string.Empty);
     }
 
     private async Task HandleLogin()
@@ -81,10 +202,10 @@
             _isLoading = true;
             _errors.Clear();
 
-            // DataAnnotations lokal prüfen (damit FormRenderer Fehler anzeigen kann)
-            var ctx = new ValidationContext(_vm);
+            // DataAnnotations lokal prüfen
+            var ctx = new ValidationContext(_loginVm);
             var results = new List<ValidationResult>();
-            var ok = Validator.TryValidateObject(_vm, ctx, results, validateAllProperties: true);
+            var ok = Validator.TryValidateObject(_loginVm, ctx, results, validateAllProperties: true);
 
             if (!ok)
             {
@@ -96,37 +217,197 @@
                     else
                         _errors[key] = list.Append(r.ErrorMessage ?? "Invalid value.").ToArray();
                 }
-                Bumper.Publish("Validation", "Please check your inputs.", "error");
+                Bumper.Publish("Validation", "Bitte prüfen Sie Ihre Eingaben.", "error");
                 return;
             }
 
-            Logger.LogInformation("🔐 Login attempt for: {Email}", _vm.Email);
+            Logger.LogInformation("Login attempt for: {Email}", _loginVm.Email);
 
-            // Cookie-Login über vorhandene JS-Interop (spricht deinen API-Controller)
-            var payload = new { Email = _vm.Email, Password = _vm.Password };
-            var success = await JSRuntime.InvokeAsync<bool>("submitLoginForm", payload);
+            // Login über UserService
+            var loginRequest = new LoginRequest { Email = _loginVm.Email, Password = _loginVm.Password };
+            var user = await UserService.LoginAsync(loginRequest);
 
-            if (success)
+            if (user != null)
             {
-                Logger.LogInformation("✅ Login successful for: {Email}", _vm.Email);
-                Bumper.Publish("Login", "Login successful! Redirecting…", "success", 1500);
-                await Task.Delay(800);
-                Navigation.NavigateTo("/", forceLoad: true);
+                _currentUser = user;
+                _tempUserId = user.Id.ToString();
+
+                if (string.IsNullOrWhiteSpace(user.TwoFASecret))
+                {
+                    // User hat noch kein 2FA -> Setup anzeigen
+                    _currentStep = LoginStep.Setup2FA;
+                    _setup2FAVm.Email = _loginVm.Email;
+                    Bumper.Publish("2FA Setup", "Bitte richten Sie die Zwei-Faktor-Authentifizierung ein.", "info");
+                }
+                else
+                {
+                    // User hat 2FA -> Verification anzeigen
+                    _currentStep = LoginStep.Verify2FA;
+                    Bumper.Publish("2FA Required", "Bitte geben Sie Ihren 2FA-Code ein.", "info");
+                }
             }
             else
             {
-                Logger.LogWarning("❌ Login failed for: {Email}", _vm.Email);
-                Bumper.Publish("Login failed", "Invalid email or password.", "error");
+                Logger.LogWarning("Login failed for: {Email}", _loginVm.Email);
+                Bumper.Publish("Login failed", "Ungültige E-Mail oder Passwort.", "error");
             }
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Login error for: {Email}", _vm.Email);
-            Bumper.Publish("Error", "An unexpected error occurred.", "error");
+            Logger.LogError(ex, "Login error for: {Email}", _loginVm.Email);
+            Bumper.Publish("Error", "Ein unerwarteter Fehler ist aufgetreten.", "error");
         }
         finally
         {
             _isLoading = false;
         }
+    }
+
+    private async Task HandleSetup2FA()
+    {
+        try
+        {
+            _isLoading = true;
+            _errors.Clear();
+
+            // Validierung
+            var ctx = new ValidationContext(_setup2FAVm);
+            var results = new List<ValidationResult>();
+            var ok = Validator.TryValidateObject(_setup2FAVm, ctx, results, validateAllProperties: true);
+
+            if (!ok)
+            {
+                foreach (var r in results)
+                {
+                    var key = (r.MemberNames?.FirstOrDefault()) ?? "__global";
+                    _errors[key] = new[] { r.ErrorMessage ?? "Invalid value." };
+                }
+                Bumper.Publish("Validation", "Bitte prüfen Sie Ihre Eingaben.", "error");
+                return;
+            }
+
+            // 2FA Setup über UserService
+            if (!string.IsNullOrEmpty(_tempUserId) && Guid.TryParse(_tempUserId, out var userId))
+            {
+                var success = await UserService.EnableTwoFAAsync(userId, _setup2FAVm.TwoFASecret!, _setup2FAVm.ConfirmationCode!);
+
+                if (success)
+                {
+                    Logger.LogInformation("2FA setup successful for: {Email}", _loginVm.Email);
+                    Bumper.Publish("2FA Setup", "Zwei-Faktor-Authentifizierung erfolgreich eingerichtet!", "success", 1500);
+
+                    // Login vollständig abschließen
+                    await CompleteLogin();
+                }
+                else
+                {
+                    _errors["ConfirmationCode"] = new[] { "Ungültiger Code. Bitte prüfen Sie Ihre Authenticator-App." };
+                    Bumper.Publish("Invalid Code", "Der eingegebene Code ist nicht korrekt.", "error");
+                }
+            }
+            else
+            {
+                Bumper.Publish("Error", "Benutzer-ID nicht gefunden.", "error");
+                BackToLogin();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "2FA setup error for: {Email}", _loginVm.Email);
+            Bumper.Publish("Error", "Fehler beim Einrichten der 2FA.", "error");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task HandleVerify2FA()
+    {
+        try
+        {
+            _isLoading = true;
+            _errors.Clear();
+
+            // Validierung
+            var ctx = new ValidationContext(_verify2FAVm);
+            var results = new List<ValidationResult>();
+            var ok = Validator.TryValidateObject(_verify2FAVm, ctx, results, validateAllProperties: true);
+
+            if (!ok)
+            {
+                foreach (var r in results)
+                {
+                    var key = (r.MemberNames?.FirstOrDefault()) ?? "__global";
+                    _errors[key] = new[] { r.ErrorMessage ?? "Invalid value." };
+                }
+                Bumper.Publish("Validation", "Bitte prüfen Sie Ihre Eingaben.", "error");
+                return;
+            }
+
+            // 2FA Verification über UserService
+            if (_currentUser?.TwoFASecret != null)
+            {
+                var isValidCode = await UserService.VerifyTOTPCodeAsync(_currentUser.TwoFASecret, _verify2FAVm.TwoFACode!);
+
+                if (isValidCode)
+                {
+                    Logger.LogInformation("2FA verification successful for: {Email}", _loginVm.Email);
+                    await CompleteLogin();
+                }
+                else
+                {
+                    _errors["TwoFACode"] = new[] { "Ungültiger Code. Bitte prüfen Sie Ihre Authenticator-App." };
+                    Bumper.Publish("Invalid Code", "Der eingegebene Code ist nicht korrekt.", "error");
+                }
+            }
+            else
+            {
+                Bumper.Publish("Error", "2FA nicht konfiguriert.", "error");
+                BackToLogin();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "2FA verification error for: {Email}", _loginVm.Email);
+            Bumper.Publish("Error", "Fehler bei der 2FA-Verifizierung.", "error");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task CompleteLogin()
+    {
+        try
+        {
+            Logger.LogInformation("Complete login successful for: {Email}", _loginVm.Email);
+            Bumper.Publish("Login", "Anmeldung erfolgreich! Weiterleitung...", "success", 1500);
+            await Task.Delay(800);
+            Navigation.NavigateTo("/", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Complete login error for: {Email}", _loginVm.Email);
+            Bumper.Publish("Error", "Fehler beim Abschließen der Anmeldung.", "error");
+            BackToLogin();
+        }
+    }
+
+    private async Task Skip2FASetup()
+    {
+        Logger.LogInformation("User skipped 2FA setup: {Email}", _loginVm.Email);
+        await CompleteLogin();
+    }
+
+    private void BackToLogin()
+    {
+        _currentStep = LoginStep.Credentials;
+        _errors.Clear();
+        _tempUserId = null;
+        _currentUser = null;
+        _verify2FAVm.TwoFACode = string.Empty;
+        _setup2FAVm.ConfirmationCode = string.Empty;
     }
 }
