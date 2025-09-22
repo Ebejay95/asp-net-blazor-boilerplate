@@ -16,57 +16,68 @@ using CMC.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ✅ DEV: weniger strikt validieren (verhindert Abbruch beim Build, wenn später auflösbare Services noch fehlen)
+// DEV: weniger strikt validieren
 builder.Host.UseDefaultServiceProvider(options =>
 {
     options.ValidateScopes = true;
-    options.ValidateOnBuild = !builder.Environment.IsDevelopment(); // in DEV aus
+    options.ValidateOnBuild = !builder.Environment.IsDevelopment();
 });
 
-// --- Public Base URL aus Env in Konfig schreiben (überschreibt appsettings) ---
+// Public Base URL aus Env
 var publicBaseUrl = Environment.GetEnvironmentVariable("APP_PUBLIC_BASE_URL");
 if (!string.IsNullOrWhiteSpace(publicBaseUrl))
 {
     builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
     {
-        ["GraphMail:PublicBaseUrl"] = publicBaseUrl
+        ["GraphMail:PublicBaseUrl"] = publicBaseUrl,
+        ["BaseUrl"] = publicBaseUrl // Für HttpClient BaseAddress
     });
-    Console.WriteLine($"🌐 Mail PublicBaseUrl set from env: {publicBaseUrl}");
+    Console.WriteLine($"🌐 Public BaseUrl set from env: {publicBaseUrl}");
 }
 
-// --- DEV: Kestrel:Endpoints neutralisieren + Ports fest auf 5000/5001 ---
-if (builder.Environment.IsDevelopment())
+// Nur Port 5000, ganz einfach
+builder.WebHost.UseUrls("http://localhost:5000");
+var baseUrl = "http://localhost:5000";
+Console.WriteLine($"🌐 HttpClient BaseAddress: {baseUrl}");
+
+// Session Support für 2FA Flow
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSession(options =>
 {
-    var killKestrel = new Dictionary<string, string?>
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+    options.IdleTimeout = TimeSpan.FromMinutes(20);
+    options.Cookie.Name = "CMC_Session";
+});
+
+builder.Services.AddHttpClient("default", c =>
+{
+    c.BaseAddress = new Uri(baseUrl);
+    c.Timeout = TimeSpan.FromSeconds(30);
+});
+
+// Standard HttpClient für Blazor Components
+builder.Services.AddScoped(sp =>
+{
+    var factory = sp.GetRequiredService<IHttpClientFactory>();
+    var client = factory.CreateClient("default");
+
+    // Cookies für Session-Management
+    var handler = new HttpClientHandler()
     {
-        ["Kestrel:Endpoints:Http:Url"] = null,
-        ["Kestrel:Endpoints:Https:Url"] = null,
-        ["Kestrel:Endpoints:Https:Certificate:Path"] = null,
-        ["Kestrel:Endpoints:Https:Certificate:Password"] = null
+        UseCookies = true,
+        CookieContainer = new System.Net.CookieContainer()
     };
-    builder.Configuration.AddInMemoryCollection(killKestrel);
 
-    // URLs aus Env ignorieren
-    Environment.SetEnvironmentVariable("ASPNETCORE_URLS", null);
-
-    builder.WebHost.ConfigureKestrel(o =>
+    var httpClient = new HttpClient(handler)
     {
-        o.ListenLocalhost(5000); // HTTP
-        try { o.ListenLocalhost(5001, lo => lo.UseHttps()); } catch { /* kein dev cert -> ok */ }
-    });
-}
+        BaseAddress = new Uri(baseUrl),
+        Timeout = TimeSpan.FromSeconds(30)
+    };
 
-// HttpClient
-if (builder.Environment.IsDevelopment())
-{
-    builder.Services.AddHttpClient("default", c => c.Timeout = TimeSpan.FromSeconds(30))
-        .ConfigurePrimaryHttpMessageHandler(() =>
-            new HttpClientHandler { ServerCertificateCustomValidationCallback = (_, __, ___, ____) => true });
-}
-else
-{
-    builder.Services.AddHttpClient("default", c => c.Timeout = TimeSpan.FromSeconds(30));
-}
+    return httpClient;
+});
 
 // UI / Framework
 builder.Services.AddRazorPages();
@@ -79,7 +90,7 @@ builder.Services.AddSignalR(o =>
     o.HandshakeTimeout = TimeSpan.FromSeconds(30);
 });
 
-// ✅ AUTH
+// AUTH
 builder.Services.AddScoped<CookieEvents>();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
@@ -102,16 +113,12 @@ builder.Services.AddAuthorization();
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddHttpContextAccessor();
 
-// ⚠️ WICHTIG: Infrastruktur/Repos/DbContext FRÜH registrieren!
+// Infrastruktur/Repos/DbContext
 builder.Services.AddInfrastructure(builder.Configuration);
-
-// Falls du an anderer Stelle RevisionsSupport brauchst:
 builder.Services.AddRevisionsSupport();
-
-// Optionaler Bridge-Typ für DbContext
 builder.Services.AddScoped<DbContext>(sp => sp.GetRequiredService<AppDbContext>());
 
-// App-Services (DI) – die hängen von den Repositories ab (daher NACH AddInfrastructure)
+// App-Services (DI)
 builder.Services.AddScoped<DialogService>();
 builder.Services.AddScoped<RelationDialogService>();
 builder.Services.AddScoped<EFEditService>();
@@ -146,7 +153,7 @@ builder.Services.AddGraphMailServices(builder.Configuration);
 
 var app = builder.Build();
 
-// --- Seed-only Modus: führt Seeding aus und beendet den Prozess ---
+// Seed-only Modus
 if (args.Any(a => string.Equals(a, "seed-master-user", StringComparison.OrdinalIgnoreCase)))
 {
     Console.WriteLine("[seed] Running master-user seeder…");
@@ -211,17 +218,21 @@ app.UseForwardedHeaders(fwd);
 if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
-    Console.WriteLine("🔧 Dev: Kestrel bindet auf http://localhost:5000 und (falls Zertifikat) https://localhost:5001.");
+    Console.WriteLine("🔧 Dev: Kestrel bindet auf http://localhost:5000");
 }
 else
 {
     app.UseExceptionHandler("/Error");
     app.UseHsts();
-    Console.WriteLine("🏭 Prod/Test: Kestrel/URLs kommen aus Config/Env (z. B. http://0.0.0.0:8080 hinter Ingress).");
+    Console.WriteLine("🏭 Prod: Kestrel auf http://localhost:5000");
 }
 
 app.UseStaticFiles();
 app.UseRouting();
+
+// Session BEFORE Auth
+app.UseSession();
+
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -247,8 +258,7 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-Console.WriteLine("🚀 Starting CMC application...");
-Console.WriteLine("   📡 URLs kommen aus Kestrel-Endpunkten (Production: http://0.0.0.0:8080) oder ASPNETCORE_URLS.");
+Console.WriteLine("🚀 Starting CMC application on http://localhost:5000");
 
 app.Run();
 

@@ -1,0 +1,208 @@
+@page "/setup-2fa"
+@using System.ComponentModel.DataAnnotations
+@using System.Reflection
+@using CMC.Web.Services
+@using CMC.Web.Pages.FormFields
+@using CMC.Application.Services
+@using CMC.Contracts.Common
+@using System.Net.Http.Json
+@inject NavigationManager Navigation
+@inject ILogger<Setup2FA> Logger
+@inject IBumperBus Bumper
+@inject HttpClient Http
+@inject UserService UserService
+
+<PageTitle>2FA Setup</PageTitle>
+
+<section class="slim">
+    <div class="card">
+        <h2>Sicherheit einrichten</h2>
+        <p class="mb-4">Für zusätzliche Sicherheit richten Sie bitte die Zwei-Faktor-Authentifizierung ein.</p>
+
+        <FormRenderer
+            Model="@_setup2FAVm"
+            Request="@_setup2FAReq"
+            ExtraFields="new()"
+            ValueOverrides="@_overrides"
+            ValidationErrors="@_errors"
+            OnFieldChanged="OnSetup2FAFieldChanged"
+            EnableFormSubmit="true"
+            OnSubmit="HandleSetup2FA"
+            OnCancel="Skip2FASetup"
+            SubmitButtonText="2FA aktivieren"
+            CancelButtonText="Später einrichten"
+            SubmitButtonClass="primary"
+            CancelButtonClass="secondary"
+            ShowCancelButton="true"
+            IsSubmitDisabled="@_isLoading"
+            LoadingText="Einrichten..."
+            EnableEnterSubmit="true" />
+    </div>
+</section>
+
+@code {
+    // 2FA Setup ViewModel
+    private sealed class Setup2FAVm
+    {
+        [Display(Name="2FA Secret", Description="Scannen Sie den QR-Code mit Ihrer Authenticator-App oder geben Sie den Code manuell ein")]
+        [TwoFASecret(Issuer = "CMC App")]
+        public string? TwoFASecret { get; set; }
+
+        [Display(Name="Bestätigungscode", Description="Geben Sie den 6-stelligen Code aus Ihrer App ein")]
+        [TwoFACode]
+        [Required(ErrorMessage = "Bitte geben Sie den Bestätigungscode ein")]
+        public string? ConfirmationCode { get; set; }
+
+        public string Email { get; set; } = string.Empty;
+    }
+
+    private readonly Setup2FAVm _setup2FAVm = new();
+    private readonly Dictionary<string, object?> _overrides = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string[]> _errors = new(StringComparer.OrdinalIgnoreCase);
+
+    private bool _isLoading;
+    private string _email = string.Empty;
+
+    private EFEditRequest _setup2FAReq => new EFEditRequest
+    {
+        Title = "2FA Setup",
+        Model = _setup2FAVm,
+        ContractsAssembly = typeof(Setup2FAVm).Assembly,
+        IsCreate = true
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Get email from query parameters
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+
+        if (query.TryGetValue("email", out var emailValues))
+        {
+            _email = emailValues.FirstOrDefault() ?? string.Empty;
+            _setup2FAVm.Email = _email;
+        }
+
+        if (string.IsNullOrWhiteSpace(_email))
+        {
+            // No email provided, redirect to login
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        // Generate secret for 2FA Setup
+        _setup2FAVm.TwoFASecret = UserService.GenerateTwoFASecret();
+
+        // Set account name for QR code
+        _overrides["TwoFASecret"] = _setup2FAVm.TwoFASecret;
+    }
+
+    private void OnSetup2FAFieldChanged((string Name, object? Value) change)
+    {
+        var prop = typeof(Setup2FAVm).GetProperty(change.Name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+        prop?.SetValue(_setup2FAVm, change.Value?.ToString() ?? string.Empty);
+    }
+
+    private async Task HandleSetup2FA()
+    {
+        try
+        {
+            _isLoading = true;
+            _errors.Clear();
+
+            // Validation
+            var ctx = new ValidationContext(_setup2FAVm);
+            var results = new List<ValidationResult>();
+            var ok = Validator.TryValidateObject(_setup2FAVm, ctx, results, validateAllProperties: true);
+
+            if (!ok)
+            {
+                foreach (var r in results)
+                {
+                    var key = (r.MemberNames?.FirstOrDefault()) ?? "__global";
+                    _errors[key] = new[] { r.ErrorMessage ?? "Invalid value." };
+                }
+                Bumper.Publish("Validation", "Bitte prüfen Sie Ihre Eingaben.", "error");
+                return;
+            }
+
+            // Call API endpoint
+            var response = await Http.PostAsJsonAsync("/api/auth/setup-2fa", new
+            {
+                Email = _email,
+                Secret = _setup2FAVm.TwoFASecret,
+                ConfirmationCode = _setup2FAVm.ConfirmationCode
+            });
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<Setup2FAApiResponse>();
+
+                if (result?.success == true)
+                {
+                    Logger.LogInformation("2FA setup successful for: {Email}", _email);
+                    Bumper.Publish("2FA Setup", "Zwei-Faktor-Authentifizierung erfolgreich eingerichtet!", "success", 1500);
+
+                    await Task.Delay(800);
+                    Navigation.NavigateTo("/", forceLoad: true);
+                }
+                else
+                {
+                    _errors["ConfirmationCode"] = new[] { result?.message ?? "Ungültiger Code" };
+                    Bumper.Publish("Invalid Code", result?.message ?? "Der eingegebene Code ist nicht korrekt.", "error");
+                }
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Logger.LogError("2FA setup failed for: {Email}. Response: {Response}", _email, errorContent);
+                Bumper.Publish("Error", "Fehler beim Einrichten der 2FA.", "error");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "2FA setup error for: {Email}", _email);
+            Bumper.Publish("Error", "Fehler beim Einrichten der 2FA.", "error");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task Skip2FASetup()
+    {
+        try
+        {
+            Logger.LogInformation("User skipped 2FA setup: {Email}", _email);
+
+            // Call complete-login endpoint to set cookies
+            var response = await Http.PostAsJsonAsync("/api/auth/complete-login", new
+            {
+                Email = _email,
+                TwoFAVerified = false
+            });
+
+            if (response.IsSuccessStatusCode)
+            {
+                Navigation.NavigateTo("/", forceLoad: true);
+            }
+            else
+            {
+                Navigation.NavigateTo("/login");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error skipping 2FA setup for: {Email}", _email);
+            Navigation.NavigateTo("/login");
+        }
+    }
+
+    // Response model for API
+    private class Setup2FAApiResponse
+    {
+        public bool success { get; set; }
+        public string? message { get; set; }
+    }
+}
