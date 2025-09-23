@@ -11,6 +11,8 @@
 @inject IBumperBus Bumper
 @inject HttpClient Http
 @inject UserService UserService
+@inject IWebHostEnvironment Environment
+@inject IConfiguration Configuration
 
 <PageTitle>2FA Setup</PageTitle>
 
@@ -62,6 +64,7 @@
 
     private bool _isLoading;
     private string _email = string.Empty;
+    private string _appLabel = "CMC App";
 
     private EFEditRequest _setup2FAReq => new EFEditRequest
     {
@@ -73,6 +76,9 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // Determine app label based on environment
+        _appLabel = GetAppLabel();
+
         // Get email from query parameters
         var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
         var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
@@ -93,8 +99,56 @@
         // Generate secret for 2FA Setup
         _setup2FAVm.TwoFASecret = UserService.GenerateTwoFASecret();
 
-        // Set account name for QR code
+        // Set account name for QR code - with dynamic label
         _overrides["TwoFASecret"] = _setup2FAVm.TwoFASecret;
+
+        // Update the TwoFASecret attribute with the dynamic issuer
+        UpdateTwoFASecretIssuer();
+    }
+
+    private string GetAppLabel()
+    {
+        // Method 1: Based on environment name
+        if (Environment.IsDevelopment())
+        {
+            return "CMC App (Dev)";
+        }
+
+        // Method 2: Based on APP_PUBLIC_BASE_URL
+        var baseUrl = System.Environment.GetEnvironmentVariable("APP_PUBLIC_BASE_URL") ?? "";
+        if (baseUrl.Contains("test.audicius.de"))
+        {
+            return "CMC App (Test)";
+        }
+        else if (baseUrl.Contains("cmc.audicius.de"))
+        {
+            return "CMC App";
+        }
+        else if (baseUrl.Contains("localhost"))
+        {
+            return "CMC App (Dev)";
+        }
+
+        // Method 3: Based on custom environment variable (recommended)
+        var envLabel = System.Environment.GetEnvironmentVariable("CMC_ENV_LABEL");
+        if (!string.IsNullOrWhiteSpace(envLabel))
+        {
+            return $"CMC App ({envLabel})";
+        }
+
+        return "CMC App";
+    }
+
+    private void UpdateTwoFASecretIssuer()
+    {
+        // Update the display attribute dynamically
+        var property = typeof(Setup2FAVm).GetProperty(nameof(Setup2FAVm.TwoFASecret));
+        if (property != null)
+        {
+            // This is a bit complex to change at runtime, so we'll handle it in the attribute itself
+            // or pass it through overrides
+            _overrides["TwoFASecret_Issuer"] = _appLabel;
+        }
     }
 
     private void OnSetup2FAFieldChanged((string Name, object? Value) change)
@@ -126,8 +180,8 @@
                 return;
             }
 
-            // Call API endpoint
-            var response = await Http.PostAsJsonAsync("/api/auth/setup-2fa", new
+            // Call API endpoint - GEÄNDERT zu relativem Pfad
+            var response = await Http.PostAsJsonAsync("api/auth/setup-2fa", new
             {
                 Email = _email,
                 Secret = _setup2FAVm.TwoFASecret,
@@ -176,8 +230,8 @@
         {
             Logger.LogInformation("User skipped 2FA setup: {Email}", _email);
 
-            // Call complete-login endpoint to set cookies
-            var response = await Http.PostAsJsonAsync("/api/auth/complete-login", new
+            // Call complete-login endpoint to set cookies - GEÄNDERT zu relativem Pfad
+            var response = await Http.PostAsJsonAsync("api/auth/complete-login", new
             {
                 Email = _email,
                 TwoFAVerified = false
