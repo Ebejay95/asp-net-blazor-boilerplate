@@ -23,22 +23,27 @@ builder.Host.UseDefaultServiceProvider(options =>
     options.ValidateOnBuild = !builder.Environment.IsDevelopment();
 });
 
-// Public Base URL aus Env
+// Public Base URL aus Env oder Configuration bestimmen
 var publicBaseUrl = Environment.GetEnvironmentVariable("APP_PUBLIC_BASE_URL");
+var baseUrl = publicBaseUrl ?? "http://localhost:5000";
+
 if (!string.IsNullOrWhiteSpace(publicBaseUrl))
 {
     builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
     {
         ["GraphMail:PublicBaseUrl"] = publicBaseUrl,
-        ["BaseUrl"] = publicBaseUrl // Für HttpClient BaseAddress
+        ["BaseUrl"] = publicBaseUrl
     });
-    Console.WriteLine($"🌐 Public BaseUrl set from env: {publicBaseUrl}");
+    Console.WriteLine($"Public BaseUrl set from env: {publicBaseUrl}");
 }
 
-// Nur Port 5000, ganz einfach
-builder.WebHost.UseUrls("http://localhost:5000");
-var baseUrl = "http://localhost:5000";
-Console.WriteLine($"🌐 HttpClient BaseAddress: {baseUrl}");
+// WebHost URLs konfigurieren
+if (builder.Environment.IsDevelopment())
+{
+    builder.WebHost.UseUrls("http://localhost:5000");
+}
+
+Console.WriteLine($"HttpClient BaseAddress: {baseUrl}");
 
 // Session Support für 2FA Flow
 builder.Services.AddDistributedMemoryCache();
@@ -51,32 +56,19 @@ builder.Services.AddSession(options =>
     options.Cookie.Name = "CMC_Session";
 });
 
-builder.Services.AddHttpClient("default", c =>
+// Named HttpClient für API-Calls
+builder.Services.AddHttpClient("api", client =>
 {
-    c.BaseAddress = new Uri(baseUrl);
-    c.Timeout = TimeSpan.FromSeconds(30);
+    client.BaseAddress = new Uri(baseUrl);
+    client.Timeout = TimeSpan.FromSeconds(30);
 });
 
-// Standard HttpClient für Blazor Components
-builder.Services.AddScoped(sp =>
+// Standard HttpClient für Blazor Components (mit korrekter BaseAddress)
+builder.Services.AddScoped<HttpClient>(sp =>
 {
     var factory = sp.GetRequiredService<IHttpClientFactory>();
-    var client = factory.CreateClient("default");
-
-    // Cookies für Session-Management
-    var handler = new HttpClientHandler()
-    {
-        UseCookies = true,
-        CookieContainer = new System.Net.CookieContainer()
-    };
-
-    var httpClient = new HttpClient(handler)
-    {
-        BaseAddress = new Uri(baseUrl),
-        Timeout = TimeSpan.FromSeconds(30)
-    };
-
-    return httpClient;
+    var client = factory.CreateClient("api");
+    return client;
 });
 
 // UI / Framework
@@ -218,13 +210,13 @@ app.UseForwardedHeaders(fwd);
 if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
-    Console.WriteLine("🔧 Dev: Kestrel bindet auf http://localhost:5000");
+    Console.WriteLine("Dev: Kestrel bindet auf http://localhost:5000");
 }
 else
 {
     app.UseExceptionHandler("/Error");
     app.UseHsts();
-    Console.WriteLine("🏭 Prod: Kestrel auf http://localhost:5000");
+    Console.WriteLine("Prod: Kestrel auf konfigurierter URL");
 }
 
 app.UseStaticFiles();
@@ -249,16 +241,16 @@ using (var scope = app.Services.CreateScope())
     {
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         await db.Database.MigrateAsync();
-        Console.WriteLine("✅ Database migrations completed");
+        Console.WriteLine("Database migrations completed");
     }
     catch (Exception ex)
     {
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "❌ Database setup failed");
+        logger.LogError(ex, "Database setup failed");
     }
 }
 
-Console.WriteLine("🚀 Starting CMC application on http://localhost:5000");
+Console.WriteLine($"Starting CMC application on {baseUrl}");
 
 app.Run();
 
