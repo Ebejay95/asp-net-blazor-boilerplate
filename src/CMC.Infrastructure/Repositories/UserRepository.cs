@@ -96,5 +96,15 @@ namespace CMC.Infrastructure.Repositories
             _context.Users.Remove(user);
             await _context.SaveChangesAsync(cancellationToken);
         }
+        // NEUE METHODE: Frische DB-Abfrage ohne EF Change Tracking Cache
+        public async Task<User?> GetByEmailFreshAsync(string email, CancellationToken cancellationToken = default)
+        {
+            // AsNoTracking() umgeht den EF Change Tracker Cache
+            // Reload() würde den Cache aktualisieren, aber AsNoTracking ist sauberer
+            return await _context.Users
+                .AsNoTracking() // Wichtig: Cache-Bypass
+                .Include(u => u.Customer)
+                .FirstOrDefaultAsync(u => u.Email == email, cancellationToken);
+        }
     }
 }

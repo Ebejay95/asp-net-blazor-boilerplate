@@ -114,6 +114,20 @@ else
             prop.GetCustomAttribute<TwoFASecretAttribute>() != null)
         {
             var twoFAAttr = prop.GetCustomAttribute<TwoFASecretAttribute>();
+
+            // Dynamic override handling
+            var issuer = ResolveOverrideValue($"{prop.Name}_Issuer") as string
+                ?? twoFAAttr?.Issuer
+                ?? "CMC App";
+
+            var accountName = ResolveOverrideValue($"{prop.Name}_AccountName") as string
+                ?? GetAccountNameForUser()
+                ?? "user@example.com";
+
+            var showSecret = ResolveOverrideValue($"{prop.Name}_ShowSecret") as bool?
+                ?? twoFAAttr?.ShowSecret
+                ?? false;
+
             return new FormFieldDescriptor(
                 Name: prop.Name,
                 Label: label,
@@ -125,9 +139,9 @@ else
                 Value: current,
                 Parameters: new()
                 {
-                    ["Issuer"] = twoFAAttr?.Issuer ?? "CMC App",
-                    ["AccountName"] = GetAccountNameForUser() ?? "user@example.com",
-                    ["ShowSecret"] = twoFAAttr?.ShowSecret ?? false
+                    ["Issuer"] = issuer,
+                    ["AccountName"] = accountName,
+                    ["ShowSecret"] = showSecret
                 }
             );
         }
@@ -288,9 +302,17 @@ else
         }
     }
 
-    // Hilfs-Methoden (gekürzt für Übersichtlichkeit)
+    // Hilfs-Methoden
     private object? ResolveCurrentValue(string name, object? modelValue)
         => (ValueOverrides != null && ValueOverrides.TryGetValue(name, out var v)) ? v : modelValue;
+
+    // Neue Hilfsmethode für dynamische Overrides
+    private object? ResolveOverrideValue(string key)
+    {
+        return ValueOverrides != null && ValueOverrides.TryGetValue(key, out var value)
+            ? value
+            : null;
+    }
 
     private static object? NormalizeKeys(object? value)
     {
@@ -357,11 +379,25 @@ else
             prop.GetCustomAttribute<TwoFASecretAttribute>() != null)
         {
             var twoFAAttr = prop.GetCustomAttribute<TwoFASecretAttribute>();
+
+            // Dynamic override handling
+            var issuer = ResolveOverrideValue($"{prop.Name}_Issuer") as string
+                ?? twoFAAttr?.Issuer
+                ?? "CMC App";
+
+            var accountName = ResolveOverrideValue($"{prop.Name}_AccountName") as string
+                ?? GetAccountNameForUser()
+                ?? "user@example.com";
+
+            var showSecret = ResolveOverrideValue($"{prop.Name}_ShowSecret") as bool?
+                ?? twoFAAttr?.ShowSecret
+                ?? false;
+
             return new Dictionary<string, object>
             {
-                ["Issuer"] = twoFAAttr?.Issuer ?? "CMC App",
-                ["AccountName"] = GetAccountNameForUser() ?? "user@example.com",
-                ["ShowSecret"] = twoFAAttr?.ShowSecret ?? false
+                ["Issuer"] = issuer,
+                ["AccountName"] = accountName,
+                ["ShowSecret"] = showSecret
             };
         }
 
@@ -438,9 +474,14 @@ else
         if (string.Equals(extra.DataType, "2fa-secret", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(extra.DataType, "qr-code", StringComparison.OrdinalIgnoreCase))
         {
-            parameters["Issuer"] = "CMC App";
-            parameters["AccountName"] = GetAccountNameForUser() ?? "user@example.com";
-            parameters["ShowSecret"] = false;
+            // Dynamic override handling für ExtraField
+            var issuer = ResolveOverrideValue($"{extra.Name}_Issuer") as string ?? "CMC App";
+            var accountName = ResolveOverrideValue($"{extra.Name}_AccountName") as string ?? GetAccountNameForUser() ?? "user@example.com";
+            var showSecret = ResolveOverrideValue($"{extra.Name}_ShowSecret") as bool? ?? false;
+
+            parameters["Issuer"] = issuer;
+            parameters["AccountName"] = accountName;
+            parameters["ShowSecret"] = showSecret;
         }
         else if (string.Equals(extra.DataType, "2fa-code", StringComparison.OrdinalIgnoreCase) ||
                  string.Equals(extra.DataType, "totp-code", StringComparison.OrdinalIgnoreCase))

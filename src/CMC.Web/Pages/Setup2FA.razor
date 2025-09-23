@@ -47,7 +47,7 @@
     private sealed class Setup2FAVm
     {
         [Display(Name="2FA Secret", Description="Scannen Sie den QR-Code mit Ihrer Authenticator-App oder geben Sie den Code manuell ein")]
-        [TwoFASecret(Issuer = "CMC App")]
+        [TwoFASecret(Issuer = "CMC App")] // Wird durch Override überschrieben
         public string? TwoFASecret { get; set; }
 
         [Display(Name="Bestätigungscode", Description="Geben Sie den 6-stelligen Code aus Ihrer App ein")]
@@ -99,11 +99,11 @@
         // Generate secret for 2FA Setup
         _setup2FAVm.TwoFASecret = UserService.GenerateTwoFASecret();
 
-        // Set account name for QR code - with dynamic label
+        // Set overrides to pass dynamic values to QRCodeField
         _overrides["TwoFASecret"] = _setup2FAVm.TwoFASecret;
-
-        // Update the TwoFASecret attribute with the dynamic issuer
-        UpdateTwoFASecretIssuer();
+        _overrides["TwoFASecret_Issuer"] = _appLabel;        // Dynamischer Issuer
+        _overrides["TwoFASecret_AccountName"] = _email;       // Email als Account Name
+        _overrides["TwoFASecret_ShowSecret"] = false;
     }
 
     private string GetAppLabel()
@@ -139,18 +139,6 @@
         return "CMC App";
     }
 
-    private void UpdateTwoFASecretIssuer()
-    {
-        // Update the display attribute dynamically
-        var property = typeof(Setup2FAVm).GetProperty(nameof(Setup2FAVm.TwoFASecret));
-        if (property != null)
-        {
-            // This is a bit complex to change at runtime, so we'll handle it in the attribute itself
-            // or pass it through overrides
-            _overrides["TwoFASecret_Issuer"] = _appLabel;
-        }
-    }
-
     private void OnSetup2FAFieldChanged((string Name, object? Value) change)
     {
         var prop = typeof(Setup2FAVm).GetProperty(change.Name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
@@ -180,7 +168,7 @@
                 return;
             }
 
-            // Call API endpoint - GEÄNDERT zu relativem Pfad
+            // Call API endpoint
             var response = await Http.PostAsJsonAsync("api/auth/setup-2fa", new
             {
                 Email = _email,
@@ -230,7 +218,7 @@
         {
             Logger.LogInformation("User skipped 2FA setup: {Email}", _email);
 
-            // Call complete-login endpoint to set cookies - GEÄNDERT zu relativem Pfad
+            // Call complete-login endpoint to set cookies
             var response = await Http.PostAsJsonAsync("api/auth/complete-login", new
             {
                 Email = _email,
