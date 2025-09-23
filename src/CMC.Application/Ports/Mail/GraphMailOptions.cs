@@ -1,20 +1,20 @@
-namespace CMC.Application.Ports.Mail;
+using System.ComponentModel.DataAnnotations;
+
+namespace CMC.Infrastructure.Services;
 
 public sealed class GraphMailOptions
 {
-    public string? TenantId { get; set; }
-    public string? ClientId { get; set; }
-    public string? ClientSecret { get; set; }
+    [Required] public string TenantId { get; set; } = string.Empty;
+    [Required] public string ClientId { get; set; } = string.Empty;
+    [Required] public string ClientSecret { get; set; } = string.Empty;
 
-    /// <summary>
-    /// UPN oder GUID des Absender-Postfachs (z. B. shared mailbox).
-    /// Wird für /users/{id|upn}/sendMail verwendet.
-    /// </summary>
-    public string? FromUser { get; set; }
+    /// <summary>Graph Identity, z.B. UPN oder GUID des Senders (UserId).</summary>
+    [Required] public string FromUser { get; set; } = string.Empty;
 
-    public string? PublicBaseUrl { get; set; }
-
-    // Nur Anzeigezwecke in Templates (optional)
-    public string? FromEmail { get; set; }
+    /// <summary>Anzeigename/ReplyTo (optional).</summary>
     public string? FromName  { get; set; }
+    public string? FromEmail { get; set; }
+
+    /// <summary>Basis-URL für Links in Mails (z.B. https://cmc.audicius.de)</summary>
+    public string? PublicBaseUrl { get; set; }
 }

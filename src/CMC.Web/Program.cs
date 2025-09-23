@@ -1,4 +1,3 @@
-// src/CMC.Web/Program.cs
 using CMC.Infrastructure;
 using CMC.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -17,39 +16,60 @@ using CMC.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// --- DEV: Kestrel:Endpoints aus der Konfiguration neutralisieren + Ports fest auf 5000/5001 ---
-if (builder.Environment.IsDevelopment())
+// DEV: weniger strikt validieren
+builder.Host.UseDefaultServiceProvider(options =>
 {
-    var killKestrel = new Dictionary<string, string?>
-    {
-        ["Kestrel:Endpoints:Http:Url"] = null,
-        ["Kestrel:Endpoints:Https:Url"] = null,
-        ["Kestrel:Endpoints:Https:Certificate:Path"] = null,
-        ["Kestrel:Endpoints:Https:Certificate:Password"] = null
-    };
-    builder.Configuration.AddInMemoryCollection(killKestrel);
+    options.ValidateScopes = true;
+    options.ValidateOnBuild = !builder.Environment.IsDevelopment();
+});
 
-    // URLs aus Env ignorieren
-    Environment.SetEnvironmentVariable("ASPNETCORE_URLS", null);
+// Public Base URL aus Env oder Configuration bestimmen
+var publicBaseUrl = Environment.GetEnvironmentVariable("APP_PUBLIC_BASE_URL");
+var baseUrl = publicBaseUrl ?? "http://localhost:5000";
 
-    builder.WebHost.ConfigureKestrel(o =>
+if (!string.IsNullOrWhiteSpace(publicBaseUrl))
+{
+    builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
     {
-        o.ListenLocalhost(5000); // HTTP
-        try { o.ListenLocalhost(5001, lo => lo.UseHttps()); } catch { /* kein dev cert -> ok */ }
+        ["GraphMail:PublicBaseUrl"] = publicBaseUrl,
+        ["BaseUrl"] = publicBaseUrl
     });
+    Console.WriteLine($"Public BaseUrl set from env: {publicBaseUrl}");
 }
 
-// HttpClient
+// WebHost URLs konfigurieren
 if (builder.Environment.IsDevelopment())
 {
-    builder.Services.AddHttpClient("default", c => c.Timeout = TimeSpan.FromSeconds(30))
-        .ConfigurePrimaryHttpMessageHandler(() =>
-            new HttpClientHandler { ServerCertificateCustomValidationCallback = (_, __, ___, ____) => true });
+    builder.WebHost.UseUrls("http://localhost:5000");
 }
-else
+
+Console.WriteLine($"HttpClient BaseAddress: {baseUrl}");
+
+// Session Support für 2FA Flow
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSession(options =>
 {
-    builder.Services.AddHttpClient("default", c => c.Timeout = TimeSpan.FromSeconds(30));
-}
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+    options.IdleTimeout = TimeSpan.FromMinutes(20);
+    options.Cookie.Name = "CMC_Session";
+});
+
+// Named HttpClient für API-Calls
+builder.Services.AddHttpClient("api", client =>
+{
+    client.BaseAddress = new Uri(baseUrl);
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
+
+// Standard HttpClient für Blazor Components (mit korrekter BaseAddress)
+builder.Services.AddScoped<HttpClient>(sp =>
+{
+    var factory = sp.GetRequiredService<IHttpClientFactory>();
+    var client = factory.CreateClient("api");
+    return client;
+});
 
 // UI / Framework
 builder.Services.AddRazorPages();
@@ -62,12 +82,39 @@ builder.Services.AddSignalR(o =>
     o.HandshakeTimeout = TimeSpan.FromSeconds(30);
 });
 
+// AUTH
+builder.Services.AddScoped<CookieEvents>();
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.Cookie.Name = "CMC_Auth";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+        options.ExpireTimeSpan = TimeSpan.FromDays(30);
+        options.SlidingExpiration = true;
+        options.Cookie.MaxAge = TimeSpan.FromDays(30);
+        options.Cookie.Path = "/";
+        options.Cookie.IsEssential = true;
+        options.LoginPath = "/login";
+        options.LogoutPath = "/api/auth/logout";
+        options.AccessDeniedPath = "/login";
+        options.EventsType = typeof(CookieEvents);
+    });
+builder.Services.AddAuthorization();
+builder.Services.AddCascadingAuthenticationState();
+builder.Services.AddHttpContextAccessor();
+
+// Infrastruktur/Repos/DbContext
+builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddRevisionsSupport();
+builder.Services.AddScoped<DbContext>(sp => sp.GetRequiredService<AppDbContext>());
+
 // App-Services (DI)
 builder.Services.AddScoped<DialogService>();
 builder.Services.AddScoped<RelationDialogService>();
 builder.Services.AddScoped<EFEditService>();
 
-// Bridge für @inject DbContext Db
 builder.Services.AddScoped<IRelationshipManager, RelationshipManager<AppDbContext>>();
 builder.Services.AddScoped<IBumperBus, BumperBus>();
 
@@ -93,41 +140,12 @@ builder.Services.AddScoped<IndustryService>();
 builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<INotificationPush, SignalRNotificationPush>();
 
-// ✅ Mail: aus Env/K8s-Secrets + SMTP Service registrieren (einziger Aufruf)
+// Mail (Graph + Templates)
 builder.Services.AddGraphMailServices(builder.Configuration);
-
-// Auth
-builder.Services.AddScoped<CookieEvents>();
-builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-    .AddCookie(options =>
-    {
-        options.Cookie.Name = "CMC_Auth";
-        options.Cookie.HttpOnly = true;
-        options.Cookie.SameSite = SameSiteMode.Lax;
-        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-        options.ExpireTimeSpan = TimeSpan.FromDays(30);
-        options.SlidingExpiration = true;
-        options.Cookie.MaxAge = TimeSpan.FromDays(30);
-        options.Cookie.Path = "/";
-        options.Cookie.IsEssential = true;
-        options.LoginPath = "/login";
-        options.LogoutPath = "/api/auth/logout";
-        options.AccessDeniedPath = "/login";
-        options.EventsType = typeof(CookieEvents);
-    });
-
-builder.Services.AddAuthorization();
-builder.Services.AddCascadingAuthenticationState();
-builder.Services.AddHttpContextAccessor();
-
-// Infrastruktur (DbContext usw.)
-builder.Services.AddInfrastructure(builder.Configuration);
-builder.Services.AddRevisionsSupport();
-builder.Services.AddScoped<DbContext>(sp => sp.GetRequiredService<AppDbContext>());
 
 var app = builder.Build();
 
-// --- Seed-only Modus: führt Seeding aus und beendet den Prozess ---
+// Seed-only Modus
 if (args.Any(a => string.Equals(a, "seed-master-user", StringComparison.OrdinalIgnoreCase)))
 {
     Console.WriteLine("[seed] Running master-user seeder…");
@@ -192,17 +210,21 @@ app.UseForwardedHeaders(fwd);
 if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
-    Console.WriteLine("🔧 Dev: Kestrel bindet auf http://localhost:5000 und (falls Zertifikat) https://localhost:5001.");
+    Console.WriteLine("Dev: Kestrel bindet auf http://localhost:5000");
 }
 else
 {
     app.UseExceptionHandler("/Error");
     app.UseHsts();
-    Console.WriteLine("🏭 Prod/Test: Kestrel/URLs kommen aus Config/Env (z. B. http://0.0.0.0:8080 hinter Ingress).");
+    Console.WriteLine("Prod: Kestrel auf konfigurierter URL");
 }
 
 app.UseStaticFiles();
 app.UseRouting();
+
+// Session BEFORE Auth
+app.UseSession();
+
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -219,17 +241,16 @@ using (var scope = app.Services.CreateScope())
     {
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         await db.Database.MigrateAsync();
-        Console.WriteLine("✅ Database migrations completed");
+        Console.WriteLine("Database migrations completed");
     }
     catch (Exception ex)
     {
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "❌ Database setup failed");
+        logger.LogError(ex, "Database setup failed");
     }
 }
 
-Console.WriteLine("🚀 Starting CMC application...");
-Console.WriteLine("   📡 URLs kommen aus Kestrel-Endpunkten (Production: http://0.0.0.0:8080) oder ASPNETCORE_URLS.");
+Console.WriteLine($"Starting CMC application on {baseUrl}");
 
 app.Run();
 

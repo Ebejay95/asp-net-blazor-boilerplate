@@ -3,6 +3,7 @@ using System;
 using CMC.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CMC.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250919210308_AddNotifications")]
+    partial class AddNotifications
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1117,8 +1120,7 @@ namespace CMC.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("PasswordResetToken")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                        .HasColumnType("text");
 
                     b.Property<DateTimeOffset?>("PasswordResetTokenExpiry")
                         .HasColumnType("timestamp with time zone");
@@ -1128,39 +1130,13 @@ namespace CMC.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<string>("TwoFABackupCodes")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)")
-                        .HasComment("Comma-separated backup codes for 2FA recovery");
-
-                    b.Property<DateTimeOffset?>("TwoFAEnabledAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasComment("Timestamp when 2FA was first enabled");
-
-                    b.Property<string>("TwoFASecret")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasComment("Base32-encoded TOTP secret for two-factor authentication");
-
                     b.HasKey("Id");
-
-                    b.HasIndex("CreatedAt")
-                        .HasDatabaseName("IX_Users_CreatedAt");
 
                     b.HasIndex("CustomerId")
                         .HasDatabaseName("IX_Users_CustomerId");
 
                     b.HasIndex("Email")
                         .IsUnique();
-
-                    b.HasIndex("LastLoginAt")
-                        .HasDatabaseName("IX_Users_LastLoginAt");
-
-                    b.HasIndex("PasswordResetToken")
-                        .HasDatabaseName("IX_Users_PasswordResetToken");
-
-                    b.HasIndex("TwoFASecret")
-                        .HasDatabaseName("IX_Users_TwoFASecret");
 
                     b.ToTable("Users");
                 });

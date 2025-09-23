@@ -53,6 +53,7 @@ public static class DependencyInjection
         services.AddScoped<FrameworkService>();
         services.AddScoped<IndustryService>();
         services.AddScoped<TagService>();
+        services.AddScoped<NotificationService>(); // NEU hinzugefügt
 
         return services;
     }

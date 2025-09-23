@@ -1,9 +1,17 @@
-using System.Threading;
+// CMC.Application.Ports/IEmailService.cs
+using System.Collections.Generic;
 using System.Threading.Tasks;
+using CMC.Application.Ports.Mail;
 
 namespace CMC.Application.Ports;
 
 public interface IEmailService
 {
-    Task SendPasswordResetEmailAsync(string email, string resetToken, CancellationToken cancellationToken = default);
+    Task SendEmailAsync(
+        string email,
+        string subject,
+        string text,
+        IReadOnlyList<EmailButton> buttons,
+        string? baseUrl = null
+    );
 }

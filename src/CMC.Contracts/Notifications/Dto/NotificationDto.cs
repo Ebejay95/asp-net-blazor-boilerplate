@@ -1,11 +1,10 @@
-
-namespace CMC.Contracts.Notifications.Dtos;
+namespace CMC.Contracts.Notifications;
 
 public record NotificationDto(
     Guid Id,
     string Title,
     string Message,
     string Severity,
-    string Status,
-    DateTimeOffset CreatedAt
+    DateTimeOffset CreatedAt,
+    bool IsRead
 );

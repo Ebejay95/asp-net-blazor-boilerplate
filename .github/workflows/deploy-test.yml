@@ -153,6 +153,7 @@ jobs:
           HASH=$(node -e "const b=require('bcryptjs');console.log(b.hashSync(process.env.MASTER_PW, 12));")
           echo "HASH=$HASH" >> "$GITHUB_OUTPUT"
 
+
       - name: Create/Update master-user secret (email+bcrypt hash)
         shell: bash
         env:
@@ -165,30 +166,6 @@ jobs:
             --from-literal=email="${MASTER_MAIL}" \
             --from-literal=passwordHash="${MASTER_PWHASH}" \
             --dry-run=client -o yaml | kubectl apply -f -
-
-      # >>> NEW: Mail-Secret als 'cmc-mail' anlegen/aktualisieren (test) <<<
-      - name: Create/Update mail settings secret (cmc-mail, Graph - test)
-        shell: bash
-        env:
-          GRAPH_TENANT_ID:     ${{ secrets.GRAPH_TENANT_ID }}
-          GRAPH_CLIENT_ID:     ${{ secrets.GRAPH_CLIENT_ID }}
-          GRAPH_CLIENT_SECRET: ${{ secrets.GRAPH_CLIENT_SECRET }}
-          GRAPH_FROM_USER:     ${{ secrets.GRAPH_FROM_USER }}
-          MAIL_FROM:           ${{ secrets.MAIL_FROM }}
-          MAIL_FROM_NAME:      ${{ secrets.MAIL_FROM_NAME }}
-          PUBLIC_BASE_URL:     ${{ secrets.PUBLIC_BASE_URL }}
-        run: |
-          set -euo pipefail
-          kubectl -n cmc-test create secret generic cmc-mail \
-            --from-literal=GRAPH_TENANT_ID="${GRAPH_TENANT_ID}" \
-            --from-literal=GRAPH_CLIENT_ID="${GRAPH_CLIENT_ID}" \
-            --from-literal=GRAPH_CLIENT_SECRET="${GRAPH_CLIENT_SECRET:-}" \
-            --from-literal=GRAPH_FROM_USER="${GRAPH_FROM_USER}" \
-            --from-literal=MAIL_FROM="${MAIL_FROM:-}" \
-            --from-literal=MAIL_FROM_NAME="${MAIL_FROM_NAME:-}" \
-            --from-literal=PUBLIC_BASE_URL="${PUBLIC_BASE_URL:-}" \
-            --dry-run=client -o yaml | kubectl apply -f -
-
 
       - name: Replace image name in test manifests
         run: |
@@ -226,7 +203,7 @@ jobs:
             kubectl -n cmc-test rollout status statefulset/postgres --timeout=600s || POSTGRES_ROLLOUT_FAILED=1
           fi
           kubectl -n cmc-test rollout status deploy/cmc-app --timeout=600s || APP_ROLLOUT_FAILED=1
-          if [ "${POSTGRES_ROLLOUT_FAILED:-0}" = "1" ] || [ "${APP_ROLOUT_FAILED:-0}" = "1" ]; then
+          if [ "${POSTGRES_ROLLOUT_FAILED:-0}" = "1" ] || [ "${APP_ROLLOUT_FAILED:-0}" = "1" ]; then
             kubectl -n cmc-test get pods -o wide || true
             kubectl -n cmc-test get events --sort-by=.lastTimestamp | tail -n 100 || true
             kubectl -n cmc-test describe deploy/cmc-app || true
@@ -242,8 +219,10 @@ jobs:
           kubectl apply -f k8s/test/seed-master-user.yaml
 
           echo "=== Streaming seed job logs (live) ==="
+          # Logs streamen, beendet wenn Pod endet:
           ( kubectl -n cmc-test logs -f job/seed-master-user --all-containers || true ) &
 
+          # Warten auf Abschluss (erfolgreich oder fehlerhaft)
           kubectl -n cmc-test wait --for=condition=complete job/seed-master-user --timeout=480s || true
           kubectl -n cmc-test wait --for=condition=failed   job/seed-master-user --timeout=10s  || true
 
@@ -259,6 +238,7 @@ jobs:
             kubectl -n cmc-test logs "$POD" --all-containers --tail=1000 || true
           fi
 
+          # Exit status: success wenn Job complete ist
           if kubectl -n cmc-test get job seed-master-user -o jsonpath='{.status.succeeded}' 2>/dev/null | grep -q '^1$'; then
             exit 0
           else

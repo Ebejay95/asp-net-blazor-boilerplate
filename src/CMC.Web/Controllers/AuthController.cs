@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Caching.Memory;
 using System.Security.Claims;
 using CMC.Application.Services;
 using CMC.Contracts.Users;
@@ -14,39 +15,223 @@ namespace CMC.Web.Controllers
     {
         private readonly UserService _userService;
         private readonly ILogger<AuthController> _logger;
+        private readonly IMemoryCache _cache;
 
-        public AuthController(UserService userService, ILogger<AuthController> logger)
+        public AuthController(UserService userService, ILogger<AuthController> logger, IMemoryCache cache)
         {
             _userService = userService;
             _logger = logger;
+            _cache = cache;
         }
 
+        // =========================
+        // LOGIN (Blazor postet JSON)
+        // =========================
         [HttpPost("login")]
-        public async Task<IActionResult> Login([FromBody] LoginRequest request)
+        public async Task<IActionResult> Login([FromBody] LoginRequest req)
         {
+            if (req is null) return BadRequest(new { success = false, message = "Missing payload" });
+
             try
             {
-                _logger.LogInformation("🔐 API Login attempt for: {Email}", request.Email);
+                _logger.LogInformation("API Login attempt for: {Email}", req.Email);
 
-                var user = await _userService.LoginAsync(request);
+                var user = await _userService.LoginAsync(req);
                 if (user is null)
                 {
-                    _logger.LogWarning("❌ API Login failed for: {Email}", request.Email);
-                    return Unauthorized(new { message = "Invalid email or password" });
+                    _logger.LogWarning("API Login failed for: {Email}", req.Email);
+                    return Unauthorized(new { success = false, message = "Invalid email or password" });
                 }
 
-                await SetAuthenticationCookie(user);
+                var has2FA = !string.IsNullOrWhiteSpace(user.TwoFASecret);
 
-                _logger.LogInformation("✅ API Login successful for: {Email}", request.Email);
-                return Ok(new { message = "Login successful", user });
+                // TX erzeugen -> Browser GET /continue setzt Session + redirect zu verify/setup
+                var tx = CreateTx(new TxPayload
+                {
+                    Email = user.Email,
+                    UserId = user.Id,
+                    Has2FA = has2FA
+                });
+
+                var continueUrl = $"/api/auth/continue?tx={Uri.EscapeDataString(tx)}";
+
+                return Ok(new
+                {
+                    success = true,
+                    requires2FA = has2FA,
+                    requiresSetup = !has2FA,
+                    message = has2FA ? "2FA verification required" : "Login successful - 2FA setup recommended",
+                    redirectUrl = continueUrl
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ API Login error for: {Email}", request.Email);
-                return StatusCode(500, new { message = "An error occurred during login" });
+                _logger.LogError(ex, "API Login error for: {Email}", req?.Email);
+                return StatusCode(500, new { success = false, message = "An error occurred during login" });
             }
         }
 
+        // ==========================================================
+        // CONTINUE (Browser ruft GET -> Session wird im Browser gesetzt)
+        // ==========================================================
+        [HttpGet("continue")]
+        public IActionResult Continue([FromQuery] string tx)
+        {
+            if (!TryTakeTx(tx, out var payload))
+                return Redirect("/login?error=session");
+
+            // WICHTIG: jetzt im Browser-Kontext – Session gehört dem Browser
+            HttpContext.Session.SetString("PendingLogin:Email", payload.Email);
+            HttpContext.Session.SetString("PendingLogin:UserId", payload.UserId.ToString());
+
+            var next = payload.Has2FA
+                ? $"/verify-2fa?email={Uri.EscapeDataString(payload.Email)}"
+                : $"/setup-2fa?email={Uri.EscapeDataString(payload.Email)}";
+
+            _logger.LogInformation("Continue TX for {Email} -> {Next}", payload.Email, next);
+            return Redirect(next);
+        }
+
+        // =========================
+        // VERIFY 2FA (Blazor postet)
+        // =========================
+        [HttpPost("verify-2fa")]
+        public async Task<IActionResult> Verify2FA([FromBody] Verify2FARequest req)
+        {
+            if (req is null) return BadRequest(new { success = false, message = "Missing payload" });
+
+            try
+            {
+                _logger.LogInformation("2FA verification attempt for: {Email}", req.Email);
+
+                var user = await _userService.GetByEmailAsync(req.Email);
+                if (user is null) return Unauthorized(new { success = false, message = "User not found" });
+                if (string.IsNullOrWhiteSpace(user.TwoFASecret))
+                    return BadRequest(new { success = false, message = "2FA not configured for this user" });
+
+                var ok = await _userService.VerifyTOTPCodeAsync(user.TwoFASecret, req.Code);
+                if (!ok)
+                {
+                    _logger.LogWarning("2FA verification failed for: {Email}", req.Email);
+                    return Unauthorized(new { success = false, message = "Invalid 2FA code" });
+                }
+
+                // Erfolg -> TX erzeugen, Finalize über Browser-GET setzt Auth-Cookie
+                var tx = CreateTx(new TxPayload
+                {
+                    Email = user.Email,
+                    UserId = user.Id,
+                    FinalizeSignIn = true
+                });
+
+                var finalizeUrl = $"/api/auth/finalize?tx={Uri.EscapeDataString(tx)}";
+                return Ok(new { success = true, message = "2FA verification successful", redirectUrl = finalizeUrl });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "2FA verification error for: {Email}", req?.Email);
+                return StatusCode(500, new { success = false, message = "An error occurred during 2FA verification" });
+            }
+        }
+
+        // =========================
+        // SETUP 2FA (Blazor postet)
+        // =========================
+        [HttpPost("setup-2fa")]
+        public async Task<IActionResult> Setup2FA([FromBody] Setup2FARequest req)
+        {
+            if (req is null) return BadRequest(new { success = false, message = "Missing payload" });
+
+            try
+            {
+                _logger.LogInformation("2FA setup attempt for: {Email}", req.Email);
+
+                var user = await _userService.GetByEmailAsync(req.Email);
+                if (user is null) return Unauthorized(new { success = false, message = "User not found" });
+
+                var isValid = await _userService.VerifyTOTPCodeAsync(req.Secret, req.ConfirmationCode);
+                if (!isValid)
+                {
+                    _logger.LogWarning("2FA setup invalid code for: {Email}", req.Email);
+                    return BadRequest(new { success = false, message = "Invalid confirmation code" });
+                }
+
+                var success = await _userService.EnableTwoFAAsync(user.Id, req.Secret, req.ConfirmationCode);
+                if (!success) return BadRequest(new { success = false, message = "Failed to enable 2FA" });
+
+                var tx = CreateTx(new TxPayload
+                {
+                    Email = user.Email,
+                    UserId = user.Id,
+                    FinalizeSignIn = true
+                });
+
+                var finalizeUrl = $"/api/auth/finalize?tx={Uri.EscapeDataString(tx)}";
+                return Ok(new { success = true, message = "2FA setup successful", redirectUrl = finalizeUrl });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "2FA setup error for: {Email}", req?.Email);
+                return StatusCode(500, new { success = false, message = "An error occurred during 2FA setup" });
+            }
+        }
+
+        // ==========================================================
+        // FINALIZE (Browser ruft GET -> Auth-Cookie wird im Browser gesetzt)
+        // ==========================================================
+        [HttpGet("finalize")]
+        public async Task<IActionResult> Finalize([FromQuery] string tx)
+        {
+            if (!TryTakeTx(tx, out var payload) || !payload.FinalizeSignIn)
+                return Redirect("/login?error=session");
+
+            var user = await _userService.GetByIdAsync(payload.UserId);
+            if (user is null) return Redirect("/login?error=user");
+
+            await SetAuthenticationCookie(user);
+
+            // evtl. alte Pending-Keys aufräumen
+            HttpContext.Session.Remove("PendingLogin:Email");
+            HttpContext.Session.Remove("PendingLogin:UserId");
+
+            _logger.LogInformation("Finalize sign-in for {Email} -> /", payload.Email);
+            return Redirect("/");
+        }
+
+        // =========================
+        // COMPLETE LOGIN (Skip Setup)
+        // =========================
+        [HttpPost("complete-login")]
+        public async Task<IActionResult> CompleteLogin([FromBody] CompleteLoginRequest req)
+        {
+            var email = req?.Email ?? "";
+            try
+            {
+                _logger.LogInformation("Complete login attempt for: {Email}", email);
+
+                var user = await _userService.GetByEmailAsync(email);
+                if (user is null) return Unauthorized(new { success = false, message = "User not found" });
+
+                var tx = CreateTx(new TxPayload
+                {
+                    Email = user.Email,
+                    UserId = user.Id,
+                    FinalizeSignIn = true
+                });
+
+                var finalizeUrl = $"/api/auth/finalize?tx={Uri.EscapeDataString(tx)}";
+                return Ok(new { success = true, message = "Login completed successfully", redirectUrl = finalizeUrl });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Complete login error for: {Email}", email);
+                return StatusCode(500, new { success = false, message = "An error occurred completing login" });
+            }
+        }
+
+        // =========
+        // LOGOUT
+        // =========
         [HttpPost("logout")]
         [HttpGet("logout")]
         public async Task<IActionResult> Logout()
@@ -54,16 +239,20 @@ namespace CMC.Web.Controllers
             try
             {
                 await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                _logger.LogInformation("✅ API Logout successful");
+                HttpContext.Session.Clear();
+                _logger.LogInformation("API Logout successful");
                 return Redirect("/login");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ API Logout error");
-                return StatusCode(500, new { message = "Logout failed" });
+                _logger.LogError(ex, "API Logout error");
+                return StatusCode(500, new { success = false, message = "Logout failed" });
             }
         }
 
+        // =========================
+        // CURRENT USER (geschützt)
+        // =========================
         [HttpGet("user")]
         [Authorize]
         public async Task<IActionResult> GetCurrentUser()
@@ -89,6 +278,73 @@ namespace CMC.Web.Controllers
             }
         }
 
+        // =========================
+        // DISABLE 2FA (optional)
+        // =========================
+        [HttpPost("disable-2fa")]
+        [Authorize]
+        public async Task<IActionResult> Disable2FA([FromBody] Disable2FARequest req)
+        {
+            try
+            {
+                var userIdClaim = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!Guid.TryParse(userIdClaim, out var userId)) return Unauthorized();
+
+                var user = await _userService.GetByIdAsync(userId);
+                if (user is null) return NotFound();
+
+                var isValid = false;
+                if (!string.IsNullOrWhiteSpace(req?.CurrentCode) && !string.IsNullOrWhiteSpace(user.TwoFASecret))
+                {
+                    isValid = await _userService.VerifyTOTPCodeAsync(user.TwoFASecret, req.CurrentCode);
+                }
+
+                if (!isValid) return BadRequest(new { success = false, message = "Invalid verification code" });
+
+                await _userService.UpdateTwoFASecretAsync(userId, null);
+                _logger.LogInformation("2FA disabled for user: {UserId}", userId);
+                return Ok(new { success = true, message = "2FA has been disabled" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error disabling 2FA");
+                return StatusCode(500, new { success = false, message = "An error occurred" });
+            }
+        }
+
+        // =========================
+        // Helpers
+        // =========================
+        private record TxPayload
+        {
+            public string Email { get; init; } = "";
+            public Guid UserId { get; init; }
+            public bool Has2FA { get; init; }
+            public bool FinalizeSignIn { get; init; }
+        }
+
+        private string CreateTx(TxPayload payload)
+        {
+            var key = "auth:tx:" + Guid.NewGuid().ToString("N");
+            _cache.Set(key, payload, new MemoryCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5)
+            });
+            return key;
+        }
+
+        private bool TryTakeTx(string key, out TxPayload payload)
+        {
+            if (_cache.TryGetValue(key, out TxPayload? p) && p is not null)
+            {
+                payload = p;
+                _cache.Remove(key);
+                return true;
+            }
+            payload = default!;
+            return false;
+        }
+
         private async Task SetAuthenticationCookie(UserDto user)
         {
             try
@@ -99,15 +355,15 @@ namespace CMC.Web.Controllers
                     new(ClaimTypes.Name, user.Email),
                     new(ClaimTypes.Email, user.Email),
                     new(ClaimTypes.GivenName, user.FirstName ?? string.Empty),
-                    new(ClaimTypes.Surname, user.LastName ?? string.Empty)
+                    new(ClaimTypes.Surname, user.LastName ?? string.Empty),
+                    new("TwoFAEnabled", (!string.IsNullOrWhiteSpace(user.TwoFASecret)).ToString())
                 };
 
-                // 🔑 Rolle ins Cookie (ohne dem Cookie „zu vertrauen“ – es ist serverseitig signiert).
                 var role = (user.Role ?? string.Empty).Trim();
                 if (!string.IsNullOrWhiteSpace(role))
                 {
-                    claims.Add(new Claim(ClaimTypes.Role, role));                    // z.B. "Super-Admin" oder "User"
-                    claims.Add(new Claim(ClaimTypes.Role, role.ToLowerInvariant())); // tolerant für Vergleiche
+                    claims.Add(new Claim(ClaimTypes.Role, role));
+                    claims.Add(new Claim(ClaimTypes.Role, role.ToLowerInvariant()));
                 }
 
                 var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
@@ -124,15 +380,42 @@ namespace CMC.Web.Controllers
                     authProps
                 );
 
-                _logger.LogInformation("✅ Auth cookie set for {Email}. Claims: {Claims}",
+                _logger.LogInformation("Auth cookie set for {Email}. Claims: {Claims}",
                     user.Email,
                     string.Join(", ", claims.Select(c => $"{c.Type}={c.Value}")));
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ Error setting authentication cookie");
+                _logger.LogError(ex, "Error setting authentication cookie");
                 throw;
             }
         }
+    }
+
+    // =========================
+    // Request DTOs (kompatibel zu deinen Pages)
+    // =========================
+    public class Verify2FARequest
+    {
+        public string Email { get; set; } = "";
+        public string Code { get; set; } = "";
+    }
+
+    public class Setup2FARequest
+    {
+        public string Email { get; set; } = "";
+        public string Secret { get; set; } = "";
+        public string ConfirmationCode { get; set; } = "";
+    }
+
+    public class CompleteLoginRequest
+    {
+        public string Email { get; set; } = "";
+        public bool TwoFAVerified { get; set; }
+    }
+
+    public class Disable2FARequest
+    {
+        public string CurrentCode { get; set; } = "";
     }
 }

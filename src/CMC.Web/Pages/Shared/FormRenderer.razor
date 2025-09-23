@@ -8,12 +8,50 @@
 @using CMC.Web.Pages.FormFields.Types
 @using CMC.Contracts.Common
 
-<div class="form-grid">
-    @foreach (var field in GetFormFields())
-    {
-        @RenderFormField(field)
-    }
-</div>
+@if (EnableFormSubmit)
+{
+    <form @onsubmit="HandleFormSubmit" @onsubmit:preventDefault="true" @onkeydown="HandleKeyDown">
+        <div class="form-grid">
+            @foreach (var field in GetFormFields())
+            {
+                @RenderFormField(field)
+            }
+        </div>
+
+        @if (ShowSubmitButton)
+        {
+            <div class="form-actions mt-4">
+                <button type="submit" class="btn @SubmitButtonClass" disabled="@IsSubmitDisabled">
+                    @if (IsSubmitDisabled && ShowLoadingSpinner)
+                    {
+                        <span class="spinner-border spinner-border-sm" role="status"></span>
+                        <span> @LoadingText</span>
+                    }
+                    else
+                    {
+                        <span>@SubmitButtonText</span>
+                    }
+                </button>
+
+                @if (ShowCancelButton)
+                {
+                    <button type="button" class="btn @CancelButtonClass ms-2" @onclick="HandleCancel" disabled="@IsSubmitDisabled">
+                        @CancelButtonText
+                    </button>
+                }
+            </div>
+        }
+    </form>
+}
+else
+{
+    <div class="form-grid" @onkeydown="HandleKeyDown">
+        @foreach (var field in GetFormFields())
+        {
+            @RenderFormField(field)
+        }
+    </div>
+}
 
 @code {
     [Parameter] public object? Model { get; set; }
@@ -21,9 +59,28 @@
     [Parameter] public EventCallback<(string Name, object? Value)> OnFieldChanged { get; set; }
     [Parameter] public EFEditRequest Request { get; set; } = default!;
     [Parameter] public IDictionary<string, object?>? ValueOverrides { get; set; }
-
-    // optional: Validierungsfehler (vom EFEdit übergeben)
     [Parameter] public IReadOnlyDictionary<string, string[]>? ValidationErrors { get; set; }
+
+    // Submit-Parameter
+    [Parameter] public bool EnableFormSubmit { get; set; } = false;
+    [Parameter] public EventCallback OnSubmit { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    // Button-Konfiguration
+    [Parameter] public bool ShowSubmitButton { get; set; } = true;
+    [Parameter] public bool ShowCancelButton { get; set; } = false;
+    [Parameter] public string SubmitButtonText { get; set; } = "Submit";
+    [Parameter] public string CancelButtonText { get; set; } = "Cancel";
+    [Parameter] public string SubmitButtonClass { get; set; } = "primary";
+    [Parameter] public string CancelButtonClass { get; set; } = "secondary";
+
+    // Loading-State
+    [Parameter] public bool IsSubmitDisabled { get; set; } = false;
+    [Parameter] public bool ShowLoadingSpinner { get; set; } = true;
+    [Parameter] public string LoadingText { get; set; } = "Processing...";
+
+    // Enter-Key Handling
+    [Parameter] public bool EnableEnterSubmit { get; set; } = true;
 
     private List<FormFieldDescriptor> GetFormFields()
     {
@@ -51,7 +108,48 @@
         var readOnly = prop.GetCustomAttribute<EditorHiddenAttribute>() != null;
         var required = IsRequired(prop);
 
-        // --- 1) Attribut-basierte Relation ---
+        // 2FA Felder
+        if (prop.Name.Contains("TwoFASecret", StringComparison.OrdinalIgnoreCase) ||
+            prop.Name.Contains("AuthenticatorSecret", StringComparison.OrdinalIgnoreCase) ||
+            prop.GetCustomAttribute<TwoFASecretAttribute>() != null)
+        {
+            var twoFAAttr = prop.GetCustomAttribute<TwoFASecretAttribute>();
+            return new FormFieldDescriptor(
+                Name: prop.Name,
+                Label: label,
+                FieldType: typeof(QRCodeField),
+                ValueType: prop.PropertyType,
+                ReadOnly: readOnly,
+                Required: required,
+                Hint: hint,
+                Value: current,
+                Parameters: new()
+                {
+                    ["Issuer"] = twoFAAttr?.Issuer ?? "CMC App",
+                    ["AccountName"] = GetAccountNameForUser() ?? "user@example.com",
+                    ["ShowSecret"] = twoFAAttr?.ShowSecret ?? false
+                }
+            );
+        }
+
+        if (prop.Name.Contains("TwoFACode", StringComparison.OrdinalIgnoreCase) ||
+            prop.Name.Contains("AuthenticatorCode", StringComparison.OrdinalIgnoreCase) ||
+            prop.GetCustomAttribute<TwoFACodeAttribute>() != null)
+        {
+            return new FormFieldDescriptor(
+                Name: prop.Name,
+                Label: label,
+                FieldType: typeof(TwoFAInputField),
+                ValueType: prop.PropertyType,
+                ReadOnly: readOnly,
+                Required: required,
+                Hint: hint,
+                Value: current,
+                Parameters: new()
+            );
+        }
+
+        // Attribut-basierte Relation
         var relAttr = prop.GetCustomAttribute<RelationFromAttribute>();
         if (relAttr != null && Request.EfParentType != null)
         {
@@ -78,7 +176,7 @@
             );
         }
 
-        // --- 2) Heuristik: *Ids => Many-to-Many Checkboxen ---
+        // Heuristik: *Ids => Many-to-Many Checkboxen
         if (Request.EfParentType != null &&
             typeof(System.Collections.IEnumerable).IsAssignableFrom(pType) &&
             pType != typeof(string) &&
@@ -104,7 +202,7 @@
             );
         }
 
-        // --- 3) Heuristik: *Id (Guid/String) => Single-Reference Select ---
+        // Heuristik: *Id (Guid/String) => Single-Reference Select
         if (Request.EfParentType != null &&
             (pType == typeof(Guid) || pType == typeof(Guid?) || pType == typeof(string)) &&
             prop.Name.EndsWith("Id", StringComparison.Ordinal) &&
@@ -129,8 +227,8 @@
             );
         }
 
-        // --- 4) Standard-Feld ---
-        var fieldType  = GetFieldTypeForProperty(pType);
+        // Standard-Feld
+        var fieldType  = GetFieldTypeForProperty(pType, prop);
         var parameters = GetParametersForProperty(pType, prop);
 
         return new FormFieldDescriptor(
@@ -164,7 +262,33 @@
         );
     }
 
-    // ---------- Hilfen ----------
+    // Event Handlers
+    private async Task HandleFormSubmit()
+    {
+        if (OnSubmit.HasDelegate)
+        {
+            await OnSubmit.InvokeAsync();
+        }
+    }
+
+    private async Task HandleCancel()
+    {
+        if (OnCancel.HasDelegate)
+        {
+            await OnCancel.InvokeAsync();
+        }
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (EnableEnterSubmit && e.Key == "Enter" && !IsSubmitDisabled && OnSubmit.HasDelegate)
+        {
+            // Enter-Submit für alle Eingabefelder außer Textareas
+            await HandleFormSubmit();
+        }
+    }
+
+    // Hilfs-Methoden (gekürzt für Übersichtlichkeit)
     private object? ResolveCurrentValue(string name, object? modelValue)
         => (ValueOverrides != null && ValueOverrides.TryGetValue(name, out var v)) ? v : modelValue;
 
@@ -195,43 +319,77 @@
         return null;
     }
 
-    private Type GetFieldTypeForProperty(Type propType) => TypeCodeOf(propType) switch
+    private Type GetFieldTypeForProperty(Type propType, PropertyInfo prop)
     {
-        TypeCode.Boolean => typeof(CheckboxField),
-        TypeCode.DateTime => typeof(DateTimeField),
-        TypeCode.Decimal or TypeCode.Double or TypeCode.Single => typeof(NumberField),
-        TypeCode.Int16 or TypeCode.Int32 or TypeCode.Int64 or
-        TypeCode.UInt16 or TypeCode.UInt32 or TypeCode.UInt64 => typeof(NumberField),
-        _ when propType == typeof(Guid) || propType == typeof(Guid?) => typeof(TextField),
-        _ => typeof(TextField)
-    };
+        if (prop.Name.Contains("TwoFASecret", StringComparison.OrdinalIgnoreCase) ||
+            prop.Name.Contains("AuthenticatorSecret", StringComparison.OrdinalIgnoreCase) ||
+            prop.GetCustomAttribute<TwoFASecretAttribute>() != null)
+        {
+            return typeof(QRCodeField);
+        }
+
+        if (prop.Name.Contains("TwoFACode", StringComparison.OrdinalIgnoreCase) ||
+            prop.Name.Contains("AuthenticatorCode", StringComparison.OrdinalIgnoreCase) ||
+            prop.GetCustomAttribute<TwoFACodeAttribute>() != null)
+        {
+            return typeof(TwoFAInputField);
+        }
+
+        return TypeCodeOf(propType) switch
+        {
+            TypeCode.Boolean => typeof(CheckboxField),
+            TypeCode.DateTime => typeof(DateTimeField),
+            TypeCode.Decimal or TypeCode.Double or TypeCode.Single => typeof(NumberField),
+            TypeCode.Int16 or TypeCode.Int32 or TypeCode.Int64 or
+            TypeCode.UInt16 or TypeCode.UInt32 or TypeCode.UInt64 => typeof(NumberField),
+            _ when propType == typeof(Guid) || propType == typeof(Guid?) => typeof(TextField),
+            _ => typeof(TextField)
+        };
+    }
 
     private Dictionary<string, object> GetParametersForProperty(Type propType, PropertyInfo prop)
     {
         var parameters = new Dictionary<string, object>();
         var typeCode   = TypeCodeOf(propType);
 
+        if (prop.Name.Contains("TwoFASecret", StringComparison.OrdinalIgnoreCase) ||
+            prop.Name.Contains("AuthenticatorSecret", StringComparison.OrdinalIgnoreCase) ||
+            prop.GetCustomAttribute<TwoFASecretAttribute>() != null)
+        {
+            var twoFAAttr = prop.GetCustomAttribute<TwoFASecretAttribute>();
+            return new Dictionary<string, object>
+            {
+                ["Issuer"] = twoFAAttr?.Issuer ?? "CMC App",
+                ["AccountName"] = GetAccountNameForUser() ?? "user@example.com",
+                ["ShowSecret"] = twoFAAttr?.ShowSecret ?? false
+            };
+        }
+
+        if (prop.Name.Contains("TwoFACode", StringComparison.OrdinalIgnoreCase) ||
+            prop.Name.Contains("AuthenticatorCode", StringComparison.OrdinalIgnoreCase) ||
+            prop.GetCustomAttribute<TwoFACodeAttribute>() != null)
+        {
+            return parameters;
+        }
+
         switch (typeCode)
         {
             case TypeCode.DateTime:
-                // KEIN "InputType" setzen – DateTimeField hat festen Typ
                 break;
 
             case TypeCode.Decimal or TypeCode.Double or TypeCode.Single:
-                // KEIN "InputType" setzen – NumberField kennt kein InputType
                 parameters["Step"] = "any";
                 break;
 
             case TypeCode.Int16 or TypeCode.Int32 or TypeCode.Int64 or
                  TypeCode.UInt16 or TypeCode.UInt32 or TypeCode.UInt64:
-                // KEIN "InputType" setzen – NumberField kennt kein InputType
                 parameters["Step"] = "1";
                 break;
 
             case TypeCode.String:
                 if (prop.Name.Contains("Password", StringComparison.OrdinalIgnoreCase))
                 {
-                    parameters["InputType"]    = "password";      // TextField versteht das
+                    parameters["InputType"]    = "password";
                     parameters["Autocomplete"] = "new-password";
                 }
                 break;
@@ -245,6 +403,18 @@
 
     private Type GetFieldTypeForExtra(ExtraField extra)
     {
+        if (string.Equals(extra.DataType, "2fa-secret", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(extra.DataType, "qr-code", StringComparison.OrdinalIgnoreCase))
+        {
+            return typeof(QRCodeField);
+        }
+
+        if (string.Equals(extra.DataType, "2fa-code", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(extra.DataType, "totp-code", StringComparison.OrdinalIgnoreCase))
+        {
+            return typeof(TwoFAInputField);
+        }
+
         if (string.Equals(extra.DataType, "relation-auto", StringComparison.OrdinalIgnoreCase))
         {
             if (extra.Type.IsGenericType && extra.Type.GetGenericTypeDefinition() == typeof(IEnumerable<>))
@@ -265,7 +435,19 @@
     {
         var parameters = new Dictionary<string, object>();
 
-        if (string.Equals(extra.DataType, "relation-auto", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(extra.DataType, "2fa-secret", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(extra.DataType, "qr-code", StringComparison.OrdinalIgnoreCase))
+        {
+            parameters["Issuer"] = "CMC App";
+            parameters["AccountName"] = GetAccountNameForUser() ?? "user@example.com";
+            parameters["ShowSecret"] = false;
+        }
+        else if (string.Equals(extra.DataType, "2fa-code", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(extra.DataType, "totp-code", StringComparison.OrdinalIgnoreCase))
+        {
+            // Keine besonderen Parameter für 2FA Code Input
+        }
+        else if (string.Equals(extra.DataType, "relation-auto", StringComparison.OrdinalIgnoreCase))
         {
             var isMany = extra.Type.IsGenericType && extra.Type.GetGenericTypeDefinition() == typeof(IEnumerable<>);
             var relationName = DeriveRelationName(extra.Name, isMany: isMany);
@@ -286,8 +468,21 @@
         return parameters;
     }
 
+    private string? GetAccountNameForUser()
+    {
+        if (Model != null)
+        {
+            var emailProp = Model.GetType().GetProperty("Email", BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+            var email = emailProp?.GetValue(Model)?.ToString();
+            if (!string.IsNullOrWhiteSpace(email))
+                return email;
+        }
+        return null;
+    }
+
     private string[]? ResolveErrors(string name)
         => ValidationErrors != null && ValidationErrors.TryGetValue(name, out var arr) ? arr : null;
+
     private RenderFragment RenderFormField(FormFieldDescriptor descriptor) => builder =>
     {
         int seq = 0;
@@ -300,7 +495,6 @@
         if (!string.IsNullOrWhiteSpace(descriptor.Hint))
             builder.AddAttribute(seq++, nameof(FormFieldBase.Hint), descriptor.Hint);
 
-        // NEU: Errors aus optionaler ValidationErrors-Map reinreichen
         builder.AddAttribute(seq++, nameof(FormFieldBase.Errors), ResolveErrors(descriptor.Name));
 
         builder.AddAttribute(seq++, nameof(FormFieldBase.OnValueChanged),
@@ -336,13 +530,19 @@
                  !string.Equals(p.Name, "Id", StringComparison.Ordinal) &&
                  (effective == typeof(Guid) || effective == typeof(Guid?) || effective == typeof(string)));
 
+            var is2FACandidate =
+                p.Name.Contains("TwoFA", StringComparison.OrdinalIgnoreCase) ||
+                p.Name.Contains("Authenticator", StringComparison.OrdinalIgnoreCase) ||
+                p.GetCustomAttribute<TwoFASecretAttribute>() != null ||
+                p.GetCustomAttribute<TwoFACodeAttribute>() != null;
+
             var scaffold = p.GetCustomAttribute<ScaffoldColumnAttribute>();
-            if (scaffold is { Scaffold: false } && !isRelationCandidate) continue;
+            if (scaffold is { Scaffold: false } && !isRelationCandidate && !is2FACandidate) continue;
 
             var disp = p.GetCustomAttribute<DisplayAttribute>();
-            if (disp?.GetAutoGenerateField() == false && !isRelationCandidate) continue;
+            if (disp?.GetAutoGenerateField() == false && !isRelationCandidate && !is2FACandidate) continue;
 
-            if (p.GetCustomAttribute<EditorHiddenAttribute>() is not null && !isRelationCandidate) continue;
+            if (p.GetCustomAttribute<EditorHiddenAttribute>() is not null && !isRelationCandidate && !is2FACandidate) continue;
 
             yield return p;
         }
@@ -380,7 +580,6 @@
         var t = EffectiveType(prop.PropertyType);
         var isNonNullableValueType = t.IsValueType && Nullable.GetUnderlyingType(prop.PropertyType) == null;
 
-        // Guid nicht pauschal erzwingen
         if (t == typeof(Guid)) return false;
 
         return isNonNullableValueType;

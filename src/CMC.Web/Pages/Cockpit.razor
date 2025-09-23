@@ -8,12 +8,14 @@
 @using Microsoft.AspNetCore.Components.Web
 @using Microsoft.AspNetCore.Authorization
 @using System.Security.Claims
-
+@using Microsoft.AspNetCore.SignalR.Client
 @using CMC.Web.Pages.CockpitPagesSuperAdmins
 @using CMC.Web.Pages.CockpitPagesUsers
 @using CMC.Web.Pages.CockpitPagesCommon
+@using CMC.Application.Services
 
 @inject NavigationManager Navigation
+@inject NotificationService Notifications
 @implements IDisposable
 
 <PageTitle>CMC - Cockpit</PageTitle>
@@ -26,6 +28,24 @@
   /* Optionales UX-Feintuning */
   .cockpit .menu-row a { text-decoration: none; }
   .cockpit .menu-node.has-children > .menu-row a { cursor: pointer; }
+
+  /* Badge Styles für Notification-Zähler */
+  .badge-anchor { position: relative; display: inline-block; }
+  .badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 9999px;
+    font-size: 10px;
+    line-height: 16px;
+    text-align: center;
+    background: #ef4444; /* rot */
+    color: #fff;
+    box-shadow: 0 0 0 2px #fff;
+  }
 </style>
 
 <div class="cockpit">
@@ -56,12 +76,18 @@
     <div class="mt-auto">
       <div class="settings-segment">
         <div class="btn-group">
-          <NavLink class="btn sm flat" href="cockpit/profile" Match="NavLinkMatch.All">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
-            </svg>
-          </NavLink>
+          <!-- Profil/Glocke mit Unread-Badge -->
+            <NavLink class="btn sm flat" href="cockpit/profile" Match="NavLinkMatch.All">
+              @if (_unreadCount > 0)
+              {
+                <span class="badge">@_unreadCount</span>
+              }
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
+              </svg>
+            </NavLink>
 
+          <!-- Profil/User-Icon (unverändert) -->
           <NavLink class="btn sm flat" href="cockpit/profile" Match="NavLinkMatch.All">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
               <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
@@ -110,9 +136,16 @@
   private bool _isSuperAdmin;
   private bool _isUser;
 
+  private Guid _userId;
+  private int _unreadCount;
+  private HubConnection? _notifConn;
+
   protected override async Task OnInitializedAsync()
   {
     await LoadAuthAsync();
+    await RefreshNotificationCountAsync();
+    await StartNotifHubAsync();
+
     BuildMenu();
     Navigation.LocationChanged += HandleLocationChanged;
     UpdateSectionFromUri();
@@ -122,6 +155,7 @@
   protected override async Task OnParametersSetAsync()
   {
     await LoadAuthAsync();
+    await RefreshNotificationCountAsync();
     BuildMenu();
     UpdateSectionFromUri();
     ExpandAncestorsForCurrentPath();
@@ -134,9 +168,64 @@
     _isSuperAdmin = _user.IsInRole("super-admin");
     _isUser = _user.IsInRole("user");
 
+    // UserId aus Claims holen (sub oder NameIdentifier)
+    var idStr = _user.FindFirst("sub")?.Value
+                ?? _user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    _userId = Guid.TryParse(idStr, out var gid) ? gid : Guid.Empty;
+
     Console.WriteLine($"[Cockpit] Authenticated={_user.Identity?.IsAuthenticated}");
     Console.WriteLine($"[Cockpit] Roles={string.Join(",", _user.FindAll(ClaimTypes.Role).Select(c => c.Value))}");
-    Console.WriteLine($"[Cockpit] _isSuperAdmin={_isSuperAdmin}, _isUser={_isUser}");
+    Console.WriteLine($"[Cockpit] _isSuperAdmin={_isSuperAdmin}, _isUser={_isUser}, _userId={_userId}");
+  }
+
+  private async Task RefreshNotificationCountAsync()
+  {
+    if (_userId == Guid.Empty) { _unreadCount = 0; return; }
+    try
+    {
+      _unreadCount = await Notifications.CountUnreadAsync(_userId);
+      StateHasChanged();
+    }
+    catch
+    {
+      // best-effort: Badge einfach weglassen
+      _unreadCount = 0;
+    }
+  }
+
+  private async Task StartNotifHubAsync()
+  {
+    if (_notifConn is not null) return;
+
+    _notifConn = new HubConnectionBuilder()
+      .WithUrl(Navigation.ToAbsoluteUri("/hubs/notifications"))
+      .WithAutomaticReconnect()
+      .Build();
+
+    _notifConn.On<object>("notificationCreated", _ =>
+    {
+      // neue Notification -> neu zählen
+      _ = InvokeAsync(RefreshNotificationCountAsync);
+    });
+
+    _notifConn.On<object>("notificationRead", _ =>
+    {
+      // irgendeine wurde gelesen -> neu zählen
+      _ = InvokeAsync(RefreshNotificationCountAsync);
+    });
+
+    try { await _notifConn.StartAsync(); }
+    catch
+    {
+      await StopNotifHubAsync(); // anonym o. ä. -> sauber schließen
+    }
+  }
+
+  private async Task StopNotifHubAsync()
+  {
+    if (_notifConn is null) return;
+    try { await _notifConn.DisposeAsync(); } catch { /* ignore */ }
+    _notifConn = null;
   }
 
   private void BuildMenu()
@@ -151,7 +240,7 @@
       {
         Id = "libraries",
         Text = "Vorlagen",
-        Href = "/cockpit/library/scenarios", // führt aufs erste Kind
+        Href = "/cockpit/library/scenarios",
         Match = NavLinkMatch.Prefix,
         Component = typeof(LibraryScenarios),
         Children = new List<MenuNode>
@@ -187,21 +276,7 @@
     else if (_isUser)
     {
       n.Add(new MenuNode { Id = "dashboard", Text = "Dashboard", Href = "/cockpit/", Match = NavLinkMatch.All, Component = typeof(CockpitPagesCommon.Overview) });
-      //n.Add(new MenuNode { Id = "controls", Text = "Controls", Href = "/cockpit/user-controls", Match = NavLinkMatch.All, Component = typeof(CockpitPagesUsers.UserControls) });
-      //n.Add(new MenuNode { Id = "scenarios", Text = "Szenarien", Href = "/cockpit/user-scenarios", Match = NavLinkMatch.All, Component = typeof(CockpitPagesUsers.UserScenarios) });
-      //n.Add(new MenuNode { Id = "tasks", Text = "Aufgaben", Href = "/cockpit/user-tasks", Match = NavLinkMatch.All, Component = typeof(CockpitPagesUsers.UserTasks) });
-      //n.Add(new MenuNode
-      //{
-      //  Id = "reports",
-      //  Text = "Reports",
-      //  Href = "/cockpit/reports",
-      //  Match = NavLinkMatch.All,
-      //  Component = typeof(CockpitPagesUsers.UserReports),
-      //  Children = new List<MenuNode>
-      //  {
-      //    new MenuNode { Id = "user-report-definitions", Text = "Vorlagen", Href = "/cockpit/reports/user-report-definitions", Match = NavLinkMatch.All, Component = typeof(CockpitPagesUsers.UserReportDefinitions) }
-      //  }
-      //});
+      // weitere User-Menüs bei Bedarf...
     }
 
     // --- Versteckter Routen-Eintrag für /cockpit/profile ---
@@ -214,15 +289,16 @@
       Component = typeof(Profile),
       Hidden = true
     });
-	n.Add(new MenuNode
-	{
-	Id = "settings",
-	Text = "Einstellungen",
-	Href = "/cockpit/settings",
-	Match = NavLinkMatch.All,
-	Component = typeof(CockpitPagesCommon.Settings), // <— dein Settings-Component
-	Hidden = true
-	});
+    n.Add(new MenuNode
+    {
+      Id = "settings",
+      Text = "Einstellungen",
+      Href = "/cockpit/settings",
+      Match = NavLinkMatch.All,
+      Component = typeof(CockpitPagesCommon.Settings),
+      Hidden = true
+    });
+
     Nodes = n;
     Console.WriteLine($"[Cockpit] Menu nodes={Nodes.Count}");
   }
@@ -379,9 +455,10 @@
     return null;
   }
 
-  public void Dispose()
+  public async void Dispose()
   {
     Navigation.LocationChanged -= HandleLocationChanged;
+    await StopNotifHubAsync();
   }
 
   private sealed class MenuNode

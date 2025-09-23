@@ -14,8 +14,8 @@ public class SelfManagementService
 {
   private readonly ICustomerRepository _customers;
   private readonly IUserRepository _users;
-  private readonly IIndustryRepository _industries; // existiert bereits im Projekt
-  private readonly IEmailService _email;            // optional (für Notifications)
+  private readonly IIndustryRepository _industries; 
+  private readonly IEmailService _email;
 
   public SelfManagementService(ICustomerRepository customers, IUserRepository users, IIndustryRepository industries, IEmailService email)
   {

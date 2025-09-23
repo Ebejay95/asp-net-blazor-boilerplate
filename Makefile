@@ -68,6 +68,12 @@ app-watch:
 	@echo "👀 .NET Hot Reload…"
 	cd src/CMC.Web && \
 	ConnectionStrings__DefaultConnection="Host=localhost;Port=5432;Database=cmc_dev;Username=postgres;Password=password;Pooling=true;SslMode=Disable;" \
+	GRAPH_TENANT_ID="dev-tenant" \
+	APP_PUBLIC_BASE_URL="http://localhost:5000" \
+	GRAPH_CLIENT_ID="dev-client" \
+	GRAPH_CLIENT_ID="dev-client" \
+	GRAPH_CLIENT_SECRET="dev-secret" \
+	GRAPH_FROM_USER="dev@example.com" \
 	DOTNET_WATCH_RESTART_ON_RUDE_EDIT=1 DOTNET_USE_POLLING_FILE_WATCHER=1 \
 	dotnet watch --non-interactive run
 

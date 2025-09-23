@@ -1,12 +1,16 @@
 @page "/profile"
 @attribute [Authorize]
+
 @using System.ComponentModel.DataAnnotations
 @using System.Reflection
+@using Microsoft.AspNetCore.Components
+@using Microsoft.Extensions.DependencyInjection
 @using CMC.Web.Services
 @using CMC.Application.Services
 @using CMC.Contracts.Users
+
 @inherits RoleBasedComponentBase
-@inject UserService Users
+
 @inject ILogger<Profile> Logger
 @inject IBumperBus Bumper
 
@@ -35,7 +39,10 @@
           OnFieldChanged="OnFieldChanged" />
 
       <div class="mt-4">
-        <button type="button" class="btn primary" @onclick="HandleSave" disabled="@_isSaving">
+        <button type="button"
+                class="btn primary"
+                @onclick="HandleSave"
+                disabled="@(_isSaving || _vm.Id == Guid.Empty)">
           @if (_isSaving)
           {
             <span class="spinner-border spinner-border-sm" role="status"></span>
@@ -57,9 +64,12 @@
 </section>
 
 @code {
+  // --- Explizit injiziert, damit Hot-Reload den alten set_Users nicht vermisst (wird NICHT genutzt) ---
+  [Inject] public UserService? Users { get; set; }   // Legacy-Kompatibilität für Hot Reload
+  [Inject] public IServiceProvider Services { get; set; } = default!;
+
   private bool _loading = true;
   private bool _isSaving;
-
   private UserDto? _me;
 
   // ---- ViewModel für den zentralen FormRenderer ----
@@ -91,11 +101,11 @@
   private readonly Dictionary<string, string[]> _errors    = new(StringComparer.OrdinalIgnoreCase);
 
   // Minimaler Request für FormRenderer (wir nutzen ihn NICHT für Save)
-  private EFEditRequest _req => new EFEditRequest
+  private EFEditRequest _req => new()
   {
     Title = "Profil",
     Model = _vm,
-    ContractsAssembly = typeof(Profile).Assembly, // hier egal, wie beim Login
+    ContractsAssembly = typeof(Profile).Assembly,
     IsCreate = false
   };
 
@@ -105,8 +115,19 @@
 
     try
     {
-      var id = Guid.Parse(GetUserId());
-      _me = await Users.GetByIdAsync(id);
+      var idStr = GetUserId();
+      if (!Guid.TryParse(idStr, out var id) || id == Guid.Empty)
+      {
+        Logger.LogWarning("⚠️ Kein gültiger UserId-Claim gefunden. Abbruch.");
+        Bumper.Publish("Fehler", "Kein gültiger Benutzerkontext. Bitte neu anmelden.", "error");
+        return;
+      }
+
+      // Eigener DI-Scope (verhindert DbContext-Concurrency)
+      await using var scope = Services.CreateAsyncScope();
+      var users = scope.ServiceProvider.GetRequiredService<UserService>();
+
+      _me = await users.GetByIdAsync(id);
 
       if (_me is not null)
       {
@@ -124,6 +145,16 @@
         _overrides["Role"]       = _vm.Role;
         _overrides["Department"] = _vm.Department;
       }
+      else
+      {
+        Logger.LogWarning("⚠️ UserService.GetByIdAsync({Id}) lieferte null.", id);
+        Bumper.Publish("Fehler", "Benutzer nicht gefunden.", "error");
+      }
+    }
+    catch (Exception ex)
+    {
+      Logger.LogError(ex, "❌ Fehler beim Laden des Profils.");
+      Bumper.Publish("Fehler", "Profil konnte nicht geladen werden.", "error");
     }
     finally
     {
@@ -143,92 +174,153 @@
 
     if (value is not null && targetType != typeof(string))
     {
-      try
-      {
-        value = Convert.ChangeType(value, targetType);
-      }
-      catch
-      {
-        // nichts – Validierung fängt es später ab
-      }
+      try { value = Convert.ChangeType(value, targetType); }
+      catch { /* Validierung fängt es später ab */ }
     }
 
     prop.SetValue(_vm, value ?? (targetType == typeof(string) ? "" : null));
   }
 
-  private async Task HandleSave()
-  {
+private async Task HandleSave()
+{
     try
     {
-      _isSaving = true;
-      _errors.Clear();
+        _isSaving = true;
+        _errors.Clear();
 
-      // lokale DataAnnotations-Validierung (damit FormRenderer Fehler anzeigen kann)
-      var ctx = new ValidationContext(_vm);
-      var results = new List<ValidationResult>();
-      var ok = Validator.TryValidateObject(_vm, ctx, results, validateAllProperties: true);
+        // lokale DataAnnotations-Validierung (damit FormRenderer Fehler anzeigen kann)
+        var ctx = new ValidationContext(_vm);
+        var results = new List<ValidationResult>();
+        var ok = Validator.TryValidateObject(_vm, ctx, results, validateAllProperties: true);
 
-      if (!ok)
-      {
-        foreach (var r in results)
+        if (!ok)
         {
-          var key = (r.MemberNames?.FirstOrDefault()) ?? "__global";
-          if (!_errors.TryGetValue(key, out var list))
-            _errors[key] = new[] { r.ErrorMessage ?? "Invalid value." };
-          else
-            _errors[key] = list.Append(r.ErrorMessage ?? "Invalid value.").ToArray();
+            foreach (var r in results)
+            {
+                var key = (r.MemberNames?.FirstOrDefault()) ?? "__global";
+                if (!_errors.TryGetValue(key, out var list))
+                    _errors[key] = new[] { r.ErrorMessage ?? "Invalid value." };
+                else
+                    _errors[key] = list.Append(r.ErrorMessage ?? "Invalid value.").ToArray();
+            }
+            Bumper.Publish("Validation", "Bitte Eingaben prüfen.", "error");
+            return;
         }
-        Bumper.Publish("Validation", "Bitte Eingaben prüfen.", "error");
-        return;
-      }
 
-      Logger.LogInformation("👤 Profil-Update für: {Id} ({First} {Last})", _vm.Id, _vm.FirstName, _vm.LastName);
+        if (_vm.Id == Guid.Empty)
+        {
+            Bumper.Publish("Fehler", "Ungültige Benutzer-ID. Bitte neu anmelden.", "error");
+            Logger.LogWarning("❌ Abbruch: _vm.Id == Guid.Empty");
+            return;
+        }
 
-      var req = new UpdateUserRequest(
-        Id: _vm.Id,
-        FirstName: _vm.FirstName,
-        LastName: _vm.LastName,
-        Role: _vm.Role,
-        Department: _vm.Department,
-        IsEmailConfirmed: null,
-        CustomerId: _vm.CustomerId // Relation NICHT versehentlich nullen
-      );
+        Logger.LogInformation("👤 Profil-Update für: {Id} ({First} {Last})", _vm.Id, _vm.FirstName, _vm.LastName);
 
-      var updated = await Users.UpdateAsync(req);
+        // Eigener Scope für Update + persistente Notification
+        await using var scope = Services.CreateAsyncScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserService>();
+        var notifications = scope.ServiceProvider.GetRequiredService<NotificationService>();
 
-      if (updated is not null)
-      {
-        _me = updated;
+        var req = new UpdateUserRequest(
+            Id: _vm.Id,
+            FirstName: _vm.FirstName,
+            LastName: _vm.LastName,
+            Role: _vm.Role,
+            Department: _vm.Department,
+            IsEmailConfirmed: null,
+            CustomerId: _vm.CustomerId // Relation NICHT versehentlich nullen
+        );
 
-        // Erfolgsfeedback + evtl. Normalisierung ins UI zurückspiegeln
-        _overrides["FirstName"]  = _me.FirstName;
-        _overrides["LastName"]   = _me.LastName;
-        _overrides["Role"]       = _me.Role;
-        _overrides["Department"] = _me.Department;
+        var updated = await users.UpdateAsync(req);
 
-        _vm.FirstName  = _me.FirstName ?? "";
-        _vm.LastName   = _me.LastName  ?? "";
-        _vm.Role       = _me.Role;
-        _vm.Department = _me.Department;
-        _vm.CustomerId = _me.CustomerId;
+        if (updated is not null)
+        {
+            _me = updated;
 
-        Bumper.Publish("Profil", "Profil gespeichert.", "success", 1500);
-        Logger.LogInformation("✅ Profil-Update erfolgreich für: {Id}", _vm.Id);
-      }
-      else
-      {
-        Bumper.Publish("Profil", "Konnte nicht gespeichert werden.", "error");
-        Logger.LogWarning("❌ Profil-Update fehlgeschlagen für: {Id}", _vm.Id);
-      }
+            // Erfolgsfeedback + evtl. Normalisierung ins UI zurückspiegeln
+            _overrides["FirstName"] = _me.FirstName;
+            _overrides["LastName"] = _me.LastName;
+            _overrides["Role"] = _me.Role;
+            _overrides["Department"] = _me.Department;
+
+            _vm.FirstName = _me.FirstName ?? "";
+            _vm.LastName = _me.LastName ?? "";
+            _vm.Role = _me.Role;
+            _vm.Department = _me.Department;
+            _vm.CustomerId = _me.CustomerId;
+
+            // Persistente Notification (DB) + evtl. SignalR-Push
+            try
+            {
+                await notifications.CreateAsync(
+                    userId: _vm.Id,
+                    title: "Profil aktualisiert",
+                    message: $"Ihr Profil wurde erfolgreich gespeichert: {_vm.FirstName} {_vm.LastName}",
+                    severity: "success",
+                    customerId: _vm.CustomerId
+                );
+
+                Logger.LogInformation("✅ Persistente Notification erstellt für User {Id}", _vm.Id);
+            }
+            catch (Exception nEx)
+            {
+                Logger.LogWarning(nEx, "⚠️ Notification persist/push failed for {Id}", _vm.Id);
+            }
+
+            // Lokale UI-Notification (sofortiges Feedback)
+            Bumper.Publish("Profil", "Profil gespeichert.", "success", 1500);
+            Logger.LogInformation("✅ Profil-Update erfolgreich für: {Id}", _vm.Id);
+        }
+        else
+        {
+            // Fehler-Notification ebenfalls persistent speichern
+            try
+            {
+                await notifications.CreateAsync(
+                    userId: _vm.Id,
+                    title: "Profil-Fehler",
+                    message: "Profil konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
+                    severity: "error",
+                    customerId: _vm.CustomerId
+                );
+            }
+            catch (Exception nEx)
+            {
+                Logger.LogWarning(nEx, "⚠️ Error notification persist failed for {Id}", _vm.Id);
+            }
+
+            Bumper.Publish("Profil", "Konnte nicht gespeichert werden.", "error");
+            Logger.LogWarning("❌ Profil-Update fehlgeschlagen für: {Id}", _vm.Id);
+        }
     }
     catch (Exception ex)
     {
-      Logger.LogError(ex, "Fehler beim Profil-Update: {Id}", _vm.Id);
-      Bumper.Publish("Fehler", "Es ist ein unerwarteter Fehler aufgetreten.", "error");
+        Logger.LogError(ex, "❌ Fehler beim Profil-Update: {Id}", _vm.Id);
+
+        // Exception auch als persistente Notification
+        try
+        {
+            await using var scope = Services.CreateAsyncScope();
+            var notifications = scope.ServiceProvider.GetRequiredService<NotificationService>();
+
+            await notifications.CreateAsync(
+                userId: _vm.Id,
+                title: "Systemfehler",
+                message: "Ein unerwarteter Fehler ist beim Speichern aufgetreten. Support wurde benachrichtigt.",
+                severity: "error",
+                customerId: _vm.CustomerId
+            );
+        }
+        catch (Exception nEx)
+        {
+            Logger.LogError(nEx, "❌ Critical: Could not even save error notification for {Id}", _vm.Id);
+        }
+
+        Bumper.Publish("Fehler", "Es ist ein unerwarteter Fehler aufgetreten.", "error");
     }
     finally
     {
-      _isSaving = false;
+        _isSaving = false;
     }
-  }
+}
 }

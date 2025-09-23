@@ -37,6 +37,13 @@ public class User
     public DateTimeOffset? PasswordResetTokenExpiry { get; private set; }
     #endregion
 
+    #region Properties - Two-Factor Authentication
+    public string? TwoFASecret { get; private set; }
+    public bool TwoFAEnabled => !string.IsNullOrWhiteSpace(TwoFASecret);
+    public DateTimeOffset? TwoFAEnabledAt { get; private set; }
+    public string? TwoFABackupCodes { get; private set; }
+    #endregion
+
     #region Constructors
     private User() { }
 
@@ -140,5 +147,51 @@ public class User
     /// Delegates to <see cref="ChangePassword"/>.
     /// </summary>
     public void UpdatePassword(string newPasswordHash) => ChangePassword(newPasswordHash);
+    #endregion
+
+    #region Domain Methods - Two-Factor Authentication
+    /// <summary>
+    /// Enables 2FA for the user with the provided secret and backup codes.
+    /// </summary>
+    public void EnableTwoFA(string secret, string? backupCodes = null)
+    {
+        if (string.IsNullOrWhiteSpace(secret))
+            throw new ArgumentException("Secret cannot be null or empty", nameof(secret));
+
+        TwoFASecret = secret;
+        TwoFAEnabledAt = DateTimeOffset.UtcNow;
+        TwoFABackupCodes = backupCodes;
+    }
+
+    /// <summary>
+    /// Disables 2FA for the user and clears all related data.
+    /// </summary>
+    public void DisableTwoFA()
+    {
+        TwoFASecret = null;
+        TwoFAEnabledAt = null;
+        TwoFABackupCodes = null;
+    }
+
+    /// <summary>
+    /// Updates the 2FA secret (for re-setup scenarios).
+    /// </summary>
+    public void UpdateTwoFASecret(string secret)
+    {
+        if (string.IsNullOrWhiteSpace(secret))
+            throw new ArgumentException("Secret cannot be null or empty", nameof(secret));
+
+        TwoFASecret = secret;
+        if (!TwoFAEnabledAt.HasValue)
+            TwoFAEnabledAt = DateTimeOffset.UtcNow;
+    }
+
+    /// <summary>
+    /// Updates the backup codes for 2FA.
+    /// </summary>
+    public void UpdateTwoFABackupCodes(string? backupCodes)
+    {
+        TwoFABackupCodes = backupCodes;
+    }
     #endregion
 }

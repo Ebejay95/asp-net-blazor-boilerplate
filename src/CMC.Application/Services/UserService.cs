@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Text;
 using CMC.Application.Ports;
 using CMC.Contracts.Users;
+using CMC.Application.Ports.Mail;
 using CMC.Domain.Common;
 using CMC.Domain.Entities;
 using CMC.Domain.ValueObjects;
@@ -13,7 +15,7 @@ namespace CMC.Application.Services;
 
 /// <summary>
 /// Application service for managing user-related business operations.
-/// Handles user registration, authentication, password management, user data retrieval, and customer associations.
+/// Handles user registration, authentication, password management, user data retrieval, customer associations, and 2FA.
 /// </summary>
 public class UserService
 {
@@ -73,6 +75,12 @@ public class UserService
     public async Task<UserDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var user = await _userRepository.GetByIdAsync(id, cancellationToken);
+        return user != null ? await MapToReadDtoAsync(user, cancellationToken) : null;
+    }
+
+    public async Task<UserDto?> GetByEmailAsync(string email, CancellationToken cancellationToken = default)
+    {
+        var user = await _userRepository.GetByEmailAsync(email, cancellationToken);
         return user != null ? await MapToReadDtoAsync(user, cancellationToken) : null;
     }
 
@@ -221,27 +229,264 @@ public class UserService
         if (user == null) return;
 
         var token  = GenerateSecureToken();
-        var expiry = DateTimeOffset.UtcNow.AddHours(1);   // ✅ DateTimeOffset
+        var expiry = DateTimeOffset.UtcNow.AddHours(1);
 
         user.SetPasswordResetToken(token, expiry);
         await _userRepository.UpdateAsync(user, cancellationToken);
-        await _emailService.SendPasswordResetEmailAsync(email, token, cancellationToken);
+        await _emailService.SendEmailAsync(
+            user.Email,
+            "Passwort zurücksetzen",
+            "Sie haben das Zurücksetzen Ihres Passworts angefragt. Mit diesem Link könenn Sie dies vornehmen:",
+            new[]
+            {
+                 new EmailButton("Zurücksetzen", $"/reset-password?token={token}")
+            }
+        );
     }
 
-public async Task<bool> ResetPasswordAsync(ResetPasswordRequest request, CancellationToken cancellationToken = default)
-{
-    if (request == null) throw new ArgumentNullException(nameof(request));
+    public async Task<bool> ResetPasswordAsync(ResetPasswordRequest request, CancellationToken cancellationToken = default)
+    {
+        if (request == null) throw new ArgumentNullException(nameof(request));
 
-    var user = await _userRepository.GetByPasswordResetTokenAsync(request.Token, cancellationToken);
-    if (user == null || !user.PasswordResetTokenExpiry.HasValue || user.PasswordResetTokenExpiry.Value < DateTimeOffset.UtcNow)
-        return false;
+        var user = await _userRepository.GetByPasswordResetTokenAsync(request.Token, cancellationToken);
+        if (user == null || !user.PasswordResetTokenExpiry.HasValue || user.PasswordResetTokenExpiry.Value < DateTimeOffset.UtcNow)
+            return false;
 
-    var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
-    user.ChangePassword(passwordHash);                // ✅ Domänenmethode
-    await _userRepository.UpdateAsync(user, cancellationToken);
+        var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+        user.ChangePassword(passwordHash);
+        await _userRepository.UpdateAsync(user, cancellationToken);
 
-    return true;
-}
+        return true;
+    }
+
+    #endregion
+
+    #region Two-Factor Authentication Operations
+
+    /// <summary>
+    /// Generates a new TOTP secret for 2FA setup.
+    /// </summary>
+    public string GenerateTwoFASecret()
+    {
+        const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+        var random = new Random();
+        var result = new StringBuilder();
+
+        for (int i = 0; i < 32; i++)
+        {
+            result.Append(chars[random.Next(chars.Length)]);
+        }
+
+        return result.ToString();
+    }
+
+    /// <summary>
+    /// Verifies a TOTP code against a secret.
+    /// </summary>
+    public async Task<bool> VerifyTOTPCodeAsync(string secret, string code, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(secret) || string.IsNullOrWhiteSpace(code))
+            return false;
+
+        try
+        {
+            var secretBytes = Base32Decode(secret);
+            var currentTimeStep = GetCurrentTimeStep();
+
+            // Prüfe aktuellen und vorherigen/nächsten Zeitschritt (für Zeittoleranz)
+            for (int i = -1; i <= 1; i++)
+            {
+                var timeStep = currentTimeStep + i;
+                var expectedCode = GenerateTOTPCode(secretBytes, timeStep);
+
+                if (expectedCode == code)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+        catch (Exception ex)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Enables 2FA for a user with the provided secret.
+    /// </summary>
+    public async Task<bool> EnableTwoFAAsync(Guid userId, string secret, string confirmationCode, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
+            if (user == null)
+                return false;
+
+            // Verifiziere den Bestätigungscode
+            var isValidCode = await VerifyTOTPCodeAsync(secret, confirmationCode, cancellationToken);
+            if (!isValidCode)
+                return false;
+
+            // Generiere Backup-Codes
+            var backupCodes = GenerateBackupCodes();
+
+            user.EnableTwoFA(secret, string.Join(",", backupCodes));
+            await _userRepository.UpdateAsync(user, cancellationToken);
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Updates the 2FA secret for a user (used during setup process).
+    /// </summary>
+    public async Task UpdateTwoFASecretAsync(Guid userId, string? secret, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
+            if (user == null)
+                throw new InvalidOperationException("User not found");
+
+            if (string.IsNullOrWhiteSpace(secret))
+            {
+                user.DisableTwoFA();
+            }
+            else
+            {
+                user.UpdateTwoFASecret(secret);
+            }
+
+            await _userRepository.UpdateAsync(user, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Disables 2FA for a user.
+    /// </summary>
+    public async Task<bool> DisableTwoFAAsync(Guid userId, string currentCode, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
+            if (user == null)
+                return false;
+
+            if (string.IsNullOrWhiteSpace(user.TwoFASecret))
+                return true; // Already disabled
+
+            // Verifiziere den aktuellen Code
+            var isValidCode = await VerifyTOTPCodeAsync(user.TwoFASecret, currentCode, cancellationToken);
+            if (!isValidCode)
+                return false;
+
+            user.DisableTwoFA();
+            await _userRepository.UpdateAsync(user, cancellationToken);
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Generates QR code data URL for 2FA setup.
+    /// </summary>
+    public string GenerateQRCodeDataUrl(string secret, string email, string issuer = "CMC App")
+    {
+        var otpAuthUrl = $"otpauth://totp/{Uri.EscapeDataString(issuer)}:{Uri.EscapeDataString(email)}?secret={secret}&issuer={Uri.EscapeDataString(issuer)}&algorithm=SHA1&digits=6&period=30";
+
+        // Simple QR Code generation using ASCII art approach or return URL for manual entry
+        return otpAuthUrl;
+    }
+
+    /// <summary>
+    /// Generates backup codes for 2FA recovery.
+    /// </summary>
+    private static string[] GenerateBackupCodes(int count = 10)
+    {
+        var codes = new string[count];
+        var random = new Random();
+
+        for (int i = 0; i < count; i++)
+        {
+            codes[i] = random.Next(100000, 999999).ToString();
+        }
+
+        return codes;
+    }
+
+    #endregion
+
+    #region Private TOTP Helper Methods
+
+    private static long GetCurrentTimeStep()
+    {
+        var unixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        return unixTime / 30; // 30-Sekunden-Fenster
+    }
+
+    private static string GenerateTOTPCode(byte[] secretBytes, long timeStep)
+    {
+        var timeBytes = BitConverter.GetBytes(timeStep);
+        if (BitConverter.IsLittleEndian)
+            Array.Reverse(timeBytes);
+
+        using var hmac = new HMACSHA1(secretBytes);
+        var hash = hmac.ComputeHash(timeBytes);
+
+        var offset = hash[^1] & 0x0F;
+        var truncatedHash = ((hash[offset] & 0x7F) << 24) |
+                           ((hash[offset + 1] & 0xFF) << 16) |
+                           ((hash[offset + 2] & 0xFF) << 8) |
+                           (hash[offset + 3] & 0xFF);
+
+        var code = truncatedHash % 1000000;
+        return code.ToString("D6");
+    }
+
+    private static byte[] Base32Decode(string base32)
+    {
+        if (string.IsNullOrEmpty(base32))
+            throw new ArgumentException("Base32 string cannot be null or empty");
+
+        const string alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+        var result = new List<byte>();
+        var buffer = 0;
+        var bufferSize = 0;
+
+        foreach (var c in base32.ToUpperInvariant())
+        {
+            if (c == '=') break; // Padding
+
+            var value = alphabet.IndexOf(c);
+            if (value < 0)
+                throw new ArgumentException($"Invalid Base32 character: {c}");
+
+            buffer = (buffer << 5) | value;
+            bufferSize += 5;
+
+            if (bufferSize >= 8)
+            {
+                result.Add((byte)(buffer >> (bufferSize - 8)));
+                bufferSize -= 8;
+            }
+        }
+
+        return result.ToArray();
+    }
 
     #endregion
 
@@ -258,17 +503,9 @@ public async Task<bool> ResetPasswordAsync(ResetPasswordRequest request, Cancell
             .TrimEnd('=');
     }
 
-    private async Task<UserDto> MapToReadDtoAsync(User user, CancellationToken cancellationToken = default)
+    private static Task<UserDto> MapToReadDtoAsync(User user, CancellationToken cancellationToken = default)
     {
-        string? customerName = null;
-
-        if (user.CustomerId.HasValue)
-        {
-            var customer = await _customerRepository.GetByIdAsync(user.CustomerId.Value, cancellationToken);
-            customerName = customer?.Name;
-        }
-
-        return new UserDto
+        var dto = new UserDto
         {
             Id = user.Id,
             Email = user.Email,
@@ -278,10 +515,14 @@ public async Task<bool> ResetPasswordAsync(ResetPasswordRequest request, Cancell
             Department = user.Department,
             IsEmailConfirmed = user.IsEmailConfirmed,
             CustomerId = user.CustomerId,
-            CustomerName = customerName,
+            CustomerName = user.Customer?.Name,
             CreatedAt = user.CreatedAt,
-            LastLoginAt = user.LastLoginAt
+            LastLoginAt = user.LastLoginAt,
+            TwoFASecret = user.TwoFASecret,
+            TwoFAEnabled = user.TwoFAEnabled,
+            TwoFAEnabledAt = user.TwoFAEnabledAt
         };
+        return Task.FromResult(dto);
     }
 
     #endregion

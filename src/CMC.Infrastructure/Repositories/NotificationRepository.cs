@@ -28,4 +28,16 @@ public class NotificationRepository : INotificationRepository
         => _db.Notifications.Where(x => x.UserId == userId && x.Status == "unread").CountAsync(ct);
 
     public Task SaveAsync(CancellationToken ct = default) => _db.SaveChangesAsync(ct);
+
+    public async Task<bool> AcknowledgeAsync(Guid id, Guid userId, CancellationToken ct = default)
+    {
+        var n = await _db.Notifications
+            .FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId, ct);
+
+        if (n is null) return false;
+
+        n.MarkRead();
+        await _db.SaveChangesAsync(ct);
+        return true;
+    }
 }

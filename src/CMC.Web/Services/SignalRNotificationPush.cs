@@ -17,8 +17,8 @@ public sealed class SignalRNotificationPush : INotificationPush
             n.Id,
             n.Title,
             n.Message,
-            Severity = n.Severity,   // jetzt string
-            n.Status,                // string ("unread"/"read")
+            Severity = n.Severity,
+            n.Status,
             n.CreatedAt
         }, ct);
 

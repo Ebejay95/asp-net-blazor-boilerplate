@@ -6,6 +6,6 @@ public record CreateNotificationRequest(
     [property:Required] string Title,
     [property:Required] string Message,
     [property:Required] string Severity,
-    Guid? UserId = null, // null => aktueller User
+    Guid? UserId = null,
     Guid? CustomerId = null
 );
