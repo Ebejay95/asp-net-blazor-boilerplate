@@ -102,8 +102,8 @@
 
             Logger.LogInformation("Login attempt for: {Email}", _loginVm.Email);
 
-            // Call API endpoint (which sets cookies server-side)
-            var response = await Http.PostAsJsonAsync("/api/auth/login", new
+            // Call API endpoint (which sets cookies server-side) - GEÄNDERT zu relativem Pfad
+            var response = await Http.PostAsJsonAsync("api/auth/login", new
             {
                 Email = _loginVm.Email,
                 Password = _loginVm.Password
