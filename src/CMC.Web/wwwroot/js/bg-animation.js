@@ -5,6 +5,7 @@
     /**
      * Initialisiert die Hintergrund-Animation auf dem übergebenen Canvas.
      * Transparenter Hintergrund, schimmernde Partikel, feine blaue Verbindungslinien.
+     * Maus beeinflusst NUR die Farbe/Größe (temporäres "Heat"), keine Verlangsamung → keine Inselbildung.
      *
      * @param {HTMLCanvasElement} canvas
      * @returns {{destroy: () => void}} - optionaler Cleanup
@@ -32,18 +33,15 @@
         const DENSITY = 0.00012;          // Partikel pro CSS-Pixel^2 (1920x1080 ≈ 250)
         const MAX_CONNECTION_DIST = 140;  // Basis-Distanz für Verbindungslinien
         const MOUSE_RADIUS = 180;         // Einflussradius der Maus
-        const MOUSE_CONNECTION_BOOST = 1.2;
-        const MOUSE_SLOW_ZONE = 0.3;      // Verlangsamung der Partikel in Mausnähe
         const SPEED_MIN = 0.08;
         const SPEED_MAX = 0.35;
         const POINT_SIZE = [1.2, 2.0];    // min/max Punkt-Radius in CSS-Pixeln
         const LINE_ALPHA = 0.55;
         const POINT_ALPHA = 0.9;
-        const COLOR_NEAR = 'rgba(0, 99, 220, 1)';  // helles Blau
-        const COLOR_FAR = 'rgba(89, 149, 228, 1)';   // dunkleres Blau
-        const COLOR_HIGHLIGHT = 'rgba(100, 200, 255, 1)'; // Highlight-Farbe für Maus-Nähe
+        const COLOR_NEAR = 'rgba(0, 99, 220, 1)';      // helles Blau
+        const COLOR_FAR = 'rgba(89, 149, 228, 1)';     // dunkleres Blau
 
-        /** @type {{x:number,y:number,vx:number,vy:number,size:number,phase:number}[]} */
+        /** @type {{x:number,y:number,vx:number,vy:number,size:number,phase:number,heat:number}[]} */
         let particles = [];
 
         // ---- HiDPI + Size ----
@@ -88,6 +86,7 @@
                 vy: Math.sin(angle) * speed,
                 size: rand(POINT_SIZE[0], POINT_SIZE[1]),
                 phase: Math.random() * Math.PI * 2, // Pulsieren
+                heat: 0, // 0..1, temporärer Maus-/Farb-Boost
             };
         }
 
@@ -117,30 +116,39 @@
                 const pulse = (Math.sin(p.phase) * 0.25 + 0.75); // 0.5..1.0
                 let size = p.size * pulse;
 
-                // Maus-Effekt: Partikel werden langsamer und heller in Mausnähe
+                // Maus-Effekt: nur "Heat" (Farb-/Größen-Boost) aufladen, KEINE Verlangsamung/Anziehung
                 const dx = mx - p.x;
                 const dy = my - p.y;
                 const dist2 = dx * dx + dy * dy;
-                let mouseInfluence = 0;
-                let isNearMouse = false;
 
                 if (dist2 < MOUSE_RADIUS * MOUSE_RADIUS) {
                     const dist = Math.sqrt(dist2) || 1;
-                    mouseInfluence = 1 - dist / MOUSE_RADIUS; // 0..1
-                    isNearMouse = true;
+                    const mouseInfluence = 1 - dist / MOUSE_RADIUS; // 0..1
+                    p.heat = Math.max(p.heat, mouseInfluence);
+                }
 
-                    // Partikel werden größer und heller in Mausnähe
-                    size *= (1 + mouseInfluence * 0.8);
+                // Heat-Decay (Nachglühen)
+                p.heat *= 0.92;
 
-                    // Verlangsamung statt Anziehung
-                    const slowFactor = 1 - mouseInfluence * MOUSE_SLOW_ZONE;
-                    p.vx *= slowFactor;
-                    p.vy *= slowFactor;
+                // Kleiner stochastischer Jitter abhängig von Heat, um Ausrichtung/Cluster zu vermeiden
+                if (p.heat > 0.01) {
+                    p.vx += (Math.random() - 0.5) * 0.02 * p.heat;
+                    p.vy += (Math.random() - 0.5) * 0.02 * p.heat;
                 }
 
                 // Normale Bewegung
                 p.x += p.vx;
                 p.y += p.vy;
+
+                // Geschwindigkeit sinnvoll begrenzen (auch wegen Jitter)
+                const sp = Math.hypot(p.vx, p.vy);
+                if (sp < SPEED_MIN) {
+                    const f = (SPEED_MIN + 1e-6) / (sp + 1e-6);
+                    p.vx *= f; p.vy *= f;
+                } else if (sp > SPEED_MAX * 1.5) {
+                    const f = (SPEED_MAX * 1.5) / sp;
+                    p.vx *= f; p.vy *= f;
+                }
 
                 // Screen-Wrapping
                 if (p.x < -10) p.x = state.widthCss + 10;
@@ -149,60 +157,45 @@
                 if (p.y > state.heightCss + 10) p.y = -10;
 
                 // Zeichnen (Punkt)
-                const pointAlpha = (POINT_ALPHA * 0.8 + 0.2 * pulse) * (1 + mouseInfluence * 0.5);
+                const pointAlpha = (POINT_ALPHA * 0.8 + 0.2 * pulse) * (1 + p.heat * 0.5);
                 ctx.globalAlpha = Math.min(1, pointAlpha);
 
-                // Farbe ändern bei Mausnähe
-                if (isNearMouse) {
-                    const r = 0 + mouseInfluence * 150;
-                    const g = 99 + mouseInfluence * 151;
-                    const b = 220 + mouseInfluence * 35;
+                // Farbe abhängig von Heat (sanfter Übergang Richtung helleres Blau)
+                if (p.heat > 0.01) {
+                    const r = Math.round(0 + p.heat * 100);
+                    const g = Math.round(99 + p.heat * 156);
+                    const b = Math.round(220 + p.heat * 35);
                     ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 1)`;
                 } else {
                     ctx.fillStyle = COLOR_NEAR;
                 }
 
                 ctx.beginPath();
-                ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
+                ctx.arc(p.x, p.y, size * (1 + p.heat * 0.8), 0, Math.PI * 2);
                 ctx.fill();
             }
             ctx.globalAlpha = 1;
         }
 
         function drawConnections() {
-            const mx = state.mouseX, my = state.mouseY;
-
             for (let i = 0; i < particles.length; i++) {
                 const a = particles[i];
-
-                // Mausnähe verstärkt Verbindungen rund um Partikel a
-                let distBoostA = 0;
-                const amx = a.x - mx, amy = a.y - my;
-                const ad2 = amx * amx + amy * amy;
-                if (ad2 < MOUSE_RADIUS * MOUSE_RADIUS) {
-                    distBoostA = MOUSE_CONNECTION_BOOST * (1 - Math.sqrt(ad2) / MOUSE_RADIUS);
-                }
 
                 for (let j = i + 1; j < particles.length; j++) {
                     const b = particles[j];
                     const dx = a.x - b.x;
                     const dy = a.y - b.y;
                     const d2 = dx * dx + dy * dy;
-                    const maxD = MAX_CONNECTION_DIST + distBoostA * 100;
+
+                    // Heat erhöht erlaubte Distanz etwas (lokale Betonung ohne harte Bündelung)
+                    const heatBoost = 1 + 0.6 * Math.max(a.heat, b.heat);
+                    const maxD = MAX_CONNECTION_DIST * heatBoost;
+
                     if (d2 > maxD * maxD) continue;
 
                     const d = Math.sqrt(d2);
                     let t = 1 - d / maxD; // 0..1
                     if (t <= 0) continue;
-
-                    // zusätzlicher Boost, wenn b auch nahe Maus ist
-                    let distBoostB = 0;
-                    const bmx = b.x - mx, bmy = b.y - my;
-                    const bd2 = bmx * bmx + bmy * bmy;
-                    if (bd2 < MOUSE_RADIUS * MOUSE_RADIUS) {
-                        distBoostB = MOUSE_CONNECTION_BOOST * (1 - Math.sqrt(bd2) / MOUSE_RADIUS);
-                    }
-                    const mouseFactor = 1 + 1.5 * Math.max(distBoostA, distBoostB); // 1..2.5
 
                     // Verlauf für subtilen Blau-Shift
                     const grad = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
@@ -211,7 +204,8 @@
 
                     ctx.strokeStyle = grad;
                     ctx.lineWidth = 1;
-                    ctx.globalAlpha = Math.min(1, LINE_ALPHA * t * mouseFactor);
+                    // Linien werden bei Heat sichtbarer
+                    ctx.globalAlpha = Math.min(1, LINE_ALPHA * t * (1 + 1.2 * Math.max(a.heat, b.heat)));
 
                     ctx.beginPath();
                     ctx.moveTo(a.x, a.y);

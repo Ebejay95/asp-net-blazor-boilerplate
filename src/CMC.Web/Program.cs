@@ -8,11 +8,25 @@ using CMC.Web.Auth;
 using CMC.Web.Hubs;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using CMC.Infrastructure.Extensions;
 using CMC.Infrastructure.Services;
+using Microsoft.Extensions.Options;
+using System.Security.Claims;
+
+// === Helper: Policy-Namen ausgeben (nur fürs Logging/Debugging) ===
+static IEnumerable<string> GetPolicyNames(AuthorizationOptions options)
+{
+    // Zugriff auf interne PolicyMap via Reflection (nur für Diagnose)
+    var pi = typeof(AuthorizationOptions).GetProperty("PolicyMap",
+        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+    if (pi?.GetValue(options) is IDictionary<string, AuthorizationPolicy> map)
+        return map.Keys;
+    return Enumerable.Empty<string>();
+}
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -45,7 +59,7 @@ if (builder.Environment.IsDevelopment())
 
 Console.WriteLine($"HttpClient BaseAddress: {baseUrl}");
 
-// Session Support für 2FA Flow
+// Session Support (für Auth-Flows nützlich)
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
@@ -56,20 +70,13 @@ builder.Services.AddSession(options =>
     options.Cookie.Name = "CMC_Session";
 });
 
-// Named HttpClient für API-Calls
+// HttpClient
 builder.Services.AddHttpClient("api", client =>
 {
     client.BaseAddress = new Uri(baseUrl);
     client.Timeout = TimeSpan.FromSeconds(30);
 });
-
-// Standard HttpClient für Blazor Components (mit korrekter BaseAddress)
-builder.Services.AddScoped<HttpClient>(sp =>
-{
-    var factory = sp.GetRequiredService<IHttpClientFactory>();
-    var client = factory.CreateClient("api");
-    return client;
-});
+builder.Services.AddScoped<HttpClient>(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("api"));
 
 // UI / Framework
 builder.Services.AddRazorPages();
@@ -82,7 +89,7 @@ builder.Services.AddSignalR(o =>
     o.HandshakeTimeout = TimeSpan.FromSeconds(30);
 });
 
-// AUTH
+// AUTH - ERST Authentication, dann Authorization
 builder.Services.AddScoped<CookieEvents>();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
@@ -101,11 +108,66 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.AccessDeniedPath = "/login";
         options.EventsType = typeof(CookieEvents);
     });
-builder.Services.AddAuthorization();
+
+// ⬇️ WICHTIG: Authorization mit expliziten Policies VOR Infrastructure
+Console.WriteLine("[Auth] Registering authorization policies...");
+builder.Services.AddAuthorization(options =>
+{
+    Console.WriteLine("[Auth] Adding RequireMfaSetup policy");
+    options.AddPolicy("RequireMfaSetup", policyBuilder =>
+    {
+        policyBuilder.RequireAuthenticatedUser();
+        policyBuilder.RequireAssertion(context =>
+        {
+            var user = context.User;
+            if (user?.Identity?.IsAuthenticated != true)
+            {
+                Console.WriteLine("[Auth] RequireMfaSetup: User not authenticated");
+                return false;
+            }
+
+            var mfaVerified = user.FindFirst("mfa_verified")?.Value;
+            var allowed = mfaVerified != "true";
+            Console.WriteLine($"[Auth] RequireMfaSetup: mfa_verified={mfaVerified}, allowed={allowed}");
+            return allowed;
+        });
+    });
+
+    Console.WriteLine("[Auth] Adding RequireMfaVerified policy");
+    options.AddPolicy("RequireMfaVerified", policyBuilder =>
+    {
+        policyBuilder.RequireAuthenticatedUser();
+        policyBuilder.RequireAssertion(context =>
+        {
+            var user = context.User;
+            if (user?.Identity?.IsAuthenticated != true)
+                return false;
+
+            var mfaVerified = user.FindFirst("mfa_verified")?.Value;
+            return mfaVerified == "true";
+        });
+    });
+
+    Console.WriteLine("[Auth] Adding RequireNoMfaVerified policy");
+    options.AddPolicy("RequireNoMfaVerified", policyBuilder =>
+    {
+        policyBuilder.RequireAuthenticatedUser();
+        policyBuilder.RequireAssertion(context =>
+        {
+            var user = context.User;
+            if (user?.Identity?.IsAuthenticated != true)
+                return false;
+
+            var mfaVerified = user.FindFirst("mfa_verified")?.Value;
+            return mfaVerified != "true";
+        });
+    });
+});
+
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddHttpContextAccessor();
 
-// Infrastruktur/Repos/DbContext
+// WICHTIG: Infrastructure NACH Authorization, damit keine Policies überschrieben werden
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddRevisionsSupport();
 builder.Services.AddScoped<DbContext>(sp => sp.GetRequiredService<AppDbContext>());
@@ -233,6 +295,14 @@ app.MapBlazorHub();
 app.MapHub<NotificationHub>("/hubs/notifications");
 app.MapRazorPages();
 app.MapFallbackToPage("/_Host");
+
+// Debug: registrierte Policies einmal beim Start ausgeben
+using (var scope = app.Services.CreateScope())
+{
+    var authOpts = scope.ServiceProvider.GetRequiredService<IOptions<AuthorizationOptions>>().Value;
+    var names = GetPolicyNames(authOpts);
+    Console.WriteLine("[Auth] Registered policies: " + string.Join(", ", names));
+}
 
 // DB-Migration beim regulären Start
 using (var scope = app.Services.CreateScope())
