@@ -6,50 +6,33 @@
 @inject IJSRuntime JSRuntime
 
 <div class="form-row @(Errors?.Length > 0 ? "is-invalid" : null)">
-    <label class="form-label" for="@Name">@Label</label>
-
     <div class="qr-container">
         @if (!string.IsNullOrWhiteSpace(CurrentSecret))
         {
-            <div class="qr-wrapper">
-                <!-- QR Code Section -->
-                <div class="qr-section">
-                    <div class="qr-display">
-                        <img src="@GetQRCodeDataUrl()" alt="QR Code für 2FA Setup" class="qr-image" />
-                    </div>
+
+                <p>
+                    @(Issuer ?? "CMC App") - @(AccountName ?? "Benutzer")
+                </p>
+                <img src="@GetQRCodeDataUrl()" alt="QR Code für 2FA Setup" class="qr-image" />
 
                     <div class="qr-content">
-                        <h4>Authenticator App einrichten</h4>
                         <p>Scannen Sie den QR-Code mit Ihrer Authenticator-App oder fügen Sie den Code manuell hinzu:</p>
 
-                        <div class="secret-box">
                             <div class="secret-text">@FormatSecretForDisplay(CurrentSecret)</div>
-                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="CopySecret" title="In Zwischenablage kopieren">
-                                Kopieren
-                            </button>
-                        </div>
-
-                        <div class="app-details">
-                            <small>
-                                <strong>App:</strong> @(Issuer ?? "CMC App") |
-                                <strong>Konto:</strong> @(AccountName ?? "Benutzer")
-                            </small>
                         </div>
                     </div>
-                </div>
 
                 @if (!ReadOnly)
                 {
-                    <div class="qr-actions">
-                        <button type="button" class="btn btn-sm btn-outline-primary" @onclick="GenerateNewSecret">
-                            Neuen Code generieren
+                    <div class="btn-group">
+                        <button type="button" class="btn" @onclick="CopySecret" title="In Zwischenablage kopieren">
+                            Kopieren
                         </button>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="ToggleSecretVisibility">
-                            @(ShowSecret || _secretVisible ? "Secret ausblenden" : "Secret anzeigen")
+                        <button type="button" class="btn" @onclick="GenerateNewSecret">
+                            Neuen Code generieren
                         </button>
                     </div>
                 }
-            </div>
         }
     </div>
 
@@ -64,92 +47,6 @@
         </div>
     }
 </div>
-
-<style>
-    .qr-container {
-        max-width: 100%;
-    }
-
-    .qr-wrapper {
-        padding: 20px;
-        background: #f8f9fa;
-        border: 1px solid #dee2e6;
-        border-radius: 8px;
-    }
-
-    .qr-section {
-        display: flex;
-        gap: 20px;
-        align-items: flex-start;
-    }
-
-    .qr-display {
-        flex-shrink: 0;
-        background: white;
-        padding: 15px;
-        border-radius: 8px;
-        border: 1px solid #ddd;
-        text-align: center;
-    }
-
-    .qr-image {
-        width: 180px;
-        height: 180px;
-        display: block;
-    }
-
-    .qr-content {
-        flex: 1;
-        min-width: 280px;
-    }
-
-    .qr-content h4 {
-        color: #495057;
-        margin-bottom: 0.75rem;
-        font-size: 1.1rem;
-    }
-
-    .qr-content p {
-        margin-bottom: 1rem;
-        color: #6c757d;
-    }
-
-    .secret-box {
-        display: flex;
-        align-items: center;
-        padding: 12px;
-        background: white;
-        border: 2px solid #007bff;
-        border-radius: 6px;
-        gap: 10px;
-        margin-bottom: 0.75rem;
-    }
-
-    .secret-text {
-        flex: 1;
-        font-family: 'Courier New', monospace;
-        font-size: 1rem;
-        font-weight: bold;
-        color: #007bff;
-        letter-spacing: 1px;
-        word-break: break-all;
-    }
-
-    .app-details {
-        color: #6c757d;
-        font-size: 0.9rem;
-    }
-
-    .qr-actions {
-        display: flex;
-        gap: 0.5rem;
-        margin-top: 15px;
-        padding-top: 15px;
-        border-top: 1px solid #dee2e6;
-        flex-wrap: wrap;
-    }
-
-</style>
 
 @code {
     [Parameter] public string? Issuer { get; set; } = "CMC App";

@@ -20,14 +20,10 @@
 <section class="slim center relative pointer-none">
 
 <canvas id="canvas" style="
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      display: block;
-      z-index: -1;
-      pointer-events: auto;
+  position:absolute; inset:0;
+  width:100vw; height:100vh;
+  display:block;
+  z-index:-1;
 "></canvas>
     <div class="card">
         <h2>Login</h2>
@@ -73,7 +69,8 @@
 
     private bool _isLoading;
 
-    private bool _bgInitDone;
+    // --- ADD: einmalige Initialisierung der BG-Animation ---
+    private bool _bgInitDone; // ADD
 
     protected override async Task OnAfterRenderAsync(bool firstRender) // ADD
     {
@@ -93,6 +90,7 @@
             }
         }
     }
+    // --- END ADD ---
 
     // Minimaler Request für FormRenderer
     private EFEditRequest _loginReq => new EFEditRequest
