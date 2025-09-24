@@ -1,25 +1,32 @@
 @using CMC.Web.Pages.FormFields
 @inherits FormFieldBase
+@inject IJSRuntime JSRuntime
 
 <div class="form-row @(Errors?.Length > 0 ? "is-invalid" : null)">
     <label class="form-label" for="@Name">@Label</label>
 
-    <div class="totp-input-container">
-        <input
-            type="text"
-            id="@Name"
-            name="@Name"
-            class="form-control totp-input @(Errors?.Length > 0 ? "is-invalid" : "")"
-            value="@CurrentValue"
-            @onchange="HandleValueChanged"
-            @oninput="HandleInput"
-            placeholder="000000"
-            maxlength="6"
-            pattern="[0-9]{6}"
-            inputmode="numeric"
-            autocomplete="one-time-code"
-            readonly="@ReadOnly"
-            disabled="@ReadOnly" />
+    <div class="totp-inputs-wrapper">
+        <div class="totp-input-container">
+            @for (int i = 0; i < 6; i++)
+            {
+                var index = i; // Lokale Kopie für den Closure
+                <input
+                    type="text"
+                    id="@($"{Name}_{index}")"
+                    class="form-control totp-digit @(Errors?.Length > 0 ? "is-invalid" : "")"
+                    value="@GetDigitValue(index)"
+                    @oninput="@(async (e) => await HandleDigitInput(e, index))"
+                    @onkeydown="@(async (e) => await HandleKeyDown(e, index))"
+                    @onpaste="@(async (e) => await HandlePaste(e, index))"
+                    maxlength="1"
+                    pattern="[0-9]"
+                    inputmode="numeric"
+                    autocomplete="one-time-code"
+                    readonly="@ReadOnly"
+                    disabled="@ReadOnly"
+                    style="width: 50px; text-align: center;" />
+            }
+        </div>
 
         <div class="totp-help">
             <small class="text-muted">
@@ -39,74 +46,155 @@
         </div>
     }
 </div>
-
-<style>
-    .totp-input-container {
-        max-width: 200px;
-    }
-
-    .totp-input {
-        font-family: 'Courier New', monospace;
-        font-size: 1.5rem;
-        font-weight: bold;
-        text-align: center;
-        letter-spacing: 0.2em;
-        padding: 12px;
-        border: 2px solid #dee2e6;
-        border-radius: 8px;
-        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-    }
-
-    .totp-input:focus {
-        border-color: #007bff;
-        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-        outline: 0;
-    }
-
-    .totp-input.is-invalid {
-        border-color: #dc3545;
-    }
-
-    .totp-input.is-invalid:focus {
-        border-color: #dc3545;
-        box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
-    }
-
-    .totp-input::placeholder {
-        color: #adb5bd;
-        letter-spacing: 0.2em;
-    }
-
-    .totp-help {
-        margin-top: 0.5rem;
-        text-align: center;
-    }
-</style>
-
 @code {
-    private string CurrentValue => Value?.ToString() ?? "";
+    private string[] digits = new string[6];
+    private string CurrentValue => string.Join("", digits);
 
-    private async Task HandleValueChanged(ChangeEventArgs e)
+    protected override void OnInitialized()
     {
-        var newValue = e.Value?.ToString() ?? "";
-        newValue = SanitizeInput(newValue);
+        // Initialisiere digits array basierend auf dem aktuellen Wert
+        var currentValue = Value?.ToString() ?? "";
+        for (int i = 0; i < 6; i++)
+        {
+            digits[i] = i < currentValue.Length ? currentValue[i].ToString() : "";
+        }
+        base.OnInitialized();
+    }
 
-        if (newValue != CurrentValue)
+    private string GetDigitValue(int index)
+    {
+        return index < digits.Length ? digits[index] : "";
+    }
+
+    private async Task HandleDigitInput(ChangeEventArgs e, int index)
+    {
+        var input = e.Value?.ToString() ?? "";
+
+        // Nur Ziffern erlauben
+        var sanitized = SanitizeDigit(input);
+
+        if (sanitized != digits[index])
+        {
+            digits[index] = sanitized;
+
+            // Wenn eine Ziffer eingegeben wurde, zum nächsten Feld wechseln
+            if (!string.IsNullOrEmpty(sanitized) && index < 5)
+            {
+                await FocusNextField(index + 1);
+            }
+
+            await UpdateValue();
+        }
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e, int index)
+    {
+        switch (e.Key)
+        {
+            case "Backspace":
+                if (string.IsNullOrEmpty(digits[index]) && index > 0)
+                {
+                    // Wenn das aktuelle Feld leer ist, zum vorherigen Feld wechseln
+                    await FocusPreviousField(index - 1);
+                }
+                else if (!string.IsNullOrEmpty(digits[index]))
+                {
+                    // Aktuelles Feld leeren
+                    digits[index] = "";
+                    await UpdateValue();
+                }
+                break;
+
+            case "ArrowLeft":
+                if (index > 0)
+                    await FocusPreviousField(index - 1);
+                break;
+
+            case "ArrowRight":
+                if (index < 5)
+                    await FocusNextField(index + 1);
+                break;
+        }
+    }
+
+    private async Task HandlePaste(ClipboardEventArgs e, int startIndex)
+    {
+        // Paste-Funktionalität für das Einfügen des kompletten Codes
+        try
+        {
+            var clipboardText = await JSRuntime.InvokeAsync<string>("navigator.clipboard.readText");
+            var sanitized = SanitizeInput(clipboardText);
+
+            if (!string.IsNullOrEmpty(sanitized))
+            {
+                // Verteile die Ziffern auf die Felder
+                for (int i = 0; i < Math.Min(sanitized.Length, 6 - startIndex); i++)
+                {
+                    if (startIndex + i < 6)
+                    {
+                        digits[startIndex + i] = sanitized[i].ToString();
+                    }
+                }
+
+                await UpdateValue();
+                StateHasChanged();
+
+                // Fokus auf das letzte ausgefüllte Feld oder das nächste leere Feld setzen
+                var lastFilledIndex = Math.Min(startIndex + sanitized.Length - 1, 5);
+                await FocusField(lastFilledIndex);
+            }
+        }
+        catch
+        {
+            // Paste nicht verfügbar oder fehlgeschlagen - ignorieren
+        }
+    }
+
+    private async Task FocusNextField(int index)
+    {
+        if (index <= 5)
+        {
+            await FocusField(index);
+        }
+    }
+
+    private async Task FocusPreviousField(int index)
+    {
+        if (index >= 0)
+        {
+            await FocusField(index);
+        }
+    }
+
+    private async Task FocusField(int index)
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("focusElement", $"{Name}_{index}");
+        }
+        catch
+        {
+            // Ignore JS errors
+        }
+    }
+
+    private async Task UpdateValue()
+    {
+        var newValue = CurrentValue;
+        if (newValue != (Value?.ToString() ?? ""))
         {
             await OnChanged(newValue);
         }
     }
 
-    private async Task HandleInput(ChangeEventArgs e)
+    private static string SanitizeDigit(string input)
     {
-        var newValue = e.Value?.ToString() ?? "";
-        newValue = SanitizeInput(newValue);
+        if (string.IsNullOrWhiteSpace(input))
+            return "";
 
-        // Für sofortiges Feedback beim Tippen
-        if (newValue != CurrentValue)
-        {
-            await OnChanged(newValue);
-        }
+        // Nur die erste Ziffer nehmen
+        var firstDigit = input.FirstOrDefault(char.IsDigit);
+        return firstDigit != default(char) ? firstDigit.ToString() : "";
     }
 
     private static string SanitizeInput(string input)
@@ -119,3 +207,13 @@
         return digits;
     }
 }
+
+<script>
+    window.focusElement = (elementId) => {
+        const element = document.getElementById(elementId);
+        if (element) {
+            element.focus();
+            element.select();
+        }
+    };
+</script>

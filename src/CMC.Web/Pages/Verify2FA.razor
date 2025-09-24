@@ -11,10 +11,21 @@
 @inject ILogger<Verify2FA> Logger
 @inject IBumperBus Bumper
 @inject HttpClient Http
+@inject IJSRuntime JS
 
 <PageTitle>2FA Verification</PageTitle>
 
-<section class="slim">
+<canvas id="canvas" style="
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      z-index: -1;
+      pointer-events: auto;
+"></canvas>
+<section class="slim center">
     <div class="card">
         <h2>Sicherheitscode eingeben</h2>
         <p class="mb-4">Geben Sie den 6-stelligen Code aus Ihrer Authenticator-App ein.</p>
@@ -48,6 +59,25 @@
 </section>
 
 @code {
+    private bool _bgInitDone;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender) // ADD
+    {
+        if (firstRender && !_bgInitDone)
+        {
+            try
+            {
+                // Ruft window.initBgAnimation(document.getElementById('canvas')) auf,
+                // ohne ein ElementReference zu benötigen.
+                await JS.InvokeVoidAsync("eval",
+                    "window.initBgAnimation && window.initBgAnimation(document.getElementById('canvas'));");
+                _bgInitDone = true;
+            }
+            catch (Exception ex)
+            {
+            }
+        }
+    }
     // 2FA Verification ViewModel
     private sealed class Verify2FAVm
     {
