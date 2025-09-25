@@ -26,4 +26,6 @@ public interface IUserRepository {
 
   // DELETE
   Task DeleteAsync(User user, CancellationToken cancellationToken = default);
+          Task<User?> GetByEmailFreshAsync(string email, CancellationToken cancellationToken = default);
+
 }

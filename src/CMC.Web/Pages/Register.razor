@@ -1,9 +1,11 @@
 @page "/register"
 @using System.ComponentModel.DataAnnotations
+@using System.Reflection
 @using CMC.Web.Services
 @using CMC.Application.Services
 @using CMC.Contracts.Users
 @using CMC.Domain.Common
+@using CMC.Contracts.Common
 @inject UserService UserService
 @inject NavigationManager Navigation
 @inject ILogger<Register> Logger
@@ -11,7 +13,7 @@
 
 <PageTitle>Register</PageTitle>
 
-<section class="slim">
+<section class="slim center">
     <div class="card">
         <h2>Register</h2>
 
@@ -44,7 +46,6 @@
 </section>
 
 @code {
-    // ViewModel für FormRenderer
     private sealed class RegisterVm
     {
         [Required, Display(Name="First Name")]
@@ -56,7 +57,7 @@
         [Required, EmailAddress, Display(Name="Email")]
         public string Email { get; set; } = string.Empty;
 
-        [Required, MinLength(6), Display(Name="Password")]
+        [Required, MinLength(12), StrongPassword, Display(Name="Password")]
         public string Password { get; set; } = string.Empty;
 
         [Required, Display(Name="Confirm Password")]
@@ -68,7 +69,6 @@
     private readonly Dictionary<string, string[]> _errors = new(StringComparer.OrdinalIgnoreCase);
     private bool _isLoading;
 
-    // Request für FormRenderer
     private EFEditRequest _req => new EFEditRequest
     {
         Title = "Register",
@@ -77,12 +77,18 @@
         IsCreate = true
     };
 
+    protected override void OnInitialized()
+    {
+        // UX: PW Autocomplete
+        _overrides["Password_Autocomplete"] = "new-password";
+        _overrides["ConfirmPassword_Autocomplete"] = "new-password";
+    }
+
     private void OnFieldChanged((string Name, object? Value) change)
     {
         var prop = typeof(RegisterVm).GetProperty(change.Name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
         prop?.SetValue(_vm, change.Value?.ToString() ?? string.Empty);
 
-        // Zusätzliche Validierung für Passwort-Bestätigung
         if (change.Name.Equals("ConfirmPassword", StringComparison.OrdinalIgnoreCase) ||
             change.Name.Equals("Password", StringComparison.OrdinalIgnoreCase))
         {
@@ -97,13 +103,9 @@
         if (!string.IsNullOrEmpty(_vm.Password) && !string.IsNullOrEmpty(_vm.ConfirmPassword))
         {
             if (_vm.Password != _vm.ConfirmPassword)
-            {
                 _errors[key] = new[] { "Passwords do not match." };
-            }
             else
-            {
                 _errors.Remove(key);
-            }
         }
         else
         {
@@ -118,12 +120,10 @@
             _isLoading = true;
             _errors.Clear();
 
-            // DataAnnotations lokal prüfen
             var ctx = new ValidationContext(_vm);
             var results = new List<ValidationResult>();
             var ok = Validator.TryValidateObject(_vm, ctx, results, validateAllProperties: true);
 
-            // Passwort-Match zusätzlich prüfen
             ValidatePasswordMatch();
 
             if (!ok || _errors.Any())
@@ -142,13 +142,12 @@
 
             Logger.LogInformation("👤 Registration attempt for: {Email}", _vm.Email);
 
-            // RegisterUserRequest aus ViewModel erstellen
             var registerRequest = new RegisterUserRequest
             {
                 FirstName = _vm.FirstName,
-                LastName = _vm.LastName,
-                Email = _vm.Email,
-                Password = _vm.Password
+                LastName  = _vm.LastName,
+                Email     = _vm.Email,
+                Password  = _vm.Password
             };
 
             var user = await UserService.RegisterAsync(registerRequest);
@@ -156,7 +155,6 @@
             Logger.LogInformation("✅ Registration successful for: {Email}", _vm.Email);
             Bumper.Publish("Registration", "Registration successful! You can now login.", "success");
 
-            // Form nach erfolgreicher Registrierung leeren
             _vm.FirstName = string.Empty;
             _vm.LastName = string.Empty;
             _vm.Email = string.Empty;

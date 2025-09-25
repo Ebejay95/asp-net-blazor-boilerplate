@@ -6,6 +6,7 @@ using Microsoft.Extensions.Caching.Memory;
 using System.Security.Claims;
 using CMC.Application.Services;
 using CMC.Contracts.Users;
+using CMC.Application.Ports;
 
 namespace CMC.Web.Controllers
 {
@@ -14,19 +15,22 @@ namespace CMC.Web.Controllers
     public class AuthController : ControllerBase
     {
         private readonly UserService _userService;
+        private readonly IUserRepository _userRepository;
         private readonly ILogger<AuthController> _logger;
         private readonly IMemoryCache _cache;
 
-        public AuthController(UserService userService, ILogger<AuthController> logger, IMemoryCache cache)
+        public AuthController(
+            UserService userService,
+            IUserRepository userRepository,
+            ILogger<AuthController> logger,
+            IMemoryCache cache)
         {
             _userService = userService;
+            _userRepository = userRepository;
             _logger = logger;
             _cache = cache;
         }
 
-        // =========================
-        // LOGIN (Blazor postet JSON)
-        // =========================
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest req)
         {
@@ -43,9 +47,12 @@ namespace CMC.Web.Controllers
                     return Unauthorized(new { success = false, message = "Invalid email or password" });
                 }
 
-                var has2FA = !string.IsNullOrWhiteSpace(user.TwoFASecret);
+                var freshUserEntity = await _userRepository.GetByEmailAsync(req.Email);
+                var has2FA = freshUserEntity != null && !string.IsNullOrWhiteSpace(freshUserEntity.TwoFASecret);
 
-                // TX erzeugen -> Browser GET /continue setzt Session + redirect zu verify/setup
+                _logger.LogInformation("Fresh 2FA check for {Email}: Has2FA={Has2FA}, TwoFASecret={HasSecret}",
+                    req.Email, has2FA, freshUserEntity?.TwoFASecret != null ? "Present" : "NULL");
+
                 var tx = CreateTx(new TxPayload
                 {
                     Email = user.Email,
@@ -71,16 +78,12 @@ namespace CMC.Web.Controllers
             }
         }
 
-        // ==========================================================
-        // CONTINUE (Browser ruft GET -> Session wird im Browser gesetzt)
-        // ==========================================================
         [HttpGet("continue")]
         public IActionResult Continue([FromQuery] string tx)
         {
             if (!TryTakeTx(tx, out var payload))
                 return Redirect("/login?error=session");
 
-            // WICHTIG: jetzt im Browser-Kontext – Session gehört dem Browser
             HttpContext.Session.SetString("PendingLogin:Email", payload.Email);
             HttpContext.Session.SetString("PendingLogin:UserId", payload.UserId.ToString());
 
@@ -88,13 +91,11 @@ namespace CMC.Web.Controllers
                 ? $"/verify-2fa?email={Uri.EscapeDataString(payload.Email)}"
                 : $"/setup-2fa?email={Uri.EscapeDataString(payload.Email)}";
 
-            _logger.LogInformation("Continue TX for {Email} -> {Next}", payload.Email, next);
+            _logger.LogInformation("Continue TX for {Email} -> {Next} (Has2FA: {Has2FA})",
+                payload.Email, next, payload.Has2FA);
             return Redirect(next);
         }
 
-        // =========================
-        // VERIFY 2FA (Blazor postet)
-        // =========================
         [HttpPost("verify-2fa")]
         public async Task<IActionResult> Verify2FA([FromBody] Verify2FARequest req)
         {
@@ -104,23 +105,34 @@ namespace CMC.Web.Controllers
             {
                 _logger.LogInformation("2FA verification attempt for: {Email}", req.Email);
 
-                var user = await _userService.GetByEmailAsync(req.Email);
-                if (user is null) return Unauthorized(new { success = false, message = "User not found" });
-                if (string.IsNullOrWhiteSpace(user.TwoFASecret))
-                    return BadRequest(new { success = false, message = "2FA not configured for this user" });
+                var userEntity = await _userRepository.GetByEmailAsync(req.Email);
+                if (userEntity is null)
+                {
+                    _logger.LogWarning("User not found in DB: {Email}", req.Email);
+                    return Unauthorized(new { success = false, message = "User not found" });
+                }
 
-                var ok = await _userService.VerifyTOTPCodeAsync(user.TwoFASecret, req.Code);
+                if (string.IsNullOrWhiteSpace(userEntity.TwoFASecret))
+                {
+                    _logger.LogWarning("User {Email} has no 2FA secret - redirecting to setup", req.Email);
+                    return BadRequest(new {
+                        success = false,
+                        message = "2FA not configured for this user - redirecting to setup",
+                        redirectToSetup = true
+                    });
+                }
+
+                var ok = await _userService.VerifyTOTPCodeAsync(userEntity.TwoFASecret, req.Code);
                 if (!ok)
                 {
                     _logger.LogWarning("2FA verification failed for: {Email}", req.Email);
                     return Unauthorized(new { success = false, message = "Invalid 2FA code" });
                 }
 
-                // Erfolg -> TX erzeugen, Finalize über Browser-GET setzt Auth-Cookie
                 var tx = CreateTx(new TxPayload
                 {
-                    Email = user.Email,
-                    UserId = user.Id,
+                    Email = userEntity.Email,
+                    UserId = userEntity.Id,
                     FinalizeSignIn = true
                 });
 
@@ -134,9 +146,6 @@ namespace CMC.Web.Controllers
             }
         }
 
-        // =========================
-        // SETUP 2FA (Blazor postet)
-        // =========================
         [HttpPost("setup-2fa")]
         public async Task<IActionResult> Setup2FA([FromBody] Setup2FARequest req)
         {
@@ -146,8 +155,12 @@ namespace CMC.Web.Controllers
             {
                 _logger.LogInformation("2FA setup attempt for: {Email}", req.Email);
 
-                var user = await _userService.GetByEmailAsync(req.Email);
-                if (user is null) return Unauthorized(new { success = false, message = "User not found" });
+                var userEntity = await _userRepository.GetByEmailAsync(req.Email);
+                if (userEntity is null)
+                {
+                    _logger.LogWarning("User not found in DB: {Email}", req.Email);
+                    return Unauthorized(new { success = false, message = "User not found" });
+                }
 
                 var isValid = await _userService.VerifyTOTPCodeAsync(req.Secret, req.ConfirmationCode);
                 if (!isValid)
@@ -156,13 +169,13 @@ namespace CMC.Web.Controllers
                     return BadRequest(new { success = false, message = "Invalid confirmation code" });
                 }
 
-                var success = await _userService.EnableTwoFAAsync(user.Id, req.Secret, req.ConfirmationCode);
+                var success = await _userService.EnableTwoFAAsync(userEntity.Id, req.Secret, req.ConfirmationCode);
                 if (!success) return BadRequest(new { success = false, message = "Failed to enable 2FA" });
 
                 var tx = CreateTx(new TxPayload
                 {
-                    Email = user.Email,
-                    UserId = user.Id,
+                    Email = userEntity.Email,
+                    UserId = userEntity.Id,
                     FinalizeSignIn = true
                 });
 
@@ -176,21 +189,21 @@ namespace CMC.Web.Controllers
             }
         }
 
-        // ==========================================================
-        // FINALIZE (Browser ruft GET -> Auth-Cookie wird im Browser gesetzt)
-        // ==========================================================
         [HttpGet("finalize")]
         public async Task<IActionResult> Finalize([FromQuery] string tx)
         {
             if (!TryTakeTx(tx, out var payload) || !payload.FinalizeSignIn)
                 return Redirect("/login?error=session");
 
-            var user = await _userService.GetByIdAsync(payload.UserId);
-            if (user is null) return Redirect("/login?error=user");
+            var userDto = await _userService.GetByIdAsync(payload.UserId);
+            if (userDto is null)
+            {
+                _logger.LogError("User not found for finalize: {UserId}", payload.UserId);
+                return Redirect("/login?error=user");
+            }
 
-            await SetAuthenticationCookie(user);
+            await SetAuthenticationCookie(userDto);
 
-            // evtl. alte Pending-Keys aufräumen
             HttpContext.Session.Remove("PendingLogin:Email");
             HttpContext.Session.Remove("PendingLogin:UserId");
 
@@ -198,9 +211,6 @@ namespace CMC.Web.Controllers
             return Redirect("/");
         }
 
-        // =========================
-        // COMPLETE LOGIN (Skip Setup)
-        // =========================
         [HttpPost("complete-login")]
         public async Task<IActionResult> CompleteLogin([FromBody] CompleteLoginRequest req)
         {
@@ -229,9 +239,6 @@ namespace CMC.Web.Controllers
             }
         }
 
-        // =========
-        // LOGOUT
-        // =========
         [HttpPost("logout")]
         [HttpGet("logout")]
         public async Task<IActionResult> Logout()
@@ -250,9 +257,6 @@ namespace CMC.Web.Controllers
             }
         }
 
-        // =========================
-        // CURRENT USER (geschützt)
-        // =========================
         [HttpGet("user")]
         [Authorize]
         public async Task<IActionResult> GetCurrentUser()
@@ -278,9 +282,6 @@ namespace CMC.Web.Controllers
             }
         }
 
-        // =========================
-        // DISABLE 2FA (optional)
-        // =========================
         [HttpPost("disable-2fa")]
         [Authorize]
         public async Task<IActionResult> Disable2FA([FromBody] Disable2FARequest req)
@@ -312,9 +313,6 @@ namespace CMC.Web.Controllers
             }
         }
 
-        // =========================
-        // Helpers
-        // =========================
         private record TxPayload
         {
             public string Email { get; init; } = "";
@@ -356,7 +354,8 @@ namespace CMC.Web.Controllers
                     new(ClaimTypes.Email, user.Email),
                     new(ClaimTypes.GivenName, user.FirstName ?? string.Empty),
                     new(ClaimTypes.Surname, user.LastName ?? string.Empty),
-                    new("TwoFAEnabled", (!string.IsNullOrWhiteSpace(user.TwoFASecret)).ToString())
+                    new("TwoFAEnabled", (!string.IsNullOrWhiteSpace(user.TwoFASecret)).ToString()),
+                    new("mfa_verified", "true")
                 };
 
                 var role = (user.Role ?? string.Empty).Trim();
@@ -381,8 +380,7 @@ namespace CMC.Web.Controllers
                 );
 
                 _logger.LogInformation("Auth cookie set for {Email}. Claims: {Claims}",
-                    user.Email,
-                    string.Join(", ", claims.Select(c => $"{c.Type}={c.Value}")));
+                    user.Email, string.Join(", ", claims.Select(c => $"{c.Type}={c.Value}")));
             }
             catch (Exception ex)
             {
@@ -392,9 +390,6 @@ namespace CMC.Web.Controllers
         }
     }
 
-    // =========================
-    // Request DTOs (kompatibel zu deinen Pages)
-    // =========================
     public class Verify2FARequest
     {
         public string Email { get; set; } = "";

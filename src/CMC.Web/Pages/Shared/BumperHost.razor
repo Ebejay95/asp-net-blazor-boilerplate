@@ -2,19 +2,31 @@
 @inject IBumperBus Bus
 @implements IDisposable
 
-<div class="fixed right-4 top-4 z-50 space-y-2">
-    @foreach (var b in _items)
+<div class="bumperhost">
+    @foreach (var item in _items)
     {
-        <div class="rounded border px-3 py-2 shadow bg-white">
-            <strong>@b.Title</strong>
-            <div>@b.Message</div>
-            <small class="opacity-60">(@b.Severity)</small>
+        var classes = $"bumper {(item.IsClosing ? " fade-out" : "")}";
+        <div @key="item" class="@classes">
+            <small class="opacity-60">(@item.Data.Severity)</small>
+            <strong>@item.Data.Title</strong>
+            <div>@item.Data.Message</div>
         </div>
     }
 </div>
 
 @code {
-    private readonly List<Bump> _items = new();
+    // Wrapper, damit wir einen Closing-State haben
+    private sealed class BumpItem
+    {
+        public required Bump Data { get; init; }
+        public bool IsClosing { get; set; }
+    }
+
+    // Liste der aktiven Bumps
+    private readonly List<BumpItem> _items = new();
+
+    // Animationsdauer (ms) muss zur CSS-Dauer passen (0.3s = 300ms)
+    private const int FadeOutMs = 300;
 
     protected override void OnInitialized()
     {
@@ -23,14 +35,26 @@
 
     private void OnPush(Bump b)
     {
-        _items.Add(b);
+        var item = new BumpItem { Data = b };
+        _items.Add(item);
         StateHasChanged();
 
+        // Verbleibende Zeit bis zum Ausblenden
         var delay = (int)Math.Max(0, (b.Until - DateTimeOffset.UtcNow).TotalMilliseconds);
-        _ = Task.Delay(delay + 50).ContinueWith(_ =>
+
+        _ = Task.Run(async () =>
         {
-            _items.Remove(b);
-            InvokeAsync(StateHasChanged);
+            // warten bis „Lebenszeit“ vorbei ist
+            await Task.Delay(delay);
+
+            // „fade-out“ setzen und Re-Render
+            item.IsClosing = true;
+            await InvokeAsync(StateHasChanged);
+
+            // warten bis Animation fertig, dann entfernen
+            await Task.Delay(FadeOutMs);
+            _items.Remove(item);
+            await InvokeAsync(StateHasChanged);
         });
     }
 

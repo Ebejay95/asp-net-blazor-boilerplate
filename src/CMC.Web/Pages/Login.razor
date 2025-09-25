@@ -7,14 +7,24 @@
 @using CMC.Contracts.Common
 @using System.Net.Http.Json
 @using Microsoft.AspNetCore.Components
+@using Microsoft.JSInterop
 @inject NavigationManager Navigation
 @inject ILogger<Login> Logger
 @inject IBumperBus Bumper
 @inject HttpClient Http
+@inject IJSRuntime JS
+
 
 <PageTitle>Login</PageTitle>
 
-<section class="slim">
+<section class="slim center relative pointer-none">
+
+<canvas id="canvas" style="
+  position:absolute; inset:0;
+  width:100vw; height:100vh;
+  display:block;
+  z-index:-1;
+"></canvas>
     <div class="card">
         <h2>Login</h2>
 
@@ -58,6 +68,29 @@
     private readonly Dictionary<string, string[]> _errors = new(StringComparer.OrdinalIgnoreCase);
 
     private bool _isLoading;
+
+    // --- ADD: einmalige Initialisierung der BG-Animation ---
+    private bool _bgInitDone; // ADD
+
+    protected override async Task OnAfterRenderAsync(bool firstRender) // ADD
+    {
+        if (firstRender && !_bgInitDone)
+        {
+            try
+            {
+                // Ruft window.initBgAnimation(document.getElementById('canvas')) auf,
+                // ohne ein ElementReference zu benötigen.
+                await JS.InvokeVoidAsync("eval",
+                    "window.initBgAnimation && window.initBgAnimation(document.getElementById('canvas'));");
+                _bgInitDone = true;
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "BG animation init failed.");
+            }
+        }
+    }
+    // --- END ADD ---
 
     // Minimaler Request für FormRenderer
     private EFEditRequest _loginReq => new EFEditRequest

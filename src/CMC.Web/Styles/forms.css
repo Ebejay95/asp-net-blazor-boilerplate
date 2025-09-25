@@ -292,4 +292,18 @@
 	.input-group .form-control.pr-icon {
 		@apply pr-10;
 	}
+
+	.totp-input-container {
+		@apply flex flex-row gap-2;
+	}
+
+	.totp-inputs-wrapper {
+		@apply flex flex-col gap-2;
+	}
+
+	.totp-digit {
+		display: inline-block;
+		font-size: 1.2em;
+		font-weight: bold;
+	}
 }

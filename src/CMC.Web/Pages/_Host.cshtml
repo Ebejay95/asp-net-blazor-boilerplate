@@ -2,25 +2,27 @@
 @namespace CMC.Web.Pages
 @addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
 @{
-    Layout = null;
+Layout = null;
 }
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CMC</title>
     <base href="~/" />
     <link rel="stylesheet" href="~/style.css" asp-append-version="true" />
-    <script src="js/cockpit.js"></script>
+    <script src="/js/bg-animation.js"></script>
 </head>
+
 <body>
     <component type="typeof(App)" render-mode="Server" />
     <script src="_framework/blazor.server.js"></script>
     <script>
         // 🔧 Login Form Submit Helper
-        window.submitLoginForm = async function(loginRequest) {
+        window.submitLoginForm = async function (loginRequest) {
             try {
                 console.log('🔐 Submitting login form...', loginRequest);
 
@@ -48,5 +50,7 @@
             }
         };
     </script>
+    <script defer src="js/cockpit.js"></script>
 </body>
+
 </html>

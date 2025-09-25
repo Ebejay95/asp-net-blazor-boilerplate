@@ -24,6 +24,10 @@
 		@apply max-w-[1200px] m-auto;
 	}
 
+	section.center {
+		@apply justify-center;
+	}
+
 	section.fill {
 		@apply pl-0 pr-0;
 	}
@@ -45,7 +49,7 @@
 	}
 
 	.card {
-		@apply rounded-2xl bg-[#ffffff55] p-5;
+		@apply text-left bg-slate-100 p-5 rounded-lg;
 		box-shadow:
 			2px 2px 2px rgba(0, 0, 0, 0.1),
 			0px 0px 2px 2px white,

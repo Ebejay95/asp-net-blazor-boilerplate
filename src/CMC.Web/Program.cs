@@ -8,22 +8,33 @@ using CMC.Web.Auth;
 using CMC.Web.Hubs;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using CMC.Infrastructure.Extensions;
 using CMC.Infrastructure.Services;
+using Microsoft.Extensions.Options;
+using System.Security.Claims;
+
+// === Helper: Policy-Namen ausgeben (nur fürs Logging/Debugging) ===
+static IEnumerable<string> GetPolicyNames(AuthorizationOptions options)
+{
+    var pi = typeof(AuthorizationOptions).GetProperty("PolicyMap",
+        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+    if (pi?.GetValue(options) is IDictionary<string, AuthorizationPolicy> map)
+        return map.Keys;
+    return Enumerable.Empty<string>();
+}
 
 var builder = WebApplication.CreateBuilder(args);
 
-// DEV: weniger strikt validieren
 builder.Host.UseDefaultServiceProvider(options =>
 {
     options.ValidateScopes = true;
     options.ValidateOnBuild = !builder.Environment.IsDevelopment();
 });
 
-// Public Base URL aus Env oder Configuration bestimmen
 var publicBaseUrl = Environment.GetEnvironmentVariable("APP_PUBLIC_BASE_URL");
 var baseUrl = publicBaseUrl ?? "http://localhost:5000";
 
@@ -37,7 +48,6 @@ if (!string.IsNullOrWhiteSpace(publicBaseUrl))
     Console.WriteLine($"Public BaseUrl set from env: {publicBaseUrl}");
 }
 
-// WebHost URLs konfigurieren
 if (builder.Environment.IsDevelopment())
 {
     builder.WebHost.UseUrls("http://localhost:5000");
@@ -45,7 +55,6 @@ if (builder.Environment.IsDevelopment())
 
 Console.WriteLine($"HttpClient BaseAddress: {baseUrl}");
 
-// Session Support für 2FA Flow
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
@@ -56,22 +65,13 @@ builder.Services.AddSession(options =>
     options.Cookie.Name = "CMC_Session";
 });
 
-// Named HttpClient für API-Calls
 builder.Services.AddHttpClient("api", client =>
 {
     client.BaseAddress = new Uri(baseUrl);
     client.Timeout = TimeSpan.FromSeconds(30);
 });
+builder.Services.AddScoped<HttpClient>(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("api"));
 
-// Standard HttpClient für Blazor Components (mit korrekter BaseAddress)
-builder.Services.AddScoped<HttpClient>(sp =>
-{
-    var factory = sp.GetRequiredService<IHttpClientFactory>();
-    var client = factory.CreateClient("api");
-    return client;
-});
-
-// UI / Framework
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor(o => o.DetailedErrors = builder.Environment.IsDevelopment());
 builder.Services.AddControllers();
@@ -82,7 +82,6 @@ builder.Services.AddSignalR(o =>
     o.HandshakeTimeout = TimeSpan.FromSeconds(30);
 });
 
-// AUTH
 builder.Services.AddScoped<CookieEvents>();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
@@ -101,16 +100,41 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.AccessDeniedPath = "/login";
         options.EventsType = typeof(CookieEvents);
     });
-builder.Services.AddAuthorization();
+
+// Authorization Handler registrieren
+builder.Services.AddScoped<IAuthorizationHandler, MfaSetupHandler>();
+builder.Services.AddScoped<IAuthorizationHandler, MfaVerifiedHandler>();
+builder.Services.AddScoped<IAuthorizationHandler, NoMfaVerifiedHandler>();
+
+Console.WriteLine("[Auth] Registering authorization policies...");
+builder.Services.AddAuthorization(options =>
+{
+    Console.WriteLine("[Auth] Adding RequireMfaSetup policy");
+    options.AddPolicy("RequireMfaSetup", policy =>
+    {
+        policy.Requirements.Add(new MfaSetupRequirement());
+    });
+
+    Console.WriteLine("[Auth] Adding RequireMfaVerified policy");
+    options.AddPolicy("RequireMfaVerified", policy =>
+    {
+        policy.Requirements.Add(new MfaVerifiedRequirement());
+    });
+
+    Console.WriteLine("[Auth] Adding RequireNoMfaVerified policy");
+    options.AddPolicy("RequireNoMfaVerified", policy =>
+    {
+        policy.Requirements.Add(new NoMfaVerifiedRequirement());
+    });
+});
+
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddHttpContextAccessor();
 
-// Infrastruktur/Repos/DbContext
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddRevisionsSupport();
 builder.Services.AddScoped<DbContext>(sp => sp.GetRequiredService<AppDbContext>());
 
-// App-Services (DI)
 builder.Services.AddScoped<DialogService>();
 builder.Services.AddScoped<RelationDialogService>();
 builder.Services.AddScoped<EFEditService>();
@@ -118,14 +142,12 @@ builder.Services.AddScoped<EFEditService>();
 builder.Services.AddScoped<IRelationshipManager, RelationshipManager<AppDbContext>>();
 builder.Services.AddScoped<IBumperBus, BumperBus>();
 
-// Revisions-/Papierkorb
 builder.Services.AddScoped<IRevisionKeyResolver, DefaultRevisionKeyResolver>();
 builder.Services.AddScoped<IRevisionsClient, EfRevisionsClient>();
 builder.Services.AddScoped<CMC.Infrastructure.Services.RevisionService>();
 builder.Services.AddScoped<RecycleBinService>();
 builder.Services.AddScoped<IRecycleBinClient, RecycleBinClient>();
 
-// Application Services
 builder.Services.AddScoped<LibraryScenarioService>();
 builder.Services.AddScoped<LibraryControlService>();
 builder.Services.AddScoped<ReportService>();
@@ -140,12 +162,10 @@ builder.Services.AddScoped<IndustryService>();
 builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<INotificationPush, SignalRNotificationPush>();
 
-// Mail (Graph + Templates)
 builder.Services.AddGraphMailServices(builder.Configuration);
 
 var app = builder.Build();
 
-// Seed-only Modus
 if (args.Any(a => string.Equals(a, "seed-master-user", StringComparison.OrdinalIgnoreCase)))
 {
     Console.WriteLine("[seed] Running master-user seeder…");
@@ -197,7 +217,6 @@ if (args.Any(a => string.Equals(a, "seed-master-user", StringComparison.OrdinalI
     return;
 }
 
-// Forwarded Headers (Ingress)
 var fwd = new ForwardedHeadersOptions
 {
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
@@ -206,7 +225,6 @@ fwd.KnownNetworks.Clear();
 fwd.KnownProxies.Clear();
 app.UseForwardedHeaders(fwd);
 
-// Pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
@@ -222,7 +240,6 @@ else
 app.UseStaticFiles();
 app.UseRouting();
 
-// Session BEFORE Auth
 app.UseSession();
 
 app.UseAuthentication();
@@ -234,7 +251,13 @@ app.MapHub<NotificationHub>("/hubs/notifications");
 app.MapRazorPages();
 app.MapFallbackToPage("/_Host");
 
-// DB-Migration beim regulären Start
+using (var scope = app.Services.CreateScope())
+{
+    var authOpts = scope.ServiceProvider.GetRequiredService<IOptions<AuthorizationOptions>>().Value;
+    var names = GetPolicyNames(authOpts);
+    Console.WriteLine("[Auth] Registered policies: " + string.Join(", ", names));
+}
+
 using (var scope = app.Services.CreateScope())
 {
     try

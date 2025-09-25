@@ -6,7 +6,17 @@
 
 <PageTitle>CMC - Home</PageTitle>
 
-<section class="slim">
+<canvas id="canvas" style="
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      z-index: -1;
+      pointer-events: auto;
+"></canvas>
+<section class="slim center">
     <div class="card">
         <h1>
             Welcome to Cybersecurity Management Cockpit
@@ -23,3 +33,25 @@
     <NotAuthorized>
     </NotAuthorized>
 </AuthorizeView>
+
+@code {
+    private bool _bgInitDone;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender) // ADD
+    {
+        if (firstRender && !_bgInitDone)
+        {
+            try
+            {
+                // Ruft window.initBgAnimation(document.getElementById('canvas')) auf,
+                // ohne ein ElementReference zu benötigen.
+                await JS.InvokeVoidAsync("eval",
+                    "window.initBgAnimation && window.initBgAnimation(document.getElementById('canvas'));");
+                _bgInitDone = true;
+            }
+            catch (Exception ex)
+            {
+            }
+        }
+    }
+}

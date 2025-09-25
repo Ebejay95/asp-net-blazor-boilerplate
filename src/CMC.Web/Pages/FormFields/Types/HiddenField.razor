@@ -1,0 +1,13 @@
+@using CMC.Web.Pages.FormFields
+@inherits FormFieldBase
+
+<input
+    id="@Name"
+    name="@Name"
+    type="hidden"
+    value="@(Value?.ToString() ?? string.Empty)"
+    @attributes="AdditionalAttributes" />
+
+@code {
+    // Hidden fields don't need any additional parameters or visual elements
+}
