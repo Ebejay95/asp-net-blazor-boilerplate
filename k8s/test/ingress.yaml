@@ -13,10 +13,10 @@ spec:
   ingressClassName: traefik
   tls:
     - hosts:
-        - test.audicius.de
+        - test.examplecompany.de
       secretName: cmc-app-tls   # gleicher Name wie in Prod (Workflow legt ihn optional an)
   rules:
-    - host: test.audicius.de
+    - host: test.examplecompany.de
       http:
         paths:
           - path: /

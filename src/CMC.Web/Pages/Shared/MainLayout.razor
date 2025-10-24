@@ -1,17 +1,46 @@
-
 @using CMC.Web.Pages.Shared
 @inherits LayoutComponentBase
+@inject NavigationManager Nav
 
-<NavMenu />
-<main>
-    @Body
-    <AuthorizeView>
-        <Authorized>
-            <NotificationHost />
-        </Authorized>
-    </AuthorizeView>
-    <EditHost />
-    <DialogHost />
-    <BumperHost />
-</main>
-<MainFooter />
+<div class="main-wrap @MainWrapClass">
+    @if (HasBg)
+    {
+        <img class="main-wrap-bg" src="/img/bg.png" />
+    }
+
+    <NavMenu />
+    <main>
+        @Body
+        <AuthorizeView>
+            <Authorized>
+                <NotificationHost />
+            </Authorized>
+        </AuthorizeView>
+        <EditHost />
+        <DialogHost />
+        <BumperHost />
+    </main>
+    <MainFooter />
+</div>
+
+@code {
+    bool HasBg;
+    string MainWrapClass => HasBg ? "has-bg" : null;
+
+    protected override void OnInitialized()
+    {
+        UpdateBackground();
+        Nav.LocationChanged += (_, __) =>
+        {
+            UpdateBackground();
+            InvokeAsync(StateHasChanged);
+        };
+    }
+
+    void UpdateBackground()
+    {
+        var path = new Uri(Nav.Uri).AbsolutePath.ToLowerInvariant();
+
+        HasBg = path is "/" or "/register" or "/forgot-password" or "/reset-password";
+    }
+}

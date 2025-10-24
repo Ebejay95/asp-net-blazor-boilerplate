@@ -28,6 +28,11 @@
 		@apply justify-center;
 	}
 
+	section.center.single {
+		@apply relative items-center h-[100vh];
+	}
+
+
 	section.fill {
 		@apply pl-0 pr-0;
 	}
@@ -49,45 +54,11 @@
 	}
 
 	.card {
-		@apply text-left bg-slate-100 p-5 rounded-lg;
-		box-shadow:
-			2px 2px 2px rgba(0, 0, 0, 0.1),
-			0px 0px 2px 2px white,
-			inset -2px -2px 2px rgba(0, 0, 0, 0.1),
-			inset 2px 2px 2px white;
-
-		-webkit-box-shadow: 2px 2px 2px rgba(0, 0, 0, 0.1),
-			0px 0px 2px 2px white,
-			inset -2px -2px 2px rgba(0, 0, 0, 0.1),
-			inset 2px 2px 2px white;
-
-		-moz-box-shadow: 2px 2px 2px rgba(0, 0, 0, 0.1),
-			0px 0px 2px 2px white, inset -2px -2px 2px rgba(0, 0, 0, 0.1),
-			inset 2px 2px 2px white;
-	}
-
-	/*@apply rounded-2xl bg-[transparent] p-5;
-	box-shadow: 4px 4px 4px rgba(0, 0, 0, 0.1),
-	0px 0px 4px 4px white,
-	inset -2px -2px 2px rgba(0, 0, 0, 0.1),
-	inset 2px 2px 2px white;
-
-	-webkit-box-shadow: 4px 4px 4px rgba(0, 0, 0, 0.1),
-	0px 0px 4px 4px white,
-	inset -2px -2px 2px rgba(0, 0, 0, 0.1),
-	inset 2px 2px 2px white;
-
-	-moz-box-shadow: 4px 4px 4px rgba(0, 0, 0, 0.1),
-	0px 0px 4px 4px white,
-	inset -2px -2px 2px rgba(0, 0, 0, 0.1),
-	inset 2px 2px 2px white;
-	.card {
 		@apply rounded-2xl border border-slate-200 bg-white p-5;
 		--tw-shadow: 0 10px 25px -10px rgba(2, 6, 23, .15);
 		--tw-shadow-colored: 0 10px 25px -10px var(--tw-shadow-color);
 		box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
 	}
-	*/
 
 	.box {
 		@apply border border-slate-200 bg-white p-5;

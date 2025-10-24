@@ -198,5 +198,5 @@ jobs:
           kubectl -n cmc-prod get svc cmc-app -o wide
           kubectl -n cmc-prod get endpoints cmc-app -o wide
           kubectl -n cmc-prod get ingress cmc-app -o wide
-          curl -I http://cmc.audicius.de || true
-          curl -kI https://cmc.audicius.de/ || true
+          curl -I http://cmc.examplecompany.de || true
+          curl -kI https://cmc.examplecompany.de/ || true

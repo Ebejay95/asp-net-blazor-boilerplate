@@ -1,6 +1,6 @@
 @layer base {
     @font-face {
-        font-family: 'Audicius';
+        font-family: 'examplecompany';
         src: url('/fonts/earthorbiter/earthorbiter.ttf') format('truetype');
     }
 
@@ -21,7 +21,7 @@
     h4,
     h5,
     h6 {
-        @apply text-[var(--audicius-text)] font-bold;
+        @apply text-[var(--examplecompany-text)] font-bold;
     }
 
     h1,
@@ -55,8 +55,8 @@
         @apply text-base mb-3
     }
 
-    .audicius {
-        font-family: 'Audicius', sans-serif;
+    .examplecompany {
+        font-family: 'examplecompany', sans-serif;
     }
 
     .subtle {

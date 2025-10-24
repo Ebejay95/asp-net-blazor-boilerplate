@@ -18,30 +18,30 @@
 
 :root {
 	/* Colors */
-	--audicius-text: #444;
+	--examplecompany-text: #444;
 	--main-bg: rgb(248 250 252 / var(--tw-bg-opacity, 1));
-	--audicius-blue: #00609c;
-	--audicius-blue-light: #00609ce8;
-	--audicius-orange: #b77502;
-	--audicius-violett: #2d0278;
-	--audicius-danger: #b22701;
-	--audicius-success: #005724;
-	--audicius-orange-light: #b7750260;
-	--audicius-darken: #00000011;
+	--examplecompany-blue: #00609c;
+	--examplecompany-blue-light: #00609ce8;
+	--examplecompany-orange: #b77502;
+	--examplecompany-violett: #2d0278;
+	--examplecompany-danger: #b22701;
+	--examplecompany-success: #005724;
+	--examplecompany-orange-light: #b7750260;
+	--examplecompany-darken: #00000011;
 
 	/* Shadows */
-	--audicius-shadow: 0px 1px 6px 0px var(--audicius-orange-light);
-	-webkit-box-shadow: 0px 1px 6px 0px var(--audicius-orange-light);
-	-moz-box-shadow: 0px 1px 6px 0px var(--audicius-orange-light);
-	--audicius-hard-shadow: 0px 1px 6px 0px var(--audicius-orange);
-	-webkit-box-shadow: 0px 1px 6px 0px var(--audicius-orange);
-	-moz-box-shadow: 0px 1px 6px 0px var(--audicius-orange);
+	--examplecompany-shadow: 0px 1px 6px 0px var(--examplecompany-orange-light);
+	-webkit-box-shadow: 0px 1px 6px 0px var(--examplecompany-orange-light);
+	-moz-box-shadow: 0px 1px 6px 0px var(--examplecompany-orange-light);
+	--examplecompany-hard-shadow: 0px 1px 6px 0px var(--examplecompany-orange);
+	-webkit-box-shadow: 0px 1px 6px 0px var(--examplecompany-orange);
+	-moz-box-shadow: 0px 1px 6px 0px var(--examplecompany-orange);
 
 	/* Gradients */
-	--audicius-flare: linear-gradient(135deg, var(--audicius-blue-light) 0%, var(--audicius-blue) 15%, var(--audicius-violett) 100%);
-	--audicius-flare-mod: linear-gradient(135deg, var(--audicius-violett) 0%, var(--audicius-blue) 50%, var(--audicius-blue-light) 100%);
-	--audicius-overlay-right: linear-gradient(90deg, transparent 0%, #00000099 100%);
-	--audicius-overlay-middle: radial-gradient(circle, #00000099 0%, #00000060 50%, rgba(0, 0, 0, 0.349) 100%);
+	--examplecompany-flare: linear-gradient(135deg, var(--examplecompany-blue-light) 0%, var(--examplecompany-blue) 15%, var(--examplecompany-violett) 100%);
+	--examplecompany-flare-mod: linear-gradient(135deg, var(--examplecompany-violett) 0%, var(--examplecompany-blue) 50%, var(--examplecompany-blue-light) 100%);
+	--examplecompany-overlay-right: linear-gradient(90deg, transparent 0%, #00000099 100%);
+	--examplecompany-overlay-middle: radial-gradient(circle, #00000099 0%, #00000060 50%, rgba(0, 0, 0, 0.349) 100%);
 
 	/* Layout */
 	--board-cols: 12;
@@ -65,5 +65,13 @@ html {
 }
 
 body {
-	@apply h-full bg-slate-100 bg-no-repeat bg-cover m-0 p-0;
+	@apply h-full bg-no-repeat bg-cover m-0 p-0;
+}
+
+div.main-wrap img.main-wrap-bg {
+	display: block;
+	position: absolute;
+	width: 100vw;
+	height: 100vh;
+	object-fit: cover;
 }

@@ -4,7 +4,7 @@ TW_IN           := $(WEB_DIR)/Styles/app.css
 TW_OUT          := $(WEB_DIR)/wwwroot/style.css
 TW_PID          := tailwind.pid
 TW_LOG          := tailwind.log
-TWCLI           := npx @tailwindcss/cli@latest
+TWCLI           := npx -y -p @tailwindcss/cli@4.1.16 -p tailwindcss@4.1.16 tailwindcss
 TW_MODE         ?= bg       # bg | term (gnome-terminal/xterm)
 
 # ==== Docker Dev ====

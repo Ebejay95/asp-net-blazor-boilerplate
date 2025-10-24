@@ -18,18 +18,13 @@
 
 <PageTitle>2FA Verification</PageTitle>
 
-<canvas id="canvas" style="
-    position: fixed; top: 0; left: 0;
-    width: 100vw; height: 100vh;
-    display: block; z-index: -1; pointer-events: auto;"></canvas>
-
 <section class="slim center">
     <div class="card">
         @if (_accessDenied)
         {
             <h2>Zugriff verweigert</h2>
             <p class="alert error">Sie haben keinen gültigen Anmeldestatus für diese Seite.</p>
-            <a href="/login" class="button primary">Zur Anmeldung</a>
+            <a href="/" class="button primary">Zur Anmeldung</a>
         }
         else
         {
@@ -56,7 +51,7 @@
                 EnableEnterSubmit="true" />
 
             <p class="mt-4">
-                <a href="/login">Zurück zur Anmeldung</a>
+                <a href="/">Zurück zur Anmeldung</a>
             </p>
         }
     </div>
@@ -90,20 +85,6 @@
         ContractsAssembly = typeof(VerifyVm).Assembly,
         IsCreate = true
     };
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender && !_bgInitDone)
-        {
-            try
-            {
-                await JS.InvokeVoidAsync("eval",
-                    "window.initBgAnimation && window.initBgAnimation(document.getElementById('canvas'));");
-                _bgInitDone = true;
-            }
-            catch { /* optional */ }
-        }
-    }
 
     public async ValueTask DisposeAsync()
     {

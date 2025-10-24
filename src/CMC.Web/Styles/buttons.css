@@ -1,6 +1,6 @@
 @layer components {
 	.btn {
-		@apply relative inline-flex items-center justify-center text-base font-semibold cursor-pointer transition-all duration-[0.2s] ease-[ease-in-out] no-underline text-[color:var(--audicius-text)] px-[1.2rem] py-[0.6rem] rounded-lg border-[none] active:scale-[0.96] focus:outline-offset-0;
+		@apply relative inline-flex items-center justify-center text-base font-semibold cursor-pointer transition-all duration-[0.2s] ease-[ease-in-out] no-underline text-[color:var(--examplecompany-text)] px-[1.2rem] py-[0.6rem] rounded-lg border-[none] focus:outline-offset-0;
 
 		/* Dynamische Box-Shadow basierend auf --btn-bg */
 		--btn-bg: #f0f0f0;
@@ -9,12 +9,6 @@
 		--shadow-dark: color-mix(in srgb, var(--btn-bg) 80%, black);
 
 		background: var(--btn-bg);
-
-		box-shadow:
-			1px 1px 1px var(--shadow-dark),
-			0px 0px 1px 1px var(--shadow-light),
-			inset -1px -1px 1px var(--shadow-dark),
-			inset 1px 1px 1px var(--shadow-light);
 	}
 
 	.btn svg {
@@ -38,47 +32,35 @@
 	.btn:hover {
 		--shadow-light: color-mix(in srgb, var(--btn-bg) 85%, white);
 		--shadow-dark: color-mix(in srgb, var(--btn-bg) 70%, black);
-
-		box-shadow:
-			1px 1px 1px var(--shadow-dark),
-			0px 0px 1px 1px var(--shadow-light),
-			inset -1px -1px 1px var(--shadow-dark),
-			inset 1px 1px 1px var(--shadow-light);
 		outline: none;
 	}
 
 	.btn:active {
 		--shadow-light: color-mix(in srgb, var(--btn-bg) 70%, black);
 		--shadow-dark: color-mix(in srgb, var(--btn-bg) 85%, white);
-
-		box-shadow:
-			1px 1px 1px var(--shadow-light),
-			0px 0px 1px 1px var(--shadow-dark),
-			inset -1px -1px 1px var(--shadow-light),
-			inset 1px 1px 1px var(--shadow-dark);
 		outline: none;
 	}
 
 	/* === Variants === */
 	.btn.primary {
-		--btn-bg: var(--audicius-blue);
+		--btn-bg: var(--examplecompany-blue);
 		color: white;
 	}
 
 	.btn.danger {
-		--btn-bg: var(--audicius-danger);
+		--btn-bg: var(--examplecompany-danger);
 		color: white;
 	}
 
 	.btn.success {
-		--btn-bg: var(--audicius-success);
+		--btn-bg: var(--examplecompany-success);
 		color: white;
 	}
 
-	
+
 	.btn.secondary {
-		--btn-bg: var(--audicius-darken);
-		color: var(--audicius-text);
+		--btn-bg: var(--examplecompany-darken);
+		color: var(--examplecompany-text);
 	}
 
 	/* FLAT (clean, bordered) */
@@ -103,32 +85,5 @@
 
 	.btn-group .btn {
 		@apply rounded-none first:rounded-tl-lg first:rounded-bl-lg last:rounded-tr-lg last:rounded-br-lg;
-	}
-}
-
-/* Fallback für Browser ohne color-mix() Support */
-@supports not (color: color-mix(in srgb, red, blue)) {
-	.btn {
-		box-shadow:
-			1px 1px 1px rgba(0, 0, 0, 0.1),
-			0px 0px 1px 1px white,
-			inset -1px -1px 1px rgba(0, 0, 0, 0.1),
-			inset 1px 1px 1px white;
-	}
-
-	.btn:hover {
-		box-shadow:
-			1px 1px 1px rgba(0, 0, 0, 0.2),
-			0px 0px 1px 1px white,
-			inset -1px -1px 1px rgba(0, 0, 0, 0.2),
-			inset 1px 1px 1px white;
-	}
-
-	.btn:active {
-		box-shadow:
-			1px 1px 1px white,
-			0px 0px 1px 1px rgba(0, 0, 0, 0.2),
-			inset -1px -1px 1px white,
-			inset 1px 1px 1px rgba(0, 0, 0, 0.2);
 	}
 }

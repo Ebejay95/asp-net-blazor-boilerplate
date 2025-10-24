@@ -1,7 +1,7 @@
 @layer components {
     .ed-backdrop {
         @apply opacity-0 pointer-events-none fixed transition-opacity duration-[0.15s] ease-[ease] z-40 inset-0;
-        background: var(--audicius-overlay-right);
+        background: var(--examplecompany-overlay-right);
     }
 
     .ed-backdrop--open {

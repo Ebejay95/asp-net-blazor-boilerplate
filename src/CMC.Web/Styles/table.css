@@ -46,7 +46,7 @@
     .aud-table thead th {
         @apply sticky top-0 z-2 text-left font-semibold;
         background: linear-gradient(180deg, #fff, #f8fafc);
-        color: var(--audicius-blue);
+        color: var(--examplecompany-blue);
         @apply border-b border-slate-200;
     }
 
@@ -54,7 +54,7 @@
     .aud-table th,
     .aud-table td {
         @apply px-4 py-3 align-middle;
-        color: var(--audicius-text);
+        color: var(--examplecompany-text);
         white-space: nowrap;
     }
 

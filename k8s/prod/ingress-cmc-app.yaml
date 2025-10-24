@@ -13,10 +13,10 @@ spec:
   ingressClassName: traefik
   tls:
     - hosts:
-        - cmc.audicius.de
+        - cmc.examplecompany.de
       secretName: cmc-app-tls
   rules:
-    - host: cmc.audicius.de
+    - host: cmc.examplecompany.de
       http:
         paths:
           - path: /

@@ -3,7 +3,7 @@
     /* Confirm/Dialog Overlay */
     .confirm-backdrop {
         @apply pointer-events-none fixed transition-opacity duration-[0.18s] ease-[ease] z-[90] inset-0;
-        background: var(--audicius-overlay-middle);
+        background: var(--examplecompany-overlay-middle);
     }
 
     .confirm-dialog {

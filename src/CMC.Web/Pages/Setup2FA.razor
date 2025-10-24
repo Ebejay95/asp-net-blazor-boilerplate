@@ -23,12 +23,6 @@
 
 <PageTitle>2FA Setup</PageTitle>
 
-<canvas id="canvas" style="
-      position: fixed;
-      top: 0; left: 0;
-      width: 100vw; height: 100vh;
-      display: block; z-index: -1; pointer-events: auto;"></canvas>
-
 <section class="slim center">
     <div class="card">
         @if (_accessDenied)
@@ -105,7 +99,6 @@
     private readonly Dictionary<string, object?> _overrides = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string[]> _errors = new(StringComparer.OrdinalIgnoreCase);
 
-    private bool _bgInitDone;
     private bool _initialized;
     private bool _isInitError;
     private string _initErrorMessage = string.Empty;
@@ -125,22 +118,6 @@
         IsCreate = true
     };
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender && !_bgInitDone)
-        {
-            try
-            {
-                await JS.InvokeVoidAsync("eval",
-                    "window.initBgAnimation && window.initBgAnimation(document.getElementById('canvas'));");
-                _bgInitDone = true;
-            }
-            catch (Exception ex)
-            {
-                Logger.LogWarning(ex, "Background animation init failed");
-            }
-        }
-    }
 
     public async ValueTask DisposeAsync()
     {
@@ -287,17 +264,17 @@
             }
             else
             {
-                Navigation.NavigateTo("/login");
+                Navigation.NavigateTo("/");
             }
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error skipping 2FA setup");
-            Navigation.NavigateTo("/login");
+            Navigation.NavigateTo("/");
         }
     }
 
-    private void RedirectToLogin() => Navigation.NavigateTo("/login");
+    private void RedirectToLogin() => Navigation.NavigateTo("/");
 
     // ----- Helper aus deinem Original -----
     private bool HasValidPendingLoginSession()
@@ -342,8 +319,8 @@
             return "CMC App (Dev)";
 
         var baseUrl = System.Environment.GetEnvironmentVariable("APP_PUBLIC_BASE_URL") ?? "";
-        if (baseUrl.Contains("test.audicius.de")) return "CMC App (Test)";
-        if (baseUrl.Contains("cmc.audicius.de")) return "CMC App";
+        if (baseUrl.Contains("test.examplecompany.de")) return "CMC App (Test)";
+        if (baseUrl.Contains("cmc.examplecompany.de")) return "CMC App";
         if (baseUrl.Contains("localhost")) return "CMC App (Dev)";
 
         var envLabel = System.Environment.GetEnvironmentVariable("CMC_ENV_LABEL");

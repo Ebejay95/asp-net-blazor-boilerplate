@@ -15,6 +15,6 @@ public sealed class GraphMailOptions
     public string? FromName  { get; set; }
     public string? FromEmail { get; set; }
 
-    /// <summary>Basis-URL für Links in Mails (z.B. https://cmc.audicius.de)</summary>
+    /// <summary>Basis-URL für Links in Mails (z.B. https://cmc.examplecompany.de)</summary>
     public string? PublicBaseUrl { get; set; }
 }
